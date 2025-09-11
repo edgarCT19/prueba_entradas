@@ -350,13 +350,21 @@ def generar_pdf_nota_salida(nota_salida_id):
         can.line(30, y_position+24 , page_width - 30, y_position+24)
         
         y_position -= 15
-        # === LEYENDA DE RESPONSABILIDAD ===
+
+
+        # ... después de la línea: can.line(30, y_position+24 , page_width - 30, y_position+24)
+        # y_position -= 15
+
+        # Segunda página: Términos y condiciones y firmas
+        can.showPage()
+        y_position = page_height - 60  # Reinicia la posición para la nueva página
+
+        # Título
         can.setFont("Carlito", 11)
-        can.drawString(60, y_position+24, "TÉRMINOS Y CONDICIONES")
+        can.drawString(60, y_position, "TÉRMINOS Y CONDICIONES")
+        y_position -= 20
 
-        y_position += 20
-
-        # Crear estilo para párrafos
+        # Párrafo de términos y condiciones
         styles = getSampleStyleSheet()
         style_normal = ParagraphStyle(
             'CustomNormal',
@@ -369,9 +377,7 @@ def generar_pdf_nota_salida(nota_salida_id):
             spaceAfter=6,
         )
 
-        # Texto completo como un solo párrafo con saltos de línea automáticos
         texto_completo = """
-
         POR MEDIO DE LA PRESENTE, RECONOZCO HABER RECIBIDO EN PERFECTO ESTADO Y FUNCIONANDO EL EQUIPO DESCRITO ANTERIORMENTE.<br/>
         ME COMPROMETO A:<br/>
         • HACER USO RESPONSABLE DEL EQUIPO RENTADO.<br/>
@@ -379,51 +385,29 @@ def generar_pdf_nota_salida(nota_salida_id):
         • DEVOLVER EL EQUIPO COMPLETO EN LA FECHA ACORDADA.<br/>
         • RESPONDER POR CUALQUIER DAÑO, PÉRDIDA O ROBO DEL EQUIPO DURANTE EL PERÍODO DE RENTA.<br/>
         • CUMPLIR CON TODAS LAS CONDICIONES ESTABLECIDAS EN EL CONTRATO DE RENTA.<br/><br/>
-
         <b>IMPORTANTE:</b> EN CASO DE NO DEVOLVER EL EQUIPO EN LA FECHA Y HORA LÍMITE ESTABLECIDA, ACEPTO QUE SE ME REALIZARÁ EL CARGO DE COBRO CORRESPONDIENTE POR DÍA DE RETRASO;
-          EL COBRO SE CALCULARÁ CON BASE EN LA TARIFA DIARIA ORIGINAL DE LA RENTA.<br/><br/>
-
+        EL COBRO SE CALCULARÁ CON BASE EN LA TARIFA DIARIA ORIGINAL DE LA RENTA.<br/><br/>
         LA EMPRESA SE DESLINDA DE CUALQUIER RESPONSABILIDAD POR ACCIDENTES O DAÑOS CAUSADOS POR EL MAL USO DEL EQUIPO. EL CLIENTE ASUME TODA RESPONSABILIDAD DURANTE EL PERÍODO DE RENTA.
         """
 
-        # Crear y dibujar el párrafo
         p = Paragraph(texto_completo, style_normal)
-        ancho_disponible = page_width - 120  # Margen de 60 píxeles a cada lado
+        ancho_disponible = page_width - 120
         alto_disponible = y_position - 150
-
-        # Verificar si necesitamos nueva página
-        if y_position < 200:
-            can.showPage()
-            y_position = page_height - 60
-            alto_disponible = y_position - 150
-
         w, h = p.wrap(ancho_disponible, alto_disponible)
         p.drawOn(can, 60, y_position - h)
-
         y_position -= h + 20
-        
 
-        # === FIRMAS ===
-        if y_position < 120:
-            can.showPage()
-            y_position = page_height - 200
-        
-        y_position -= 30
-        # Líneas para firmas
+        # Firmas
         can.setFont("Carlito", 10)
         can.line(60, y_position, 250, y_position)  # Línea cliente
         can.line(350, y_position, 540, y_position)  # Línea empresa
-        
         y_position -= 15
-        
-        # Etiquetas de firmas
         can.drawString(60, y_position, "FIRMA DEL LA EMPRESA")
         can.drawString(350, y_position, "FIRMA DEL CLIENTE")
-        
         y_position -= 20
         can.drawString(60, y_position, "ENTREGA: ________________________")
         can.drawString(350, y_position, "RECIBE: ________________________")
-        
+
         # Observaciones si existen
         if nota['observaciones']:
             y_position -= 40
@@ -432,6 +416,7 @@ def generar_pdf_nota_salida(nota_salida_id):
             y_position -= 12
             can.setFont("Carlito", 9)
             can.drawString(60, y_position, nota['observaciones'])
+
         
         # Guardar el canvas
         can.save()
@@ -439,43 +424,54 @@ def generar_pdf_nota_salida(nota_salida_id):
         
         # --- COMBINAR CON LA PLANTILLA ---
         try:
+
             plantilla_path = os.path.join(current_app.root_path, 'static/notas/salida_plantilla.pdf')
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+
+
             if os.path.exists(plantilla_path):
                 plantilla_pdf = PdfReader(plantilla_path)
-                overlay_pdf = PdfReader(packet)
-                output = PdfWriter()
-                
+
+                # Primera página: plantilla + overlay
                 page = plantilla_pdf.pages[0]
                 page.merge_page(overlay_pdf.pages[0])
                 output.add_page(page)
+
+                # Páginas siguientes: solo overlay (blanco)
+                for i in range(1, len(overlay_pdf.pages)):
+                    output.add_page(overlay_pdf.pages[i])
             else:
-                # Si no hay plantilla, usar solo el overlay
-                overlay_pdf = PdfReader(packet)
-                output = PdfWriter()
-                output.add_page(overlay_pdf.pages[0])
+                # Si no hay plantilla, agrega todas las páginas del overlay
+                for page in overlay_pdf.pages:
+                    output.add_page(page)
+
         except Exception as e:
             print(f"Error con plantilla: {e}")
             overlay_pdf = PdfReader(packet)
             output = PdfWriter()
-            output.add_page(overlay_pdf.pages[0])
-        
+            for page in overlay_pdf.pages:
+                output.add_page(page)
+
+
         output_stream = BytesIO()
         output.write(output_stream)
         output_stream.seek(0)
-        
+
         return send_file(
             output_stream, 
             download_name=f"nota_salida_{str(nota['folio']).zfill(5)}.pdf", 
             mimetype='application/pdf'
         )
-        
+    
     except Exception as e:
         if cursor:
             cursor.close()
         if conn:
             conn.close()
         return f"Error al generar PDF: {str(e)}", 500
-    
+
+
 @notas_salida_bp.route('/pdf_renta/<int:renta_id>')
 def generar_pdf_nota_salida_por_renta(renta_id):
     conn = get_db_connection()

@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.rentaIdNotaEntradaActual = null;
     window.notaEntradaPiezas = [];
     window.notaEntradaNotaSalidaId = null;
+    window.notaEntradaEnRecoleccion = false;
 
 
     function revisarCobroExtra() {
@@ -139,7 +140,36 @@ document.addEventListener('DOMContentLoaded', function () {
                     document.getElementById('cliente-nombre').textContent = data.cliente;
                     document.getElementById('cliente-telefono').textContent = data.telefono;
                     document.getElementById('direccion-obra').textContent = data.direccion_obra;
+
+
                     document.getElementById('traslado-original').textContent = data.traslado_original;
+                    const divCheckboxRecoleccion = document.getElementById('div-checkbox-recoleccion');
+                    const checkboxRecoleccion = document.getElementById('checkbox-recoleccion');
+                    divCheckboxRecoleccion.classList.remove('d-none');
+                    checkboxRecoleccion.checked = false;
+
+                    checkboxRecoleccion.addEventListener('change', function () {
+                        const deshabilitar = checkboxRecoleccion.checked;
+                        window.notaEntradaEnRecoleccion = deshabilitar;
+                        // Deshabilita/limpia todos los campos de cantidades
+                        document.querySelectorAll('.cantidad-recibida, .cantidad-buena, .cantidad-danada, .cantidad-sucia, .cantidad-perdida').forEach(input => {
+                            input.disabled = deshabilitar;
+                            if (deshabilitar) input.value = '';
+                            else {
+                                // Si quieres restaurar valores por defecto al desmarcar, puedes hacerlo aquí
+                                const idx = input.dataset.idx;
+                                if (typeof idx !== 'undefined') {
+                                    if (input.classList.contains('cantidad-recibida') || input.classList.contains('cantidad-buena')) {
+                                        input.value = data.piezas[idx].cantidad_esperada;
+                                    } else {
+                                        input.value = 0;
+                                    }
+                                }
+                            }
+                        });
+                    });
+
+
                     document.getElementById('fecha-hora-entrada').textContent = data.fecha_hora;
                     document.getElementById('fecha-limite-entrada').textContent = data.fecha_limite;
 
@@ -322,17 +352,29 @@ document.addEventListener('DOMContentLoaded', function () {
             const observaciones = document.getElementById('observaciones-entrada').value;
             const accionDevolucion = document.querySelector('input[name="accion_devolucion"]:checked')?.value || 'no';
 
+            
             // Armar piezas
-            const piezas = window.notaEntradaPiezas.map((pieza, idx) => ({
-                id_pieza: pieza.id_pieza,
-                cantidad_esperada: pieza.cantidad_esperada,
-                cantidad_recibida: parseInt(document.querySelector(`.cantidad-recibida[data-idx="${idx}"]`).value) || 0,
-                cantidad_buena: parseInt(document.querySelector(`.cantidad-buena[data-idx="${idx}"]`).value) || 0,
-                cantidad_danada: parseInt(document.querySelector(`.cantidad-danada[data-idx="${idx}"]`).value) || 0,
-                cantidad_sucia: parseInt(document.querySelector(`.cantidad-sucia[data-idx="${idx}"]`).value) || 0,
-                cantidad_perdida: parseInt(document.querySelector(`.cantidad-perdida[data-idx="${idx}"]`).value) || 0,
-                observaciones_pieza: '' // Si tienes campo de observaciones por pieza, agrégalo aquí
-            }));
+            const piezas = window.notaEntradaEnRecoleccion
+                ? window.notaEntradaPiezas.map(pieza => ({
+                    id_pieza: pieza.id_pieza,
+                    cantidad_esperada: pieza.cantidad_esperada,
+                    cantidad_recibida: '',
+                    cantidad_buena: '',
+                    cantidad_danada: '',
+                    cantidad_sucia: '',
+                    cantidad_perdida: '',
+                    observaciones_pieza: ''
+                }))
+                : window.notaEntradaPiezas.map((pieza, idx) => ({
+                    id_pieza: pieza.id_pieza,
+                    cantidad_esperada: pieza.cantidad_esperada,
+                    cantidad_recibida: parseInt(document.querySelector(`.cantidad-recibida[data-idx="${idx}"]`).value) || 0,
+                    cantidad_buena: parseInt(document.querySelector(`.cantidad-buena[data-idx="${idx}"]`).value) || 0,
+                    cantidad_danada: parseInt(document.querySelector(`.cantidad-danada[data-idx="${idx}"]`).value) || 0,
+                    cantidad_sucia: parseInt(document.querySelector(`.cantidad-sucia[data-idx="${idx}"]`).value) || 0,
+                    cantidad_perdida: parseInt(document.querySelector(`.cantidad-perdida[data-idx="${idx}"]`).value) || 0,
+                    observaciones_pieza: ''
+                }));
 
 
             const cobrarRetraso = (() => {
