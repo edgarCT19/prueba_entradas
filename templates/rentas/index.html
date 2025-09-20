@@ -86,6 +86,7 @@
             <th>Estado de pago</th>
             <th>Método de pago</th>
             <th>Total en $</th>
+            <th>Renta asociada</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -224,6 +225,7 @@
             <!-- COLUMNA MÉTODO DE PAGO -->
             <td><small>{{ renta[6] or 'N/A' }}</small></td>
             <td><strong>${{ '%.2f'|format(renta[7]) }}</strong></td>
+            <td>{{renta[22]}}</td>
 
             <!-- COLUMNA DE ACCIONES -->
             <td>
@@ -293,8 +295,12 @@
                   </button>
                   <ul class="dropdown-menu">
                     <li>
-                      <a class="dropdown-item btn-nota-salida" href="#" data-renta-id="{{ renta[0] }}">
-                        <i class="bi bi-arrow-right-circle me-2 text-danger"></i>Crear Nota de Salida
+                      <a class="dropdown-item btn-nota-salida {% if renta[22] %}disabled{% endif %}"
+                        href="#" 
+                        data-renta-id="{{ renta[0] }}"
+                        {% if renta[22] %}tabindex="-1" aria-disabled="true"{% endif %}>
+                        <i class="bi bi-arrow-right-circle me-2 {% if renta[22] %}text-secondary{% else %}text-danger{% endif %}"></i>
+                        Crear Nota de Salida
                       </a>
                     </li>
                     <li>
@@ -336,10 +342,6 @@
                   data-bs-placement="top" data-bs-toggle="tooltip" title="Eliminar esta renta permanentemente">
                   <i class="bi bi-trash-fill"></i>
                 </button>
-                <a class="btn btn-sm btn-light no-caret rounded rounded-circle btn-abrir-modal-renovacion" type="button"
-                  data-bs-placement="top" href="#" data-bs-toggle="tooltip" title="Renovar renta" data-renta-id="{{ renta[0] }}">
-                  <i class="bi bi-arrow-repeat"></i>
-                </a>
               </div>
             </td>
           </tr>

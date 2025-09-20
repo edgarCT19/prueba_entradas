@@ -8,6 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from io import BytesIO
 
+from itertools import zip_longest
 
 
 rentas_bp = Blueprint('rentas', __name__, url_prefix='/rentas')
@@ -47,7 +48,7 @@ def modulo_rentas():
             FROM notas_entrada ne2
             JOIN notas_entrada_detalle ned ON ned.nota_entrada_id = ne2.id
             WHERE ne2.renta_id = r.id AND ned.cantidad_esperada > ned.cantidad_recibida
-        ) AS piezas_pendientes
+        ) AS piezas_pendientes, r.renta_asociada_id 
     FROM rentas r
     JOIN clientes c ON r.cliente_id = c.id
     LEFT JOIN notas_entrada ne ON ne.renta_id = r.id
@@ -467,7 +468,7 @@ def obtener_detalle_renta(renta_id):
         
         # Productos de la renta
         cursor.execute("""
-            SELECT p.nombre, rd.cantidad, rd.dias_renta, rd.costo_unitario, rd.subtotal
+            SELECT p.id_producto, p.nombre, rd.cantidad, rd.dias_renta, rd.costo_unitario, rd.subtotal
             FROM renta_detalle rd
             JOIN productos p ON rd.id_producto = p.id_producto
             WHERE rd.renta_id = %s
@@ -501,8 +502,8 @@ def obtener_detalle_renta(renta_id):
             'renta': {
                 'id': renta['id'],
                 'fecha_registro': renta['fecha_registro'].strftime('%d/%m/%Y %H:%M:%S'),
-                'fecha_salida': renta['fecha_salida'].strftime('%d/%m/%Y') if renta['fecha_salida'] else 'No definida',
-                'fecha_entrada': renta['fecha_entrada'].strftime('%d/%m/%Y') if renta['fecha_entrada'] else 'Indefinida',
+                'fecha_salida': renta['fecha_salida'].strftime('%Y-%m-%d') if renta['fecha_salida'] else 'No definida',
+                'fecha_entrada': renta['fecha_entrada'].strftime('%Y-%m-%d') if renta['fecha_entrada'] else 'Indefinida',
                 'estado_renta': renta['estado_renta'],
                 'estado_pago': renta['estado_pago'],
                 'metodo_pago': renta['metodo_pago'] or 'No definido',
@@ -588,16 +589,10 @@ def renovar_renta(renta_id):
 
         # Insertar productos renovados en renta_detalle
         total = 0
-        for i in range(len(productos)):
-            prod_id_raw = productos[i]
-            cant_raw = cantidades[i]
-            dias_raw = dias_form[i] if i < len(dias_form) else "1"
-            costo_raw = costos[i]
-
-            # Saltar si datos inválidos
+        for prod_id_raw, cant_raw, dias_raw, costo_raw in zip_longest(productos, cantidades, dias_form, costos):
+            # Saltar si algún dato es inválido
             if not prod_id_raw or not cant_raw or not costo_raw:
                 continue
-
             try:
                 prod_id = int(prod_id_raw)
                 cant = int(cant_raw)
@@ -605,7 +600,7 @@ def renovar_renta(renta_id):
             except ValueError:
                 continue
 
-            # Calcular días según fechas o datos
+            # Calcular días según fechas o datos existentes
             if fecha_entrada:
                 try:
                     fecha_salida_dt = datetime.strptime(nueva_fecha_salida, "%Y-%m-%d")
