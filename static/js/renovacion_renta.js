@@ -5,129 +5,155 @@ document.addEventListener('DOMContentLoaded', function () {
     const fechaInicioInput = document.getElementById('fecha_salida_modal');
     const fechaFinInput = document.getElementById('fecha_entrada_modal');
     const tbody = document.querySelector('#tabla-productos-renovacion tbody');
+    const trasladoEl = document.getElementById('costo_traslado');
 
+    // Función para calcular días según fechas
+    function calcularDiasRenta() {
+        const inicio = fechaInicioInput.value;
+        const fin = fechaFinInput.value;
+        if (!inicio || !fin) return 1;
+        let dias = Math.floor((new Date(fin) - new Date(inicio)) / (1000 * 60 * 60 * 24)) + 1;
+        return dias < 1 ? 1 : dias;
+    }
+
+    // Obtener precio según días y producto
+    function obtenerPrecioProducto(productoId, dias) {
+        const precios = window.preciosProductos ? window.preciosProductos[String(productoId)] : null;
+        if (!precios) return 0;
+        if (precios.precio_unico === 1) return precios.precio_dia;
+        if (dias === 1) return precios.precio_dia;
+        if (dias >= 2 && dias <= 7) return precios.precio_7dias;
+        if (dias >= 8 && dias <= 15) return precios.precio_15dias;
+        if (dias >= 16 && dias <= 30) return precios.precio_30dias;
+        if (dias >= 31) return precios.precio_31mas;
+        return precios.precio_dia;
+    }
+
+    // Recalcular totales dinámicos
+    function recalcularTotalesDinamicos() {
+        let subtotal = 0;
+        tbody.querySelectorAll('tr').forEach(fila => {
+            const cantidad = parseFloat(fila.querySelector('.cantidad').value) || 0;
+            const dias = parseFloat(fila.querySelector('.dias').value) || 1;
+            const costo = parseFloat(fila.querySelector('.costo').value) || 0;
+            const filaSubtotal = cantidad * dias * costo;
+            fila.querySelector('.subtotal').value = filaSubtotal.toFixed(2);
+            subtotal += filaSubtotal;
+        });
+
+        const traslado = trasladoEl ? parseFloat(trasladoEl.value) || 0 : 0;
+        const subtotalConTraslado = subtotal + traslado;
+        const iva = subtotalConTraslado * 0.16;
+        const total = subtotalConTraslado + iva;
+
+        const container = document.getElementById('totales_container');
+        container.innerHTML = `
+            <table class="table table-sm">
+                <tr>
+                    <td>Subtotal</td>
+                    <td id="subtotal_general">$${subtotal.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>+IVA (16%)</td>
+                    <td id="iva_general">$${iva.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td id="total_general"><strong>$${total.toFixed(2)}</strong></td>
+                </tr>
+            </table>
+        `;
+    }
+
+    // Actualizar días y precios según fechas
+    function actualizarDiasYPrecios() {
+        const dias = calcularDiasRenta();
+        tbody.querySelectorAll('tr').forEach(fila => {
+            const diasInput = fila.querySelector('.dias');
+            const costoInput = fila.querySelector('.costo');
+            const productoIdInput = fila.querySelector('input[name="producto_id[]"]');
+
+            if (diasInput && costoInput && productoIdInput) {
+                diasInput.value = dias;
+                const precio = obtenerPrecioProducto(productoIdInput.value, dias);
+                costoInput.value = precio.toFixed(2);
+            }
+        });
+
+        recalcularTotalesDinamicos();
+    }
+
+    // Abrir modal y cargar datos
     botones.forEach(btn => {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
-            const rentaId = this.getAttribute('data-renta-id');
-
-            // Actualizar action del form con el ID de la renta
+            const rentaId = this.dataset.rentaId;
             formRenovar.action = `/rentas/renovar/${rentaId}`;
             document.getElementById('renta_id_hidden').value = rentaId;
 
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
 
-            const clienteInput = document.getElementById('cliente_nombre_modal');
-            const direccionInput = document.getElementById('direccion_obra_modal');
-            const observacionesInput = document.getElementById('observaciones_modal');
+            // Limpiar tabla y campos
+            tbody.innerHTML = '';
+            document.getElementById('cliente_nombre_modal').value = 'Cargando...';
+            document.getElementById('direccion_obra_modal').value = '';
+            fechaInicioInput.value = '';
+            fechaFinInput.value = '';
+            document.getElementById('observaciones_modal').value = '';
 
-            // Limpiar campos
-            clienteInput.value = "Cargando...";
-            direccionInput.value = "";
-            fechaInicioInput.value = "";
-            fechaFinInput.value = "";
-            observacionesInput.value = "";
-            tbody.innerHTML = "";
-
-            // Traer datos de la renta original
             fetch(`/rentas/detalle/${rentaId}`)
                 .then(res => res.json())
                 .then(data => {
-                    clienteInput.value = data.cliente.nombre || '';
-                    direccionInput.value = data.renta.direccion_obra || '';
-                    fechaInicioInput.value = data.renta.fecha_salida || '';
-                    fechaFinInput.value = data.renta.fecha_entrada || '';
-                    observacionesInput.value = data.renta.observaciones || '';
+                    document.getElementById('cliente_nombre_modal').value = data.cliente.nombre || '';
+                    document.getElementById('direccion_obra_modal').value = data.renta.direccion_obra || '';
+                    fechaInicioInput.value = data.renta.fecha_salida?.substring(0, 10) || '';
+                    fechaFinInput.value = data.renta.fecha_entrada?.substring(0, 10) || '';
+                    document.getElementById('observaciones_modal').value = data.renta.observaciones || '';
 
-                   if (Array.isArray(data.productos)) {
+                    if (Array.isArray(data.productos)) {
                         data.productos.forEach(p => {
                             const cantidad = Number(p.cantidad) || 1;
-                            const costo = Number(p.costo_unitario) || 0;
-                            const dias = Number(p.dias) || 1; // tomar dias de la renta original
-                            const subtotal = (cantidad * dias * costo).toFixed(2);
+                            const dias = calcularDiasRenta();
+                            const precio = obtenerPrecioProducto(p.id_producto, dias);
 
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
-                                <td>${p.nombre}<input type="hidden" name="producto_id[]" value="${p.id || ''}"></td>
-                                <td><input type="number" name="cantidad[]" value="${cantidad}" min="1" class="form-control cantidad-input"></td>
-                                <td><input type="number" name="dias_renta[]" value="${dias}" min="1" class="form-control dias-input"></td>
-                                <td><input type="number" name="costo_unitario[]" value="${costo}" step="0.01" class="form-control costo-input"></td>
-                                <td class="subtotal-cell">${subtotal}</td>
-                                <td><button type="button" class="btn btn-danger btn-quitar">Quitar</button></td>
+                                <td><input type="hidden" name="producto_id[]" value="${p.id_producto}">${p.nombre}</td>
+                                <td><input type="number" name="cantidad[]" class="form-control cantidad" min="1" value="${cantidad}"></td>
+                                <td><input type="number" name="dias_renta[]" class="form-control dias" min="1" value="${dias}" readonly style="width:50px;"></td>
+                                <td><input type="number" name="costo_unitario[]" class="form-control costo" step="0.01" min="0" value="${precio.toFixed(2)}" readonly></td>
+                                <td><input type="number" class="form-control subtotal" step="0.01" min="0" value="${(cantidad*dias*precio).toFixed(2)}" readonly></td>
+                                <td><button type="button" class="btn btn-danger btn-sm btn-quitar"><i class="bi bi-trash"></i></button></td>
                             `;
                             tbody.appendChild(tr);
                         });
+                        actualizarDiasYPrecios();
                     }
-
-                    calcularTotales();
                 })
-                .catch(err => console.error(err));
+                .catch(console.error);
         });
     });
 
-    // Quitar productos
+    // Eliminar producto de la tabla
     tbody.addEventListener('click', function (e) {
-        if (e.target.classList.contains('btn-quitar')) {
+        if (e.target.closest('.btn-quitar')) {
             e.target.closest('tr').remove();
-            calcularTotales();
+            recalcularTotalesDinamicos();
         }
     });
 
-    // Recalcular subtotal al cambiar cantidad, días o costo
+    // Recalcular totales cuando cambian cantidad o costo
     tbody.addEventListener('input', function (e) {
-        const tr = e.target.closest('tr');
-        if (tr) {
-            actualizarSubtotal(tr);
-            calcularTotales();
+        if (e.target.classList.contains('cantidad') || e.target.classList.contains('costo')) {
+            recalcularTotalesDinamicos();
         }
     });
 
-    // Recalcular días y subtotales cuando cambian fechas
-    fechaInicioInput.addEventListener('change', actualizarDias);
-    fechaFinInput.addEventListener('change', actualizarDias);
+    // Recalcular totales cuando cambian fechas
+    fechaInicioInput.addEventListener('change', actualizarDiasYPrecios);
+    fechaFinInput.addEventListener('change', actualizarDiasYPrecios);
 
-    function calcularDiasActual() {
-        const fechaInicio = new Date(fechaInicioInput.value);
-        const fechaFin = new Date(fechaFinInput.value);
-
-        if (isNaN(fechaInicio.getTime())) return 1;
-
-        let dias = 1;
-        if (!isNaN(fechaFin.getTime())) {
-            dias = (fechaFin - fechaInicio) / (1000 * 60 * 60 * 24) + 1;
-            if (dias < 1) dias = 1;
-        }
-        return dias;
-    }
-
-    function actualizarDias() {
-        const dias = calcularDiasActual();
-        document.querySelectorAll('.dias-input').forEach(input => {
-            input.value = dias;
-            const tr = input.closest('tr');
-            actualizarSubtotal(tr);
-        });
-        calcularTotales();
-    }
-
-    function actualizarSubtotal(tr) {
-        const cantidad = Number(tr.querySelector('.cantidad-input').value) || 0;
-        const dias = Number(tr.querySelector('.dias-input').value) || 0;
-        const costo = Number(tr.querySelector('.costo-input').value) || 0;
-        tr.querySelector('.subtotal-cell').textContent = (cantidad * dias * costo).toFixed(2);
-    }
-
-    function calcularTotales() {
-        let subtotal = 0;
-        document.querySelectorAll('#tabla-productos-renovacion .subtotal-cell').forEach(td => {
-            subtotal += parseFloat(td.textContent) || 0;
-        });
-        const iva = subtotal * 0.16;
-        const total = subtotal + iva;
-
-        document.getElementById('subtotal_general').textContent = `$${subtotal.toFixed(2)}`;
-        document.getElementById('iva_general').textContent = `$${iva.toFixed(2)}`;
-        document.getElementById('total_general').textContent = `$${total.toFixed(2)}`;
-    }
+    // Recalcular totales cuando cambia traslado
+    if (trasladoEl) trasladoEl.addEventListener('input', recalcularTotalesDinamicos);
 });
