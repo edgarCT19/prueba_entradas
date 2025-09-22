@@ -30,7 +30,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         document.getElementById('prefactura-detalle-pago').innerHTML = '<div class="text-center text-muted">Cargando...</div>';
-        document.getElementById('prefactura-total-pago').textContent = '0.00';
         document.getElementById('pago-total-pago').textContent = '0.00';
 
         // Reiniciar campos de pago
@@ -119,7 +118,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
 
                 document.getElementById('prefactura-detalle-pago').innerHTML = html;
-                document.getElementById('prefactura-total-pago').textContent = total.toFixed(2);
                 document.getElementById('pago-total-pago').textContent = total.toFixed(2);
 
                 // Listeners para pago

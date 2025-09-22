@@ -178,17 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
     actualizarTipoTraslado();
 
 
-    // Deshabilitar botón y mostrar spinner al enviar el formulario de nueva renta
-    document.addEventListener('DOMContentLoaded', function () {
-        const formNuevaRenta = document.getElementById('form-nueva-renta');
-        const btnGuardarRenta = document.getElementById('btn-guardar-renta');
-        if (formNuevaRenta && btnGuardarRenta) {
-            formNuevaRenta.addEventListener('submit', function () {
-                btnGuardarRenta.disabled = true;
-                btnGuardarRenta.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
-            });
-        }
-    });
+
 
 
     // Listener para abrir el modal de Nota de Entrada desde la tabla de rentas
@@ -226,6 +216,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    const formNuevaRenta = document.getElementById('form-nueva-renta');
+    const btnGuardarRenta = document.getElementById('btn-guardar-renta');
+    if (formNuevaRenta && btnGuardarRenta) {
+        formNuevaRenta.addEventListener('submit', function () {
+            btnGuardarRenta.disabled = true;
+            btnGuardarRenta.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+        });
+    }
+
 
 
 })
+
