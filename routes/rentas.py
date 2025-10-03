@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask import jsonify
-from datetime import datetime, timedelta  # <- AGREGAR timedelta aquí
+from datetime import datetime, timedelta  
 from utils.db import get_db_connection
 
 from PyPDF2 import PdfReader, PdfWriter
@@ -18,13 +18,9 @@ rentas_bp = Blueprint('rentas', __name__, url_prefix='/rentas')
 @rentas_bp.route('/')
 def modulo_rentas():
 
-    print(f"🕐 HORA ACTUAL DEL SERVIDOR: {datetime.now()}")
-    print(f"📅 FECHA ACTUAL: {datetime.now().date()}")
-    
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Consulta principal de rentas con cliente
 
     cursor.execute("""
     SELECT 
@@ -58,12 +54,6 @@ def modulo_rentas():
     """)
     
     rentas = cursor.fetchall()
-
-    if rentas:
-        print("=== DATOS DE LA PRIMERA RENTA ===")
-        for i, campo in enumerate(rentas[0]):
-            print(f"Índice {i}: {campo}")
-
 
     # Detalles por renta
     cursor.execute("""
@@ -115,50 +105,30 @@ def modulo_rentas():
             sucursal_nombre = row[0]
 
     def calcular_estado_entrega(renta):
-        """Calcula el estado de entrega de una renta (solo indicadores adicionales)"""
-
-        print(f"=== DEBUG RENTA {renta[0]} ===")
-        print(f"fecha_entrada: {renta[3]} (tipo: {type(renta[3])})")
-        print(f"tiene_nota_entrada: {renta[15]} (tipo: {type(renta[15])})")
-        print(f"estado_renta: {renta[4]}")
 
         # Si no tiene fecha de entrada definida, no mostrar indicador
-        if not renta[3]:  # fecha_entrada
-            print("❌ No tiene fecha de entrada")
+        if not renta[3]:  
             return None
         
         # Si ya tiene nota de entrada, no mostrar indicador (ya está finalizada)
-        if renta[15]:  # ← CAMBIO: índice 15 (tiene_nota_entrada)
-            print(f"❌Ya tiene nota de entrada: {renta[15]}")
+        if renta[15]:  
             return None
         
         # Si el estado de la renta no es 'Activo', no mostrar indicador
-        if renta[4] != 'Activo':  # estado_renta
-            print(f"❌ Estado no es Activo: {renta[4]}")
+        if renta[4] != 'Activo':  
             return None
 
-        print("✅ Pasó todas las validaciones!")
         
-        fecha_entrada = renta[3]  # fecha_entrada
-        fecha_limite = renta[16]  # ← CAMBIO: índice 16 (fecha_limite_entrega)
+        fecha_entrada = renta[3]  
+        fecha_limite = renta[16]  
         ahora = datetime.now()
-
-        print(f"fecha_entrada: {fecha_entrada}")
-        print(f"fecha_limite: {fecha_limite}")
-        print(f"ahora: {ahora}")
-        print(f"ahora.date(): {ahora.date()}")
-        print(f"Comparación ahora.date() >= fecha_entrada: {ahora.date() >= fecha_entrada}")
-    
         
         # Solo mostrar indicadores para rentas ACTIVAS con fechas específicas
         if fecha_limite:
             fecha_limite_con_hora = datetime.combine(fecha_limite, datetime.strptime('10:00', '%H:%M').time())
-            print(f"fecha_limite_con_hora: {fecha_limite_con_hora}")
-            print(f"Comparación ahora > fecha_limite_con_hora: {ahora > fecha_limite_con_hora}")
 
             # Si ya pasó la fecha y hora límite = VENCIDA
             if ahora > fecha_limite_con_hora:
-                print("🔴 ESTADO: VENCIDA")
                 return {
                     'estado': 'vencida',
                     'clase': 'badge-vencida',
@@ -167,17 +137,12 @@ def modulo_rentas():
             
             # Si llegó a la fecha de entrada pero no ha pasado la hora límite = POR REGRESAR
             elif ahora.date() >= fecha_entrada:
-                print("🟡 ESTADO: POR REGRESAR")
                 return {
                     'estado': 'por_regresar',
                     'clase': 'badge-por-regresar',
                     'texto': 'Por regresar'
                 }
-            else:
-                print(f"⏳ Aún no llega la fecha. Hoy: {ahora.date()}, Fecha entrada: {fecha_entrada}")
-        
-        # En cualquier otro caso, no mostrar indicador adicional
-        print("❌ No cumple condiciones para indicador")
+            
         return None
 
     # Aplicar la función a todas las rentas
@@ -227,7 +192,7 @@ def crear_renta():
         traslado = request.form.get('traslado') or 'ninguno'
         id_sucursal = request.form.get('id_sucursal')
         
-        print("ID SUCURSAL RECIBIDO EN CREAR:", id_sucursal)  # <-- Usar id_sucursal
+       
 
         cursor.execute("""
                        

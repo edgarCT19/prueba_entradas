@@ -56,7 +56,7 @@ def crear_cobro_extra(renta_id):
     iva = float(data.get('iva', 0))
     total = float(data.get('total', 0))
     metodo_pago = data.get('metodo_pago', '')
-    monto_recibido = float(data.get('monto_recibido', total))  # Puedes ajustar esto en el frontend
+    monto_recibido = float(data.get('monto_recibido', total)) 
     cambio = float(data.get('cambio', 0))
     facturable = int(data.get('facturable', 0))
     numero_seguimiento = data.get('numero_seguimiento', '')
