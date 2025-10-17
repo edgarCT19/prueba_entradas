@@ -25,9 +25,23 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Sucursal</label>
+                            {% if es_admin %}
+                            <select class="form-select" name="id_sucursal" id="id_sucursal" required>
+                                {% for sucursal in sucursales %}
+                                <option value="{{ sucursal[0] }}" {% if sucursal_actual.id==sucursal[0] %}selected{%
+                                    endif %}>
+                                    {{ sucursal[1] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Como administrador, puedes crear la renta en cualquier sucursal
+                            </small>
+                            {% else %}
                             <input type="text" class="form-control" value="{{ sucursal_nombre or 'No disponible' }}"
                                 readonly>
                             <input type="hidden" name="id_sucursal" id="id_sucursal" value="{{ sucursal_id }}">
+                            {% endif %}
                         </div>
                         <div class="row mb-3">
                             <div class="col">

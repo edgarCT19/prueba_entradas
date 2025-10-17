@@ -467,6 +467,47 @@
     border-bottom-right-radius: 16px;
 }
 
+
+/* Agregar a static/css/rentas.css */
+
+.admin-filters {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.admin-filters .card-header {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-group .btn {
+    margin: 2px;
+}
+
+.sucursal-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.vista-actual {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+    .btn-group {
+        flex-direction: column;
+    }
+
+    .btn-group .btn {
+        margin: 1px 0;
+        border-radius: 0.375rem !important;
+    }
+}
+
 /*///////////////////////////////////////////////////////*/
 /*///////////// MODAL COBRO POR RETRASO FORMAL //////////*/
 /*///////////////////////////////////////////////////////*/
@@ -475,6 +516,7 @@
     background: #23395d;
     color: #ffffff;
 }
+
 .modal-cobro-retraso-footer {
     background: #f1f4fa;
     border-bottom-left-radius: 16px;
@@ -487,15 +529,18 @@
     font-weight: bold;
     text-align: center;
 }
+
 .modal-cobro-retraso-table td {
     background: #f8fafc;
     color: #23395d;
     text-align: center;
 }
+
 .modal-cobro-retraso-label {
     color: #23395d;
     font-weight: bold;
 }
+
 .modal-cobro-retraso-input,
 .modal-cobro-retraso-select,
 .modal-cobro-retraso-textarea {
@@ -504,6 +549,7 @@
     font-size: 0.97em;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
+
 .modal-cobro-retraso-input:focus,
 .modal-cobro-retraso-select:focus,
 .modal-cobro-retraso-textarea:focus {
@@ -512,16 +558,18 @@
 }
 
 /* Separación visual entre columnas */
-#modalCobroRetraso .row > .col-md-6 {
+#modalCobroRetraso .row>.col-md-6 {
     padding-right: 18px;
     padding-left: 18px;
     border-right: 1px solid #e0e0e0;
 }
-#modalCobroRetraso .row > .col-md-6:last-child {
+
+#modalCobroRetraso .row>.col-md-6:last-child {
     border-right: none;
 }
+
 @media (max-width: 900px) {
-    #modalCobroRetraso .row > .col-md-6 {
+    #modalCobroRetraso .row>.col-md-6 {
         border-right: none;
         padding-right: 0;
         padding-left: 0;

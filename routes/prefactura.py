@@ -88,9 +88,6 @@ def registrar_pago_prefactura(renta_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Insertar prefactura - AGREGAR DEBUG AQUÍ TAMBIÉN
-        print(f"Insertando en BD: metodo='{metodo.upper()}', numero_seguimiento='{numero_seguimiento}'")
-        
         cursor.execute("""
             INSERT INTO prefacturas (
             renta_id, fecha_emision, tipo, pagada, metodo_pago, monto, 
@@ -102,10 +99,7 @@ def registrar_pago_prefactura(renta_id):
         ))
         
         prefactura_id = cursor.lastrowid
-        print(f"Prefactura creada con ID: {prefactura_id}")
-
-        # Actualizar renta - AGREGAR DEBUG
-        print(f"Actualizando renta {renta_id} con metodo_pago: '{metodo.upper()}'")
+        
         cursor.execute("""
             UPDATE rentas SET estado_pago='Pago realizado', metodo_pago=%s WHERE id=%s
         """, (metodo.upper(), renta_id))
@@ -115,7 +109,6 @@ def registrar_pago_prefactura(renta_id):
         # VERIFICAR QUE SE GUARDÓ CORRECTAMENTE
         cursor.execute("SELECT metodo_pago, numero_seguimiento FROM prefacturas WHERE id = %s", (prefactura_id,))
         verificacion = cursor.fetchone()
-        print(f"Verificación - datos guardados en BD: {verificacion}")
         
         cursor.close()
         conn.close()

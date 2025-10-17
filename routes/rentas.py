@@ -17,12 +17,54 @@ rentas_bp = Blueprint('rentas', __name__, url_prefix='/rentas')
 
 @rentas_bp.route('/')
 def modulo_rentas():
-
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Obtener sucursal del usuario desde la sesión
+    sucursal_id_usuario = session.get('sucursal_id')
+    rol_id = session.get('rol_id')
+    
+    # Obtener todas las sucursales para el filtro (solo admin)
+    sucursales = []
+    if rol_id == 2:  # Solo admin
+        cursor.execute("SELECT id, nombre FROM sucursales ORDER BY id")
+        sucursales = cursor.fetchall()
+    
+    # Determinar qué sucursal filtrar
+    sucursal_filtro = request.args.get('sucursal_id')
+    sucursal_actual = None
+    
+    if rol_id == 2:  # Admin
+        if sucursal_filtro:
+            # Admin filtrando por sucursal específica
+            try:
+                sucursal_filtro = int(sucursal_filtro)
+                where_sucursal = "WHERE r.id_sucursal = %s"
+                params_sucursal = (sucursal_filtro,)
+                # Obtener nombre de la sucursal filtrada
+                cursor.execute("SELECT nombre FROM sucursales WHERE id = %s", (sucursal_filtro,))
+                row = cursor.fetchone()
+                sucursal_actual = {'id': sucursal_filtro, 'nombre': row[0] if row else 'Desconocida'}
+            except (ValueError, TypeError):
+                sucursal_filtro = None
+        
+        if not sucursal_filtro:
+            # Admin viendo todas las sucursales
+            where_sucursal = ""
+            params_sucursal = ()
+            sucursal_actual = {'id': 'todas', 'nombre': 'Todas las Sucursales'}
+    else:
+        # Usuario normal solo ve su sucursal
+        where_sucursal = "WHERE r.id_sucursal = %s"
+        params_sucursal = (sucursal_id_usuario,)
+        sucursal_filtro = sucursal_id_usuario
+        # Obtener nombre de la sucursal del usuario
+        cursor.execute("SELECT nombre FROM sucursales WHERE id = %s", (sucursal_id_usuario,))
+        row = cursor.fetchone()
+        sucursal_actual = {'id': sucursal_id_usuario, 'nombre': row[0] if row else 'Mi Sucursal'}
 
-    cursor.execute("""
+    # Consulta principal con filtro de sucursal y folio
+    cursor.execute(f"""
     SELECT 
         r.id, r.fecha_registro, r.fecha_salida, r.fecha_entrada,
         r.estado_renta, r.estado_pago, r.metodo_pago,
@@ -44,24 +86,36 @@ def modulo_rentas():
             FROM notas_entrada ne2
             JOIN notas_entrada_detalle ned ON ned.nota_entrada_id = ne2.id
             WHERE ne2.renta_id = r.id AND ned.cantidad_esperada > ned.cantidad_recibida
-        ) AS piezas_pendientes, r.renta_asociada_id 
+        ) AS piezas_pendientes, 
+        r.renta_asociada_id,
+        r.id_sucursal,
+        -- Calcular folio por sucursal
+        (SELECT COUNT(*) FROM rentas r2 WHERE r2.id_sucursal = r.id_sucursal AND r2.id <= r.id ORDER BY r2.id) AS folio_sucursal,
+        s.nombre AS sucursal_nombre
     FROM rentas r
     JOIN clientes c ON r.cliente_id = c.id
+    JOIN sucursales s ON r.id_sucursal = s.id
     LEFT JOIN notas_entrada ne ON ne.renta_id = r.id
         AND ne.id = (SELECT MAX(id) FROM notas_entrada WHERE renta_id = r.id)
     LEFT JOIN notas_cobro_extra nce ON nce.nota_entrada_id = ne.id
+    {where_sucursal}
     ORDER BY r.fecha_registro DESC
-    """)
+    """, params_sucursal)
     
     rentas = cursor.fetchall()
 
-    # Detalles por renta
-    cursor.execute("""
-        SELECT d.renta_id, p.nombre, d.cantidad, d.id_producto, p.tipo
-        FROM renta_detalle d
-        JOIN productos p ON d.id_producto = p.id_producto
-    """)
-    detalles = cursor.fetchall()
+    # Modificar consulta de detalles para filtrar por rentas de la sucursal
+    if rentas:
+        renta_ids = [str(renta[0]) for renta in rentas]
+        cursor.execute(f"""
+            SELECT d.renta_id, p.nombre, d.cantidad, d.id_producto, p.tipo
+            FROM renta_detalle d
+            JOIN productos p ON d.id_producto = p.id_producto
+            WHERE d.renta_id IN ({','.join(['%s'] * len(renta_ids))})
+        """, renta_ids)
+        detalles = cursor.fetchall()
+    else:
+        detalles = []
 
     # Agrupar productos por renta
     productos_por_renta = {}
@@ -161,24 +215,84 @@ def modulo_rentas():
         clientes=clientes,
         productos=productos,
         productos_por_renta=productos_por_renta,
-        sucursal_nombre=sucursal_nombre,
+        sucursal_nombre=sucursal_actual['nombre'],
         precios_productos=precios_productos,
-        sucursal_id=sucursal_id 
+        sucursal_id=sucursal_id_usuario,
+        # Nuevos datos para filtros admin
+        sucursales=sucursales,
+        sucursal_actual=sucursal_actual,
+        es_admin=(rol_id == 2) 
     )
 
 
+def obtener_siguiente_folio_sucursal(cursor, sucursal_id):
+    """
+    Obtiene el siguiente folio consecutivo para una sucursal específica
+    """
+    cursor.execute("""
+        SELECT COALESCE(MAX(
+            (SELECT COUNT(*) FROM rentas r2 WHERE r2.id_sucursal = %s AND r2.id <= r.id)
+        ), 0) + 1 
+        FROM rentas r 
+        WHERE r.id_sucursal = %s
+    """, (sucursal_id, sucursal_id))
+    
+    resultado = cursor.fetchone()
+    return resultado[0] if resultado else 1
+
+def generar_folio_display(sucursal_id, folio_numero):
+    """
+    Genera el folio formateado para mostrar
+    Formato: SUC1-0001, SUC2-0001, etc.
+    """
+    return f"SUC{sucursal_id}-{folio_numero:04d}"
 
 
+
+
+
+
+
+
+
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+###########################################################
 @rentas_bp.route('/crear', methods=['POST'])
 def crear_renta():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Determinar la sucursal correcta según el rol
+        rol_id = session.get('rol_id')
+        sucursal_id_usuario = session.get('sucursal_id')
+        
+        if rol_id == 2:  # Admin
+            # Admin puede crear rentas en la sucursal que está viendo
+            sucursal_para_renta = request.form.get('id_sucursal')
+            if not sucursal_para_renta:
+                sucursal_para_renta = sucursal_id_usuario
+            try:
+                sucursal_para_renta = int(sucursal_para_renta)
+            except (ValueError, TypeError):
+                sucursal_para_renta = sucursal_id_usuario
+        else:
+            # Usuario normal solo puede crear en su sucursal
+            sucursal_para_renta = sucursal_id_usuario
+
+        if not sucursal_para_renta:
+            flash("Error: No se pudo determinar la sucursal.", "danger")
+            return redirect(url_for('rentas.modulo_rentas'))
+
+        # Resto del código usando sucursal_para_renta
         if request.form.get('renta_programada'):
             estado_renta = 'programada'
         else:
             estado_renta = 'en curso'
+        
         estado_pago = 'Pago pendiente'
         metodo_pago = 'Pendiente'
         cliente_id = request.form['cliente_id']
@@ -190,12 +304,8 @@ def crear_renta():
         fecha_programada = request.form.get('fecha_programada') or None
         costo_traslado = float(request.form.get('costo_traslado') or 0)
         traslado = request.form.get('traslado') or 'ninguno'
-        id_sucursal = request.form.get('id_sucursal')
-        
-       
 
         cursor.execute("""
-                       
             INSERT INTO rentas (
                 cliente_id, fecha_registro, fecha_salida, fecha_entrada,
                 direccion_obra, estado_renta, estado_pago, metodo_pago,
@@ -205,31 +315,37 @@ def crear_renta():
         """, (
             cliente_id, fecha_registro, fecha_salida, fecha_entrada,
             direccion_obra, estado_renta, estado_pago, metodo_pago,
-            0, 0, 0, observaciones, fecha_programada, id_sucursal,
+            0, 0, 0, observaciones, fecha_programada, sucursal_para_renta,  # ← Usar la sucursal correcta
             costo_traslado, traslado
         ))
 
         renta_id = cursor.lastrowid
+        
+        # Obtener folio para mostrar mensaje usando la sucursal correcta
+        folio_numero = obtener_siguiente_folio_sucursal(cursor, sucursal_para_renta)
+        folio_display = generar_folio_display(sucursal_para_renta, folio_numero)
 
+        # Procesar productos
         productos = request.form.getlist('producto_id[]')
         cantidades = request.form.getlist('cantidad[]')
         dias = request.form.getlist('dias_renta[]')
         costos = request.form.getlist('costo_unitario[]')
 
         total = 0
-
+        
         for i in range(len(productos)):
             prod_id = int(productos[i])
             cant = int(cantidades[i])
             dias_renta_raw = dias[i]
             if dias_renta_raw in (None, '', 'null'):
-                dias_renta = None
-                subtotal = 0
+                dias_renta = 1
             else:
                 dias_renta = int(dias_renta_raw)
-                costo_unitario = float(costos[i])
-                subtotal = cant * dias_renta * costo_unitario
-                total += subtotal
+                if dias_renta < 1:
+                    dias_renta = 1
+
+            subtotal = cant * dias_renta * float(costos[i])
+            total += subtotal
 
             cursor.execute("""
                 INSERT INTO renta_detalle (
@@ -251,7 +367,8 @@ def crear_renta():
         """, (total, iva, total_con_iva, renta_id))
 
         conn.commit()
-        flash("Renta registrada con éxito.", "success")
+        flash(f"Renta {folio_display} registrada con éxito.", "success")
+        
     except Exception as e:
         conn.rollback()
         flash(f"Error al guardar la renta: {e}", "danger")
@@ -262,6 +379,14 @@ def crear_renta():
     return redirect(url_for('rentas.modulo_rentas'))
 
 
+
+
+
+############################################################
+############################################################
+#############################################################
+##############################################################|
+##############################################################
 # Actualizar fecha de entrada de una renta
 @rentas_bp.route('/actualizar_fecha_entrada/<int:renta_id>', methods=['POST'])
 def actualizar_fecha_entrada(renta_id):
@@ -329,6 +454,16 @@ def actualizar_fecha_entrada(renta_id):
 
 
 
+
+
+
+
+
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+###########################################################
 
 # Ejemplo de endpoint para cerrar renta y actualizar días/subtotales
 @rentas_bp.route('/cerrar/<int:renta_id>', methods=['POST'])
@@ -403,11 +538,11 @@ def cerrar_renta(renta_id):
 
 
 
-
-###################################
-###################################
-###################################
-############## DETALLES DE LA RENTA - VISUALIZACIÓN DETALLES 
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+############# DETALLES DE LA RENTA - VISUALIZACIÓN DETALLES 
 
 @rentas_bp.route('/detalle/<int:renta_id>')
 def obtener_detalle_renta(renta_id):
@@ -497,6 +632,17 @@ def obtener_detalle_renta(renta_id):
         if conn:
             conn.close()
         return jsonify({'error': str(e)}), 500
+
+
+
+
+
+
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+###########################################################
 
 @rentas_bp.route('/renovar/<int:renta_id>', methods=['POST'])
 def renovar_renta(renta_id):

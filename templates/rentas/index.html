@@ -1,11 +1,13 @@
 {% extends 'base.html' %}
 
+
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/rentas.css') }}">
 {% endblock %}
 
-{% block content %}
 
+
+{% block content %}
 
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
@@ -34,9 +36,17 @@
   <div class="rentas-box-container">
     <div class="rentas-section-header d-flex justify-content-between align-items-center mb-3">
       <h2 class="rentas-section-title">
-        <i class="bi bi-file-earmark-medical"></i> Módulo de rentas
+        <i class="bi bi-file-earmark-medical"></i>
+        {% if es_admin and sucursal_actual.id != 'todas' %}
+        Rentas - {{ sucursal_actual.nombre }}
+        {% elif es_admin %}
+        Rentas - Todas las Sucursales
+        {% else %}
+        Módulo de rentas
+        {% endif %}
       </h2>
-      <a href="#" class="btn btn-rentas-main" data-bs-toggle="modal" data-bs-target="#modalNuevaRenta">
+      <a href="#" class="btn btn-rentas-main" data-bs-toggle="modal" data-bs-target="#modalNuevaRenta" {% if es_admin
+        %}data-sucursal-actual="{{ sucursal_actual.id }}" {% endif %}>
         <i class="bi bi-file-earmark-medical"></i> Nueva Renta
       </a>
     </div>
@@ -54,6 +64,55 @@
         </a>
       </div>
     </div>
+
+
+
+
+    {% if es_admin %}
+    <!-- Panel de filtros para Administrador -->
+    <div class="card mb-3">
+      <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="bi bi-funnel"></i> Filtros de Administrador</h6>
+      </div>
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-md-8">
+            <h6 class="text-muted mb-2">Vista actual: <strong>{{ sucursal_actual.nombre }}</strong></h6>
+            <div class="btn-group flex-wrap" role="group">
+              <a href="{{ url_for('rentas.modulo_rentas') }}"
+                class="btn btn-sm {% if sucursal_actual.id == 'todas' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-building"></i> Todas las Sucursales
+              </a>
+              {% for sucursal in sucursales %}
+              <a href="{{ url_for('rentas.modulo_rentas', sucursal_id=sucursal[0]) }}"
+                class="btn btn-sm {% if sucursal_actual.id == sucursal[0] %}btn-success{% else %}btn-outline-success{% endif %}">
+                <i class="bi bi-geo-alt"></i> {{ sucursal[1] }}
+              </a>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-md-4 text-end">
+            <div class="dropdown">
+              <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-filter"></i> Cambiar Vista
+              </button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('rentas.modulo_rentas') }}">
+                    <i class="bi bi-building me-2"></i>Todas las Sucursales</a></li>
+                <li>
+                  <hr class="dropdown-divider">
+                </li>
+                {% for sucursal in sucursales %}
+                <li><a class="dropdown-item" href="{{ url_for('rentas.modulo_rentas', sucursal_id=sucursal[0]) }}">
+                    <i class="bi bi-geo-alt me-2"></i>{{ sucursal[1] }}</a></li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
 
 
@@ -77,14 +136,15 @@
       <table id="tablaRentas" class="table table-rentas align-middle">
         <thead>
           <tr>
-            <th>ID</th>
+            <th>Folio</th>
+            {% if es_admin and sucursal_actual.id == 'todas' %}
+            <th>Sucursal</th>
+            {% endif %}
             <th>Fecha de registro</th>
             <th>Nombre del cliente</th>
             <th>Kit/Producto</th>
-
             <th>Fecha de salida</th>
             <th>Fecha de entrada</th>
-
             <th>Dirección de la obra</th>
             <th>Estado de la renta</th>
             <th>Estado de pago</th>
@@ -100,9 +160,15 @@
           {% for renta in rentas %}
           <tr>
 
-            <!-- COLUMNA DE ID -->
-            <td><strong>#{{ renta[0] }}</strong></td>
+            <!-- COLUMNA DE FOLIO -->
+            <td><strong>SUC{{ renta[23] }}-{{ '%04d'|format(renta[24]) }}</strong></td>
 
+            <!-- COLUMNA DE SUCURSAL (solo si admin ve todas) -->
+            {% if es_admin and sucursal_actual.id == 'todas' %}
+            <td>
+              <span class="badge bg-info">{{ renta[25] }}</span>
+            </td>
+            {% endif %}
 
             <!-- COLUMNA DE FECHA DE REGISTRO -->
             <td><small>{{ renta[1].strftime('%d/%m/%Y %H:%M') }}</small></td>
@@ -403,7 +469,10 @@
 <!-- /////////////////////////////////////////////  -->
 <!-- /////////////////////////////////////////////  -->
 <!-- /////////////////////////////////////////////  -->
-
+<!-- /////////////////////////////////////////////  -->
+<!-- /////////////////////////////////////////////  -->
+<!-- /////////////////////////////////////////////  -->
+<!-- /////////////////////////////////////////////  -->
 
 {% block scripts %}
 <script>
@@ -436,6 +505,28 @@
     });
   });
 </script>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sincronizar sucursal del modal con la vista actual del admin
+    const btnNuevaRenta = document.querySelector('[data-bs-target="#modalNuevaRenta"]');
+    const modal = document.getElementById('modalNuevaRenta');
+    
+    if (btnNuevaRenta && modal) {
+        btnNuevaRenta.addEventListener('click', function() {
+            const sucursalActual = this.dataset.sucursalActual;
+            const selectSucursal = modal.querySelector('#id_sucursal');
+            
+            if (sucursalActual && selectSucursal && selectSucursal.tagName === 'SELECT') {
+                selectSucursal.value = sucursalActual === 'todas' ? '{{ sucursal_id }}' : sucursalActual;
+            }
+        });
+    }
+});
+</script>
+
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
