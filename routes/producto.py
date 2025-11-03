@@ -42,8 +42,8 @@ def productos():
                        """, (producto['id_producto'],))
         producto['piezas'] = cursor.fetchall()
 
-    # Traer piezas para el modal de alta/edición
-    cursor.execute("SELECT * FROM piezas")
+    # Traer piezas para el modal de alta/edición (solo activas)
+    cursor.execute("SELECT * FROM piezas WHERE COALESCE(estatus, 'activo') = 'activo' ORDER BY nombre_pieza")
     piezas = cursor.fetchall()
     cursor.close()
     conn.close()

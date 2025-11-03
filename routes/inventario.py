@@ -321,7 +321,7 @@ def inventario_sucursal(sucursal_id):
     cursor = conn.cursor(dictionary=True)
     
     # Verificar que la sucursal existe
-    cursor.execute("SELECT id, nombre FROM sucursales WHERE id = %s", (sucursal_id,))
+    cursor.execute("SELECT id as id_sucursal, nombre FROM sucursales WHERE id = %s", (sucursal_id,))
     sucursal = cursor.fetchone()
     
     if not sucursal:
@@ -1540,6 +1540,196 @@ def generar_pdf_nota_entrada_transferencia(nota_entrada_id):
         if conn:
             conn.close()
         return f"Error al generar PDF: {str(e)}", 500
+
+
+# Funciones del historial de transferencias
+@bp_inventario.route('/historial-transferencias/<int:sucursal_id>')
+@requiere_permiso('ver_inventario_sucursal')
+def historial_transferencias_sucursal(sucursal_id):
+    """
+    Obtiene el historial de transferencias (enviadas y recibidas) de una sucursal específica
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Obtener transferencias ENVIADAS (salidas) de esta sucursal
+        cursor.execute("""
+            SELECT 
+                'enviada' as tipo_transferencia,
+                mi.folio_nota_salida as folio,
+                mi.fecha,
+                mi.observaciones,
+                mi.descripcion,
+                sd.nombre as sucursal_destino,
+                NULL as sucursal_origen,
+                COUNT(DISTINCT mi.id_pieza) as total_tipos_piezas,
+                SUM(mi.cantidad) as total_cantidad
+            FROM movimientos_inventario mi
+            LEFT JOIN sucursales sd ON mi.sucursal_destino = sd.id
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento = 'transferencia_salida'
+            AND mi.folio_nota_salida IS NOT NULL
+            GROUP BY mi.folio_nota_salida, mi.fecha, mi.observaciones, mi.descripcion, sd.nombre
+            
+            UNION ALL
+            
+            SELECT 
+                'recibida' as tipo_transferencia,
+                mi.folio_nota_entrada as folio,
+                mi.fecha,
+                mi.observaciones,
+                mi.descripcion,
+                NULL as sucursal_destino,
+                so.nombre as sucursal_origen,
+                COUNT(DISTINCT mi.id_pieza) as total_tipos_piezas,
+                SUM(mi.cantidad) as total_cantidad
+            FROM movimientos_inventario mi
+            LEFT JOIN sucursales so ON mi.sucursal_destino = so.id
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento = 'transferencia_entrada'
+            AND mi.folio_nota_entrada IS NOT NULL
+            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion, so.nombre
+            
+            UNION ALL
+            
+            SELECT 
+                'alta_equipo' as tipo_transferencia,
+                mi.folio_nota_entrada as folio,
+                mi.fecha,
+                mi.observaciones,
+                mi.descripcion,
+                NULL as sucursal_destino,
+                NULL as sucursal_origen,
+                COUNT(DISTINCT mi.id_pieza) as total_tipos_piezas,
+                SUM(mi.cantidad) as total_cantidad
+            FROM movimientos_inventario mi
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo')
+            AND mi.folio_nota_entrada IS NOT NULL
+            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion
+            
+            ORDER BY 
+                CASE 
+                    WHEN folio REGEXP '^[0-9]+$' THEN CAST(folio AS UNSIGNED)
+                    ELSE 0
+                END DESC,
+                folio DESC
+        """, (sucursal_id, sucursal_id, sucursal_id))
+        
+        transferencias = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'transferencias': transferencias
+        })
+        
+    except Exception as e:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@bp_inventario.route('/historial-transferencias-page/<int:sucursal_id>')
+@requiere_permiso('ver_inventario_sucursal')
+def historial_transferencias_page(sucursal_id):
+    """
+    Página HTML dedicada para mostrar el historial de transferencias de una sucursal
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Obtener información de la sucursal
+        cursor.execute("SELECT id as id_sucursal, nombre FROM sucursales WHERE id = %s", (sucursal_id,))
+        sucursal = cursor.fetchone()
+        
+        if not sucursal:
+            flash('Sucursal no encontrada', 'error')
+            return redirect(url_for('inventario.inventario_general'))
+        
+        # Obtener transferencias ENVIADAS, RECIBIDAS y ALTAS DE EQUIPO
+        cursor.execute("""
+            SELECT 
+                'Enviado' as tipo,
+                mi.folio_nota_salida as folio,
+                DATE_FORMAT(mi.fecha, '%d/%m/%Y %H:%i') as fecha,
+                mi.observaciones,
+                mi.descripcion,
+                sd.nombre as sucursal_destino,
+                NULL as sucursal_origen
+            FROM movimientos_inventario mi
+            LEFT JOIN sucursales sd ON mi.sucursal_destino = sd.id
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento = 'transferencia_salida'
+            AND mi.folio_nota_salida IS NOT NULL
+            GROUP BY mi.folio_nota_salida, mi.fecha, mi.observaciones, mi.descripcion, sd.nombre
+            
+            UNION ALL
+            
+            SELECT 
+                'Recibido' as tipo,
+                mi.folio_nota_entrada as folio,
+                DATE_FORMAT(mi.fecha, '%d/%m/%Y %H:%i') as fecha,
+                mi.observaciones,
+                mi.descripcion,
+                NULL as sucursal_destino,
+                so.nombre as sucursal_origen
+            FROM movimientos_inventario mi
+            LEFT JOIN sucursales so ON mi.sucursal_destino = so.id
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento = 'transferencia_entrada'
+            AND mi.folio_nota_entrada IS NOT NULL
+            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion, so.nombre
+            
+            UNION ALL
+            
+            SELECT 
+                'Alta Equipo' as tipo,
+                mi.folio_nota_entrada as folio,
+                DATE_FORMAT(mi.fecha, '%d/%m/%Y %H:%i') as fecha,
+                mi.observaciones,
+                mi.descripcion,
+                NULL as sucursal_destino,
+                NULL as sucursal_origen
+            FROM movimientos_inventario mi
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo')
+            AND mi.folio_nota_entrada IS NOT NULL
+            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion
+            
+            ORDER BY 
+                CASE 
+                    WHEN folio REGEXP '^[0-9]+$' THEN CAST(folio AS UNSIGNED)
+                    ELSE 0
+                END DESC,
+                folio DESC
+        """, (sucursal_id, sucursal_id, sucursal_id))
+        
+        transferencias = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return render_template('inventario/historial_transferencias.html', 
+                             sucursal=sucursal, 
+                             transferencias=transferencias)
+        
+    except Exception as e:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        flash('Error al cargar el historial de transferencias', 'error')
+        return redirect(url_for('inventario.inventario_sucursal', sucursal_id=sucursal_id))
+
+
+
 
 
 

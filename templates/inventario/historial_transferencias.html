@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Historial de Movimientos - {{ sucursal.nombre }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/inventario.css') }}">
+{% endblock %}
+
+{% block content %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+{% for category, message in messages %}
+<div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show mb-2 shadow-sm"
+    role="alert"
+    style="border-left: 4px solid {% if category == 'success' %}#198754{% elif category == 'danger' or category == 'error' %}#dc3545{% else %}#0d6efd{% endif %};">
+    <div class="d-flex align-items-center">
+        <i
+            class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'danger' or category == 'error' %}exclamation-triangle-fill{% else %}info-circle-fill{% endif %} me-2"></i>
+        <strong class="me-auto">
+            {% if category == 'success' %}¡Éxito!{% elif category == 'danger' or category == 'error' %}¡Error!{% else
+            %}Información{% endif %}
+        </strong>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
+    <div class="mt-1">{{ message }}</div>
+</div>
+{% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="transferencias-box-container">
+    <div class="transferencias-section-header">
+        <div>
+            <h2 class="transferencias-section-title"><i class="bi bi-clock-history"></i> Historial de Movimientos - {{ sucursal.nombre }}</h2>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center mb-3 gap-2 justify-content-between">
+        <input type="text" id="buscadorTransferencias" class="search-transferencias-box" placeholder="Buscar por folio, sucursal, observaciones o tipo de movimiento...">
+        
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-inventario-filter">
+                <i class="bi bi-printer me-2"></i>Imprimir
+            </button>
+            <a href="{{ url_for('inventario.inventario_sucursal', sucursal_id=sucursal.id_sucursal) }}" class="btn btn-inventario-main">
+                <i class="bi bi-arrow-left me-2"></i>Volver al Inventario
+            </a>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center mb-3 gap-2">
+        <select id="filtroTipo" class="form-select" style="max-width: 200px;">
+            <option value="">Todos los tipos</option>
+            <option value="Enviado">Solo Enviados</option>
+            <option value="Recibido">Solo Recibidos</option>
+            <option value="Alta Equipo">Solo Altas de Equipo</option>
+        </select>
+        <button class="btn btn-inventario-filter" onclick="filtrarTransferencias()">
+            <i class="bi bi-search me-2"></i>Buscar
+        </button>
+    </div>
+
+    <!-- Lista de transferencias -->
+    {% if transferencias %}
+    <div class="table-responsive">
+        <table class="table table-transferencias align-middle" id="tablaTransferencias">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Folio</th>
+                    <th>Fecha y Hora</th>
+                    <th>Sucursal</th>
+                    <th>Observaciones</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transferencia in transferencias %}
+                <tr class="fila-transferencia">
+                    <td>
+                        {% if transferencia.tipo == 'Enviado' %}
+                        <span class="badge-transferencia badge-enviado">
+                            <i class="bi bi-box-arrow-right"></i>
+                            {{ transferencia.tipo }}
+                        </span>
+                        {% elif transferencia.tipo == 'Recibido' %}
+                        <span class="badge-transferencia badge-recibido">
+                            <i class="bi bi-box-arrow-in-down"></i>
+                            {{ transferencia.tipo }}
+                        </span>
+                        {% elif transferencia.tipo == 'Alta Equipo' %}
+                        <span class="badge-transferencia badge-alta-equipo">
+                            <i class="bi bi-plus-circle"></i>
+                            {{ transferencia.tipo }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong class="text-primary">#{{ transferencia.folio }}</strong>
+                    </td>
+                    <td>
+                        <span class="text-nowrap">{{ transferencia.fecha }}</span>
+                    </td>
+                    <td>
+                        {% if transferencia.tipo == 'Enviado' %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-arrow-right text-danger me-1"></i>
+                                <span>{{ transferencia.sucursal_destino or 'N/A' }}</span>
+                            </div>
+                        {% elif transferencia.tipo == 'Recibido' %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-arrow-left text-success me-1"></i>
+                                <span>{{ transferencia.sucursal_origen or 'N/A' }}</span>
+                            </div>
+                        {% elif transferencia.tipo == 'Alta Equipo' %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-building text-primary me-1"></i>
+                                <span>{{ sucursal.nombre }}</span>
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if transferencia.observaciones %}
+                            <span class="text-muted" title="{{ transferencia.observaciones }}">
+                                {{ transferencia.observaciones[:30] }}{% if transferencia.observaciones|length > 30 %}...{% endif %}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-outline-danger action-btn-transferencias" 
+                                onclick="verPDFTransferencia('{{ transferencia.tipo }}', '{{ transferencia.folio }}')"
+                                title="Ver PDF">
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">
+            <i class="bi bi-inbox"></i>
+        </div>
+        <h4 class="empty-title">No hay movimientos registrados</h4>
+        <p class="empty-text">Esta sucursal aún no ha realizado transferencias ni altas de equipo.</p>
+        <a href="{{ url_for('inventario.inventario_sucursal', sucursal_id=sucursal.id_sucursal) }}" class="btn-transferencias-main">
+            <i class="bi bi-arrow-left-right"></i> Realizar primera operación
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+// Funcionalidad de búsqueda y filtrado
+document.addEventListener('DOMContentLoaded', function() {
+    const buscador = document.getElementById('buscadorTransferencias');
+    const filtroTipo = document.getElementById('filtroTipo');
+    const filas = document.querySelectorAll('.fila-transferencia');
+
+    console.log('Historial cargado - Total filas encontradas:', filas.length);
+
+    function filtrarTransferencias() {
+        const busqueda = buscador.value.toLowerCase();
+        const tipoSeleccionado = filtroTipo.value;
+        let visibles = 0;
+
+        console.log('Filtrando - Búsqueda:', busqueda, 'Tipo:', tipoSeleccionado);
+
+        filas.forEach(fila => {
+            const textoFila = fila.textContent.toLowerCase();
+            const badgeElement = fila.querySelector('.badge-transferencia');
+            const tipoFila = badgeElement ? badgeElement.textContent.trim() : '';
+            
+            const coincideBusqueda = textoFila.includes(busqueda);
+            const coincideTipo = tipoSeleccionado === '' || tipoFila.includes(tipoSeleccionado);
+            
+            if (coincideBusqueda && coincideTipo) {
+                fila.style.display = '';
+                visibles++;
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+
+        console.log('Filtrado completado - Visibles:', visibles);
+
+        // Actualizar contador
+        const badge = document.querySelector('.badge.bg-info');
+        if (badge) {
+            badge.textContent = `${visibles} transferencias encontradas`;
+        }
+    }
+
+    buscador.addEventListener('keyup', filtrarTransferencias);
+    filtroTipo.addEventListener('change', filtrarTransferencias);
+    
+    // Mostrar todos inicialmente
+    filtrarTransferencias();
+});
+
+// Función para ver PDF de transferencia
+function verPDFTransferencia(tipo, folio) {
+    if (!folio) {
+        Swal.fire('Error', 'Folio no disponible', 'error');
+        return;
+    }
+    
+    let endpoint;
+    if (tipo === 'Enviado') {
+        endpoint = 'pdf-transferencia-salida';
+    } else if (tipo === 'Recibido') {
+        endpoint = 'pdf-transferencia-entrada';
+    } else if (tipo === 'Alta Equipo') {
+        endpoint = 'pdf-alta-equipo';
+    } else {
+        Swal.fire('Error', 'Tipo de documento no reconocido', 'error');
+        return;
+    }
+    
+    const url = `/inventario/${endpoint}/${folio}`;
+    window.open(url, '_blank');
+}
+
+// Los estilos de impresión ahora están en inventario.css
+</script>
+
+{% endblock %}

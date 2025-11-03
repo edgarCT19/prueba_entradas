@@ -18,42 +18,41 @@
 {% endif %}
 {% endwith %}
 
-<div class="box-container">
-  <div class="section-header">
+<div class="productos-box-container">
+  <div class="productos-section-header">
     <div>
-      <span class="section-title">Productos</span>
+      <h2 class="productos-section-title"><i class="bi bi-box"></i> Productos</h2>
     </div>
+  </div>
+  <div class="d-flex flex-wrap align-items-center mb-3 gap-2 justify-content-between">
+    <input type="text" id="buscadorProductos" class="search-productos-box" placeholder="Buscar producto...">
     {% if 'crear_producto' in session['permisos'] %}
-    <button class="btn btn-main" data-bs-toggle="modal" data-bs-target="#modalNuevoProducto">
+    <button class="btn btn-productos-main" data-bs-toggle="modal" data-bs-target="#modalNuevoProducto">
       <i class="bi bi-plus-lg"></i> Nuevo Producto
     </button>
     {% endif %}
   </div>
   <div class="d-flex flex-wrap align-items-center mb-3 gap-2 justify-content-between">
-    <input type="text" id="buscadorProductos" class="search-box" placeholder="Buscar producto...">
+    <div class="btn-group" role="group">
+      <button class="btn btn-productos-filter" onclick="filtrarProductos('todos')">Todos</button>
+      <button class="btn btn-productos-filter" onclick="filtrarProductos('activo')">Activos</button>
+      <button class="btn btn-productos-filter" onclick="filtrarProductos('descontinuado')">Descontinuados</button>
+    </div>
     <div class="btn-group" role="group">
       {% if 'ver_inventario_general' in session['permisos'] %}
-      <a href="{{ url_for('inventario.inventario_general') }}" class="btn btn-tab">Inventario</a>
+      <a href="{{ url_for('inventario.inventario_general') }}" class="btn btn-productos-filter">Inventario</a>
       {% endif %}
-      <a href="{{ url_for('producto.productos') }}" class="btn btn-tab active">Productos</a>
-    </div>
-  </div>
-  <div class="mb-3">
-    <div class="btn-group" role="group">
-      <button class="btn btn-outline-primary btn-sm" onclick="filtrarProductos('todos')">Todos</button>
-      <button class="btn btn-outline-success btn-sm" onclick="filtrarProductos('activo')">Activos</button>
-      <button class="btn btn-outline-secondary btn-sm"
-        onclick="filtrarProductos('descontinuado')">Descontinuados</button>
+      <a href="{{ url_for('producto.productos') }}" class="btn btn-productos-filter active">Productos</a>
     </div>
   </div>
   <div class="table-responsive">
-    <table class="table table-inventario align-middle">
+    <table class="table table-productos align-middle">
       <thead>
         <tr>
           <th>Producto</th>
           <th>Descripción</th>
           <th>Tipo</th>
-          <th>Precios<br><small>(1/ 2-7 / 8-15 / 16-30 / 31+ días o único)</small></th>
+          <th>Precios</th>
           <th>Piezas asociadas</th>
           <th>Estatus</th>
           {% if 'editar_producto' in session['permisos'] or 'baja_producto' in session['permisos'] or 'alta_producto' in
@@ -75,7 +74,7 @@
             </div>
             {% if producto.precio_unico %}
             <div>
-              <span class="badge bg-info text-dark">Precio único por día</span>
+              <span class="badge badge-productos bg-primary">Precio único por día</span>
             </div>
             {% else %}
             <div><strong>1-7 días:</strong> ${{ producto.precio_7dias }}</div>
@@ -95,16 +94,16 @@
           </td>
           <td>
             {% if producto.estatus == 'activo' %}
-            <span class="badge bg-success">Activo</span>
+            <span class="badge badge-productos bg-success">Activo</span>
             {% else %}
-            <span class="badge bg-secondary">Descontinuado</span>
+            <span class="badge badge-productos bg-secondary">Descontinuado</span>
             {% endif %}
           </td>
           {% if 'editar_producto' in session['permisos'] or 'baja_producto' in session['permisos'] or 'alta_producto' in
           session['permisos'] %}
           <td>
             {% if 'editar_producto' in session['permisos'] %}
-            <button class="btn btn-primary btn-sm action-btn" data-bs-toggle="modal"
+            <button class="btn btn-sm btn-outline-primary action-btn-productos" data-bs-toggle="modal"
               data-bs-target="#modalEditarProducto{{ producto.id_producto }}">
               <i class="bi bi-pencil"></i>
             </button>
@@ -112,7 +111,7 @@
             {% if producto.estatus == 'activo' and 'baja_producto' in session['permisos'] %}
             <form method="POST" action="{{ url_for('producto.dar_baja_producto', id_producto=producto.id_producto) }}"
               style="display:inline;">
-              <button class="btn btn-outline-secondary btn-sm action-btn" title="Descontinuar"
+              <button class="btn btn-sm btn-outline-secondary action-btn-productos" title="Descontinuar"
                 onclick="return confirm('¿Descontinuar este producto?');">
                 <i class="bi bi-ban"></i>
               </button>
@@ -120,7 +119,7 @@
             {% elif producto.estatus != 'activo' and 'alta_producto' in session['permisos'] %}
             <form method="POST" action="{{ url_for('producto.dar_alta_producto', id_producto=producto.id_producto) }}"
               style="display:inline;">
-              <button class="btn btn-success btn-sm action-btn" title="Activar"
+              <button class="btn btn-sm btn-outline-success action-btn-productos" title="Activar"
                 onclick="return confirm('¿Activar este producto?');">
                 <i class="bi bi-arrow-up-circle"></i>
               </button>

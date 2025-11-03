@@ -1,3 +1,307 @@
+/* --- CONTENEDOR PRINCIPAL INVENTARIO (estilo clientes) --- */
+.inventario-box-container {
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 2px 16px rgba(80, 80, 80, 0.10);
+    padding: 2.5rem 2.5rem 2rem 2.5rem;
+    margin-bottom: 2rem;
+    margin-top: 1.5rem;
+}
+
+.inventario-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.inventario-section-title {
+    color: #23395d;
+    font-weight: bold;
+    font-size: 2.3rem;
+    margin-bottom: 0;
+}
+
+.btn-inventario-main {
+    background: #c62828;
+    color: #fff;
+    font-weight: bold;
+    border-radius: 12px;
+    padding: 0.7rem 2rem;
+    font-size: 1.1rem;
+    border: none;
+    transition: background 0.2s;
+}
+.btn-inventario-main:hover {
+    background: #a31515;
+    color: #fff;
+}
+
+.btn-inventario-success {
+    background: #2e7d32;
+    color: #fff;
+    font-weight: bold;
+    border-radius: 12px;
+    padding: 0.7rem 2rem;
+    font-size: 1.1rem;
+    border: none;
+    transition: background 0.2s;
+}
+.btn-inventario-success:hover {
+    background: #1b5e20;
+    color: #fff;
+}
+
+.btn-inventario-secondary {
+    background: #b0b0b0;
+    color: #23395d;
+    font-weight: bold;
+    border-radius: 12px;
+    padding: 0.7rem 2rem;
+    font-size: 1.1rem;
+    border: none;
+    transition: background 0.2s;
+}
+.btn-inventario-secondary:hover {
+    background: #9e9e9e;
+    color: #23395d;
+}
+
+.btn-inventario-filter {
+    background: #f5f5f5;
+    color: #23395d;
+    border: 1px solid #b0b0b0;
+    border-radius: 8px;
+    margin-right: 0.5rem;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    text-decoration: none;
+}
+.btn-inventario-filter.active, .btn-inventario-filter:hover {
+    background: #23395d;
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Estilos para botones de filtro de inventario general */
+.btn-inventario-filter-general {
+    background: #f5f5f5;
+    color: #23395d;
+    border: 1.5px solid #b0b0b0;
+    border-radius: 8px;
+    margin-right: 0.5rem;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+.btn-inventario-filter-general.active {
+    background: #23395d;
+    color: #fff;
+    border-color: #23395d;
+}
+.btn-inventario-filter-general:hover {
+    background: #23395d;
+    color: #fff;
+    border-color: #23395d;
+    transform: translateY(-1px);
+}
+
+/* Colores específicos para cada tipo de filtro */
+.btn-inventario-filter-general.filter-todos.active,
+.btn-inventario-filter-general.filter-todos:hover {
+    background: #23395d;
+    color: #fff;
+    border-color: #23395d;
+}
+
+.btn-inventario-filter-general.filter-activo.active,
+.btn-inventario-filter-general.filter-activo:hover {
+    background: #2e7d32;
+    color: #fff;
+    border-color: #2e7d32;
+}
+
+.btn-inventario-filter-general.filter-descontinuado.active,
+.btn-inventario-filter-general.filter-descontinuado:hover {
+    background: #b0b0b0;
+    color: #23395d;
+    border-color: #b0b0b0;
+}
+
+.btn-inventario-nav {
+    background: #f5f5f5;
+    color: #23395d;
+    border: 1px solid #b0b0b0;
+    border-radius: 8px;
+    margin-right: 0.5rem;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    text-decoration: none;
+}
+.btn-inventario-nav.active, .btn-inventario-nav:hover {
+    background: #23395d;
+    color: #fff;
+    text-decoration: none;
+}
+
+.search-inventario-box {
+    border-radius: 12px;
+    border: 1.5px solid #b0b0b0;
+    padding: 0.7rem 1.2rem;
+    width: 100%;
+    max-width: 350px;
+    font-size: 1.1rem;
+}
+
+.table-inventario th {
+    background: #23395d;
+    color: #fff;
+    font-weight: bold;
+    border-top: none;
+    font-size: 1.08rem;
+}
+.table-inventario td, .table-inventario th {
+    vertical-align: middle;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 1.05rem;
+}
+.table-inventario tr:nth-child(even) {
+    background: #f6f8fa;
+}
+.table-inventario tr:hover td {
+    background: #d1d5db;
+}
+.table-inventario a.fw-bold {
+    color: #23395d;
+}
+.table-inventario a.fw-bold:hover {
+    text-decoration: underline;
+    color: #c62828;
+}
+
+.badge-inventario {
+    font-size: 1em;
+    padding: 0.4em 0.9em;
+    border-radius: 8px;
+}
+.badge-inventario.bg-danger {
+    background: #c62828 !important;
+    color: #fff !important;
+}
+.badge-inventario.bg-success {
+    background: #2e7d32 !important;
+    color: #fff !important;
+}
+.badge-inventario.bg-warning {
+    background: #fbc02d !important;
+    color: #23395d !important;
+}
+.badge-inventario.bg-secondary {
+    background: #b0b0b0 !important;
+    color: #23395d !important;
+}
+.badge-inventario.bg-primary {
+    background: #23395d !important;
+    color: #fff !important;
+}
+.badge-inventario.bg-info {
+    background: #17a2b8 !important;
+    color: #fff !important;
+}
+
+.action-btn-inventario {
+    margin-right: 0.3rem;
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.85rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-outline-warning.action-btn-inventario, 
+.btn-outline-warning.action-btn-inventario:focus {
+    border-color: #fbc02d !important;
+    color: #fbc02d !important;
+}
+.btn-outline-warning.action-btn-inventario:hover {
+    background: #fbc02d !important;
+    color: #23395d !important;
+}
+
+.btn-outline-success.action-btn-inventario, 
+.btn-outline-success.action-btn-inventario:focus {
+    border-color: #2e7d32 !important;
+    color: #2e7d32 !important;
+}
+.btn-outline-success.action-btn-inventario:hover {
+    background: #2e7d32 !important;
+    color: #fff !important;
+}
+
+.btn-outline-primary.action-btn-inventario, 
+.btn-outline-primary.action-btn-inventario:focus {
+    border-color: #23395d !important;
+    color: #23395d !important;
+}
+.btn-outline-primary.action-btn-inventario:hover {
+    background: #23395d !important;
+    color: #fff !important;
+}
+
+.btn-outline-info.action-btn-inventario, 
+.btn-outline-info.action-btn-inventario:focus {
+    border-color: #17a2b8 !important;
+    color: #17a2b8 !important;
+}
+.btn-outline-info.action-btn-inventario:hover {
+    background: #17a2b8 !important;
+    color: #fff !important;
+}
+
+/* Contorno azul y esquinas redondeadas para la tabla de inventario */
+.table-inventario {
+    border: 2.5px solid #23395d;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(35,57,93,0.07);
+}
+
+/* Redondear solo las esquinas superiores del encabezado */
+.table-inventario th:first-child {
+    border-top-left-radius: 16px;
+}
+.table-inventario th:last-child {
+    border-top-right-radius: 16px;
+}
+
+/* Redondear solo las esquinas inferiores del último td */
+.table-inventario tr:last-child td:first-child {
+    border-bottom-left-radius: 16px;
+}
+.table-inventario tr:last-child td:last-child {
+    border-bottom-right-radius: 16px;
+}
+
+@media (max-width: 900px) {
+    .inventario-box-container {
+        padding: 1rem 0.5rem;
+    }
+    .inventario-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .inventario-section-title {
+        font-size: 1.5rem;
+    }
+}
+
+/* --- ESTILOS ORIGINALES MANTENIDOS --- */
 /* Contenedor principal */
 .box-container {
     background: #f8fafc;
@@ -21,46 +325,55 @@
     font-weight: bold;
     color: #23395d;
     margin-bottom: 0;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 10px;
 }
 
 .btn-main {
-    background: #e74c3c;
-    color: #fff;
-    font-weight: bold;
-    border-radius: 18px;
-    padding: 0.5rem 1.5rem;
-    font-size: 1.1rem;
-    border: none;
-    transition: background 0.2s;
+    background: linear-gradient(135deg, #c62828 0%, #a31515 100%) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.55rem 1.2rem !important;
+    font-weight: bold !important;
+    font-size: 0.95rem !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(198, 40, 40, 0.3) !important;
+    color: #fff !important;
 }
 .btn-main:hover {
-    background: #c0392b;
-    color: #fff;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(198, 40, 40, 0.4) !important;
+    background: linear-gradient(135deg, #a31515 0%, #8b1414 100%) !important;
+    color: #fff !important;
 }
 
 .btn-tab {
-    background: #3363af;
-    color: #fff;
-    font-weight: bold;
-    border: none;
-    border-radius: 18px;
-    margin-right: 8px;
-    padding: 0.4rem 1.2rem;
-    transition: background 0.2s, color 0.2s;
+    background: #3363af !important;
+    color: #fff !important;
+    font-weight: bold !important;
+    border: none !important;
+    border-radius: 18px !important;
+    margin-right: 8px !important;
+    padding: 0.4rem 1.2rem !important;
+    transition: all 0.3s ease !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 .btn-tab.active,
 .btn-tab:focus {
-    background: #23395d;
-    color: #fff;
+    background: linear-gradient(135deg, #23395d 0%, #1a2940 100%) !important;
+    color: #fff !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 .btn-tab:hover {
-    background: #274472;
-    color: #fff;
+    background: linear-gradient(135deg, #274472 0%, #1a2940 100%) !important;
+    color: #fff !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(39, 68, 114, 0.3) !important;
 }
 
 .search-box {
     border-radius: 18px;
-    
     border: 2px solid #d1d5db;
     padding: 0.5rem 1.2rem;
     font-size: 1.1rem;
@@ -68,24 +381,36 @@
     max-width: 350px;
     margin-bottom: 1.2rem;
     background: #f4f6fa;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(35, 57, 93, 0.1);
+}
+
+.search-box:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 3px rgba(35, 57, 93, 0.1);
+    outline: none;
+    background: #fff;
 }
 
 .table-inventario th {
-    background: #3363af;
+    background: #23395d;
     color: #fff;
     border: none;
     font-weight: bold;
-    text-align: center;
+    text-align: left;
+    font-size: 1.08rem;
 }
 .table-inventario td {
-    background: #f8fafc;
+    background: #fff;
     color: #23395d;
     border: none;
-    text-align: center;
+    text-align: left;
     vertical-align: middle;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 1.05rem;
 }
 .table-inventario tr:nth-child(even) td {
-    background: #e9ecf3;
+    background: #f6f8fa;
 }
 .table-inventario tr:hover td {
     background: #d1d5db;
@@ -179,4 +504,1079 @@
 }
 .table-inventario tr:last-child td:last-child {
     border-bottom-right-radius: 16px;
+}
+
+/* ==============================================
+   ESTILOS MODERNOS PARA BOTONES DE INVENTARIO
+   ============================================== */
+
+/* Estilos modernos para botones - Siguiendo la paleta del proyecto */
+.btn-modern {
+    background: linear-gradient(135deg, #c62828 0%, #a31515 100%) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.55rem 1.2rem !important;
+    font-weight: bold !important;
+    font-size: 0.95rem !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(198, 40, 40, 0.3) !important;
+    color: #fff !important;
+}
+
+.btn-modern:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(198, 40, 40, 0.4) !important;
+    background: linear-gradient(135deg, #a31515 0%, #8b1414 100%) !important;
+    color: #fff !important;
+}
+
+.btn-modern-outline {
+    border-radius: 10px !important;
+    padding: 0.55rem 1.2rem !important;
+    font-weight: bold !important;
+    font-size: 0.95rem !important;
+    border: 2px solid #23395d !important;
+    transition: all 0.3s ease !important;
+    background: #f5f5f5 !important;
+    color: #23395d !important;
+}
+
+.btn-modern-outline:hover {
+    transform: translateY(-2px) !important;
+    background: linear-gradient(135deg, #23395d 0%, #1a2940 100%) !important;
+    border-color: #1a2940 !important;
+    box-shadow: 0 4px 12px rgba(35, 57, 93, 0.3) !important;
+    color: #fff !important;
+}
+
+.btn-group-modern {
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 10px rgba(35, 57, 93, 0.15) !important;
+    border: 2.5px solid #23395d !important;
+}
+
+.btn-nav {
+    border-radius: 0 !important;
+    padding: 0.5rem 1rem !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    border-color: #23395d !important;
+    transition: all 0.3s ease !important;
+    background: #f8fafc !important;
+    color: #23395d !important;
+}
+
+.btn-nav.active {
+    background: linear-gradient(135deg, #3363af 0%, #23395d 100%) !important;
+    color: #fff !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.btn-nav:hover {
+    background: linear-gradient(135deg, #23395d 0%, #274472 100%) !important;
+    border-color: #274472 !important;
+    color: #fff !important;
+}
+
+/* Efectos de brillo para botones principales */
+.btn-modern, .btn-modern-outline, .btn-nav {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-modern::before, .btn-modern-outline::before, .btn-nav::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+    z-index: 1;
+}
+
+.btn-modern:hover::before, .btn-modern-outline:hover::before, .btn-nav:hover::before {
+    left: 100%;
+}
+
+/* Asegurar que el texto esté encima del efecto de brillo */
+.btn-modern *, .btn-modern-outline *, .btn-nav * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Estilos adicionales para mantener consistencia */
+.btn-modern:focus, .btn-modern-outline:focus, .btn-nav:focus {
+    box-shadow: 0 0 0 3px rgba(35, 57, 93, 0.25) !important;
+}
+
+/* ==============================================
+   ESTILOS PARA HISTORIAL DE TRANSFERENCIAS
+   ============================================== */
+
+/* --- ESTILOS PARA HISTORIAL DE TRANSFERENCIAS (usando diseño inventario) --- */
+.transferencias-box-container {
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 2px 16px rgba(80, 80, 80, 0.10);
+    padding: 2.5rem 2.5rem 2rem 2.5rem;
+    margin-bottom: 2rem;
+    margin-top: 1.5rem;
+}
+
+.transferencias-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.transferencias-section-title {
+    color: #23395d;
+    font-weight: bold;
+    font-size: 2.3rem;
+    margin-bottom: 0;
+}
+
+.btn-transferencias-main {
+    background: #c62828;
+    color: #fff;
+    font-weight: bold;
+    border-radius: 12px;
+    padding: 0.7rem 2rem;
+    font-size: 1.1rem;
+    border: none;
+    transition: background 0.2s;
+    text-decoration: none;
+}
+.btn-transferencias-main:hover {
+    background: #a31515;
+    color: #fff;
+    text-decoration: none;
+}
+
+.btn-transferencias-secondary {
+    background: #f5f5f5;
+    color: #23395d;
+    border: 1px solid #b0b0b0;
+    border-radius: 8px;
+    margin-right: 0.5rem;
+    font-weight: 500;
+    padding: 0.5rem 1.2rem;
+    text-decoration: none;
+}
+.btn-transferencias-secondary:hover {
+    background: #23395d;
+    color: #fff;
+    text-decoration: none;
+}
+
+.search-transferencias-box {
+    border-radius: 12px;
+    border: 1.5px solid #b0b0b0;
+    padding: 0.7rem 1.2rem;
+    width: 100%;
+    max-width: 350px;
+    font-size: 1.1rem;
+}
+
+.table-transferencias {
+    border: 2.5px solid #23395d;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(35,57,93,0.07);
+}
+
+.table-transferencias th:first-child {
+    border-top-left-radius: 16px;
+}
+.table-transferencias th:last-child {
+    border-top-right-radius: 16px;
+}
+
+.table-transferencias tr:last-child td:first-child {
+    border-bottom-left-radius: 16px;
+}
+.table-transferencias tr:last-child td:last-child {
+    border-bottom-right-radius: 16px;
+}
+
+.table-transferencias th {
+    background: #23395d;
+    color: #fff;
+    font-weight: bold;
+    border-top: none;
+    font-size: 1.08rem;
+}
+.table-transferencias td, .table-transferencias th {
+    vertical-align: middle;
+    border-bottom: 1px solid #e0e0e0;
+    font-size: 1.05rem;
+}
+.table-transferencias tr:nth-child(even) {
+    background: #f6f8fa;
+}
+.table-transferencias tr:hover td {
+    background: #d1d5db;
+}
+
+.badge-transferencia {
+    font-size: 1em;
+    padding: 0.4em 0.9em;
+    border-radius: 8px;
+}
+
+.badge-enviado {
+    background: #fbc02d !important;
+    color: #23395d !important;
+}
+
+.badge-recibido {
+    background: #2e7d32 !important;
+    color: #fff !important;
+}
+
+.badge-alta-equipo {
+    background: #1976d2 !important;
+    color: #fff !important;
+}
+
+.action-btn-transferencias {
+    margin-right: 0.3rem;
+    border-radius: 6px;
+    font-weight: 500;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.85rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-outline-danger.action-btn-transferencias, 
+.btn-outline-danger.action-btn-transferencias:focus {
+    border-color: #c62828 !important;
+    color: #c62828 !important;
+}
+.btn-outline-danger.action-btn-transferencias:hover {
+    background: #c62828 !important;
+    color: #fff !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(198, 40, 40, 0.3) !important;
+}
+
+.filters-container {
+    background: #f6f8fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e0e0e0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #f6f8fa;
+    border-radius: 12px;
+    border: 2px dashed #b0b0b0;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: #b0b0b0;
+    margin-bottom: 1rem;
+}
+
+.empty-title {
+    font-size: 1.5rem;
+    color: #23395d;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.empty-text {
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+    .transferencias-box-container {
+        padding: 1rem 0.5rem;
+    }
+    .transferencias-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .transferencias-section-title {
+        font-size: 1.5rem;
+    }
+}
+
+/* ==============================================
+   ESTILOS PARA INVENTARIO GENERAL
+   ============================================== */
+
+/* ==============================================
+   ESTILOS MODERNOS PARA MODAL DE ALTA DE EQUIPO
+   ============================================== */
+
+/* Modal de Alta de Equipo - Estilo moderno como nuevo cliente */
+.modal-content {
+    border-radius: 24px !important;
+    border: 3px solid #23395d !important;
+    box-shadow: 0 8px 32px rgba(35, 57, 93, 0.25), 0 2px 8px rgba(35, 57, 93, 0.15) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.modal-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: linear-gradient(90deg, #23395d 0%, #c62828 50%, #2e7d32 100%);
+    border-radius: 24px 24px 0 0;
+    z-index: 1;
+}
+
+.modal-header {
+    border-bottom: 3px solid #23395d !important;
+    border-radius: 24px 24px 0 0 !important;
+    background: linear-gradient(135deg, #23395d 0%, #2c4a72 100%) !important;
+    padding: 2rem 2rem 1.5rem 2rem !important;
+    position: relative !important;
+    z-index: 2 !important;
+}
+
+.modal-title {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 1.4rem !important;
+    margin-bottom: 0 !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+.modal-body {
+    padding: 2rem !important;
+    background: #ffffff !important;
+    border-left: 3px solid #23395d !important;
+    border-right: 3px solid #23395d !important;
+}
+
+.modal-footer {
+    border-top: 3px solid #23395d !important;
+    background: linear-gradient(135deg, #23395d 0%, #2c4a72 100%) !important;
+    border-radius: 0 0 24px 24px !important;
+    padding: 1.5rem 2rem !important;
+}
+
+/* Cards dentro del modal */
+.modal-body .card {
+    border: 2px solid rgba(35, 57, 93, 0.2) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.08) !important;
+    transition: all 0.3s ease !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+}
+
+.modal-body .card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(35, 57, 93, 0.15) !important;
+    border-color: rgba(35, 57, 93, 0.4) !important;
+}
+
+.modal-body .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #1a2940 100%) !important;
+    color: #fff !important;
+    border-bottom: none !important;
+    padding: 1.2rem 1.5rem !important;
+    font-weight: 700 !important;
+    border-radius: 20px 20px 0 0 !important;
+    box-shadow: 0 2px 8px rgba(35, 57, 93, 0.3) !important;
+}
+
+.modal-body .card-header.bg-light {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    color: #23395d !important;
+    border-bottom: 2px solid rgba(35, 57, 93, 0.1) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.modal-body .card-header.bg-success {
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%) !important;
+    color: #fff !important;
+}
+
+.modal-body .card-body {
+    background: #ffffff !important;
+    padding: 1.8rem !important;
+    border: none !important;
+}
+
+/* Alerts modernos */
+.modal-body .alert {
+    border: 2px solid rgba(35, 57, 93, 0.2) !important;
+    border-radius: 15px !important;
+    padding: 1.2rem 1.8rem !important;
+    margin-bottom: 1.5rem !important;
+    box-shadow: 0 2px 10px rgba(35, 57, 93, 0.08) !important;
+    background: #f8f9fa !important;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, rgba(35, 57, 93, 0.05) 0%, rgba(35, 57, 93, 0.02) 100%) !important;
+    color: #23395d !important;
+    border-color: rgba(35, 57, 93, 0.2) !important;
+}
+
+.alert-light {
+    background: linear-gradient(135deg, rgba(35, 57, 93, 0.03) 0%, rgba(35, 57, 93, 0.01) 100%) !important;
+    color: #23395d !important;
+    border-color: rgba(35, 57, 93, 0.15) !important;
+}
+
+/* Labels modernos */
+.modal-body .form-label {
+    color: #23395d !important;
+    font-weight: 600 !important;
+    font-size: 1.05rem !important;
+    margin-bottom: 0.7rem !important;
+    position: relative !important;
+    display: block !important;
+}
+
+.modal-body .form-label::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 0;
+    background: #c62828;
+    border-radius: 2px;
+    transition: height 0.3s ease;
+}
+
+.modal-body .card:hover .form-label::before {
+    height: 15px;
+}
+
+/* Inputs y selects modernos */
+.modal-body .form-control, .modal-body .form-select {
+    border-radius: 12px !important;
+    border: 2px solid rgba(176, 176, 176, 0.3) !important;
+    font-size: 1.05rem !important;
+    padding: 0.75rem 1.2rem !important;
+    margin-bottom: 1rem !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 2px 8px rgba(35, 57, 93, 0.04) !important;
+}
+
+.modal-body .form-control:focus, .modal-body .form-select:focus {
+    border-color: #23395d !important;
+    box-shadow: 0 0 0 3px rgba(35, 57, 93, 0.1) !important;
+    background: #ffffff !important;
+    outline: none !important;
+    transform: translateY(-1px) !important;
+}
+
+.modal-body .form-control:hover, .modal-body .form-select:hover {
+    border-color: rgba(35, 57, 93, 0.5) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(35, 57, 93, 0.08) !important;
+}
+
+/* Textarea moderno */
+.modal-body textarea.form-control {
+    resize: vertical !important;
+    min-height: 80px !important;
+}
+
+/* Text muted moderno */
+.modal-body .text-muted {
+    color: rgba(35, 57, 93, 0.6) !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+}
+
+/* Botones del modal modernos */
+.modal-footer .btn-secondary {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafd 100%) !important;
+    border: 3px solid #23395d !important;
+    color: #23395d !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    padding: 0.8rem 1.8rem !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 3px 10px rgba(35, 57, 93, 0.15) !important;
+}
+
+.modal-footer .btn-secondary:hover {
+    background: linear-gradient(135deg, #23395d 0%, #1a2940 100%) !important;
+    border-color: #1a2940 !important;
+    transform: translateY(-2px) !important;
+    color: #ffffff !important;
+    box-shadow: 0 6px 20px rgba(35, 57, 93, 0.25) !important;
+}
+
+.modal-footer .btn-success {
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%) !important;
+    border: none !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    padding: 0.8rem 1.8rem !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 16px rgba(46, 125, 50, 0.25) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.modal-footer .btn-success::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.modal-footer .btn-success:hover {
+    background: linear-gradient(135deg, #1b5e20 0%, #0d3d11 100%) !important;
+    color: #fff !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px rgba(46, 125, 50, 0.35) !important;
+}
+
+.modal-footer .btn-success:hover::before {
+    left: 100%;
+}
+
+/* Botón cerrar moderno */
+.btn-close {
+    border-radius: 50% !important;
+    padding: 0.6rem !important;
+    background: rgba(35, 57, 93, 0.1) !important;
+    opacity: 1 !important;
+    transition: all 0.3s ease !important;
+    border: 2px solid rgba(35, 57, 93, 0.3) !important;
+}
+
+.btn-close:hover {
+    background: rgba(35, 57, 93, 0.2) !important;
+    transform: scale(1.1) !important;
+    border-color: #23395d !important;
+}
+
+.btn-close-white {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border: 2px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+.btn-close-white:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Table dentro del modal */
+.modal-body .table {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    box-shadow: 0 2px 8px rgba(35, 57, 93, 0.06) !important;
+}
+
+.modal-body .table thead {
+    background: linear-gradient(135deg, #f8fafd 0%, #e9ecf3 100%) !important;
+}
+
+.modal-body .table th {
+    color: #23395d !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid rgba(35, 57, 93, 0.1) !important;
+}
+
+.modal-body .table td {
+    border-bottom: 1px solid rgba(35, 57, 93, 0.1) !important;
+}
+
+.modal-body .table tbody tr:hover {
+    background: rgba(35, 57, 93, 0.05) !important;
+}
+
+/* Animaciones para el modal */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal.show .modal-content {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+/* Efectos para small text */
+.modal-body small {
+    color: rgba(35, 57, 93, 0.7) !important;
+    font-weight: 500 !important;
+}
+
+/* Border-left-info específico */
+.border-left-info {
+    border-left: 4px solid #17a2b8 !important;
+}
+
+/* Botones dentro del modal body */
+.modal-body .btn {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 0.6rem 1.2rem !important;
+    transition: all 0.3s ease !important;
+    margin-right: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.modal-body .btn-success {
+    background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%) !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(46, 125, 50, 0.2) !important;
+}
+
+.modal-body .btn-success:hover {
+    background: linear-gradient(135deg, #1b5e20 0%, #0d3d11 100%) !important;
+    color: #fff !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3) !important;
+}
+
+.modal-body .btn-danger {
+    background: linear-gradient(135deg, #c62828 0%, #a31515 100%) !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(198, 40, 40, 0.2) !important;
+}
+
+.modal-body .btn-danger:hover {
+    background: linear-gradient(135deg, #a31515 0%, #7d0f0f 100%) !important;
+    color: #fff !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(198, 40, 40, 0.3) !important;
+}
+
+.modal-body .btn-primary {
+    background: linear-gradient(135deg, #23395d 0%, #1a2940 100%) !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(35, 57, 93, 0.2) !important;
+}
+
+.modal-body .btn-primary:hover {
+    background: linear-gradient(135deg, #1a2940 0%, #0f1a2a 100%) !important;
+    color: #fff !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(35, 57, 93, 0.3) !important;
+}
+
+.modal-body .btn-outline-secondary {
+    border: 2px solid rgba(35, 57, 93, 0.3) !important;
+    color: #23395d !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+}
+
+.modal-body .btn-outline-secondary:hover {
+    background: linear-gradient(135deg, #23395d 0%, #1a2940 100%) !important;
+    border-color: #1a2940 !important;
+    color: #fff !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Inputs numéricos pequeños */
+.modal-body input[type="number"] {
+    width: 80px !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+}
+
+/* Botones de modal mejorados */
+.btn-secondary {
+    background: #f5f5f5 !important;
+    color: #23395d !important;
+    border: 2px solid #23395d !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+    border-color: #495057 !important;
+    color: #fff !important;
+    transform: translateY(-1px) !important;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3363af 0%, #23395d 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+    color: #fff !important;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #23395d 0%, #1a2940 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(35, 57, 93, 0.3) !important;
+    color: #fff !important;
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+    color: #fff !important;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #138496 0%, #0f6674 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(19, 132, 150, 0.3) !important;
+    color: #fff !important;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #fbc02d 0%, #f57f17 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+    color: #23395d !important;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #f57f17 0%, #ef6c00 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(245, 127, 23, 0.3) !important;
+    color: #23395d !important;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #c62828 0%, #a31515 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: bold !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.3s ease !important;
+    color: #fff !important;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #a31515 0%, #8b1414 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 8px rgba(198, 40, 40, 0.3) !important;
+    color: #fff !important;
+}
+
+/* Estilos para estadísticas de sucursales */
+.sucursal-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.8rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    width: 100%;
+}
+
+.stat-label {
+    font-weight: 600;
+    color: #23395d;
+    font-size: 0.75rem;
+    min-width: 35px;
+    text-align: right;
+}
+
+.badge {
+    font-size: 0.7rem !important;
+    padding: 0.25rem 0.5rem !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+}
+
+/* Colores específicos para badges */
+.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.bg-success {
+    background-color: #28a745 !important;
+}
+
+.bg-primary {
+    background-color: #007bff !important;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+.bg-dark {
+    background-color: #343a40 !important;
+}
+
+/* Mejoras para la tabla del inventario general */
+.table-inventario td {
+    padding: 0.75rem 0.5rem !important;
+}
+
+.table-inventario th {
+    padding: 0.75rem 0.5rem !important;
+}
+
+/* Responsive para tabla de inventario general */
+@media (max-width: 1200px) {
+    .sucursal-stats {
+        font-size: 0.75rem;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+        min-width: 30px;
+    }
+    
+    .badge {
+        font-size: 0.65rem !important;
+        padding: 0.2rem 0.4rem !important;
+    }
+}
+
+/* Estilos de impresión para transferencias */
+@media print {
+    .btn, .btn-transferencias-main, .btn-transferencias-secondary, .filters-container { 
+        display: none !important; 
+    }
+    .transferencias-box-container { 
+        box-shadow: none !important; 
+    }
+    .transferencias-section-header .d-flex { 
+        display: none !important; 
+    }
+    body { 
+        background: white !important; 
+    }
+    .table-transferencias { 
+        font-size: 12px; 
+    }
+    .badge, .badge-transferencia { 
+        color: black !important; 
+        background: transparent !important; 
+        border: 1px solid black !important; 
+    }
+}
+
+/* ==============================================
+   ESTILOS RESPONSIVOS PARA INVENTARIO
+   ============================================== */
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .section-header.d-flex {
+        flex-direction: column !important;
+        gap: 15px !important;
+        align-items: flex-start !important;
+    }
+    
+    .d-flex.justify-content-between {
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+    
+    .btn-group-modern {
+        width: 100% !important;
+    }
+    
+    .btn-nav {
+        flex: 1 !important;
+        font-size: 0.8rem !important;
+        padding: 0.4rem 0.8rem !important;
+    }
+    
+    .btn-modern, .btn-modern-outline {
+        font-size: 0.9rem !important;
+        padding: 0.5rem 1rem !important;
+    }
+}
+
+/* ==============================================
+   ESTILOS GLOBALES PARA SWEETALERT2
+   ============================================== */
+
+/* Contenedor principal del modal */
+.swal2-popup {
+    border-radius: 20px !important;
+    border: 3px solid #23395d !important;
+    box-shadow: 0 8px 32px rgba(35, 57, 93, 0.25) !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+}
+
+/* Título del modal */
+.swal2-title {
+    color: #23395d !important;
+    font-weight: 700 !important;
+    font-size: 1.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Contenido del modal */
+.swal2-html-container {
+    color: #333 !important;
+    font-size: 1.1rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Iconos */
+.swal2-icon {
+    border: none !important;
+    margin: 1.5rem auto 1rem !important;
+}
+
+.swal2-icon.swal2-question {
+    border-color: #23395d !important;
+    color: #23395d !important;
+}
+
+.swal2-icon.swal2-warning {
+    border-color: #fbc02d !important;
+    color: #fbc02d !important;
+}
+
+.swal2-icon.swal2-error {
+    border-color: #c62828 !important;
+    color: #c62828 !important;
+}
+
+.swal2-icon.swal2-success {
+    border-color: #2e7d32 !important;
+    color: #2e7d32 !important;
+}
+
+.swal2-icon.swal2-info {
+    border-color: #17a2b8 !important;
+    color: #17a2b8 !important;
+}
+
+/* Botones */
+.swal2-actions {
+    gap: 1rem !important;
+    margin-top: 2rem !important;
+}
+
+.swal2-confirm {
+    background: #2e7d32 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.7rem 1.5rem !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 3px 10px rgba(46, 125, 50, 0.3) !important;
+}
+
+.swal2-confirm:hover {
+    background: #1b5e20 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 5px 15px rgba(46, 125, 50, 0.4) !important;
+}
+
+.swal2-cancel {
+    background: #6c757d !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.7rem 1.5rem !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 3px 10px rgba(108, 117, 125, 0.3) !important;
+}
+
+.swal2-cancel:hover {
+    background: #5a6268 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4) !important;
+}
+
+/* Colores específicos según el tipo de alerta */
+.swal2-popup.swal2-modal.swal2-icon-warning .swal2-confirm {
+    background: #fbc02d !important;
+    color: #23395d !important;
+}
+
+.swal2-popup.swal2-modal.swal2-icon-warning .swal2-confirm:hover {
+    background: #f9a825 !important;
+}
+
+.swal2-popup.swal2-modal.swal2-icon-error .swal2-confirm {
+    background: #c62828 !important;
+    color: white !important;
+}
+
+.swal2-popup.swal2-modal.swal2-icon-error .swal2-confirm:hover {
+    background: #a31515 !important;
+}
+
+/* Input fields si los hay */
+.swal2-input {
+    border: 2px solid #d1d5db !important;
+    border-radius: 10px !important;
+    padding: 0.7rem 1rem !important;
+    font-size: 1rem !important;
+    transition: all 0.3s ease !important;
+}
+
+.swal2-input:focus {
+    border-color: #23395d !important;
+    box-shadow: 0 0 0 3px rgba(35, 57, 93, 0.1) !important;
+    outline: none !important;
+}
+
+/* Loading spinner */
+.swal2-loader {
+    border-color: #23395d transparent #23395d transparent !important;
+}
+
+/* Backdrop */
+.swal2-backdrop-show {
+    background: rgba(35, 57, 93, 0.4) !important;
 }
