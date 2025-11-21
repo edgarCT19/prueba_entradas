@@ -63,13 +63,22 @@ def preview_nota_entrada(renta_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Obtener sucursal de la renta primero
-    cursor.execute("SELECT id_sucursal FROM rentas WHERE id = %s", (renta_id,))
+    # Verificar si es una renta asociada (renovación parcial)
+    cursor.execute("SELECT id_sucursal, renta_asociada_id, estado_renta FROM rentas WHERE id = %s", (renta_id,))
     sucursal_row = cursor.fetchone()
     if not sucursal_row:
         cursor.close()
         conn.close()
         return jsonify({'error': 'Renta no encontrada'}), 404
+    
+    # Bloquear nota de entrada para rentas asociadas
+    if sucursal_row['renta_asociada_id'] is not None:
+        cursor.close()
+        conn.close()
+        return jsonify({
+            'error': 'No se puede crear nota de entrada para rentas asociadas',
+            'message': 'Esta es una renovación parcial. No requiere nota de entrada ya que el equipo nunca regresó físicamente.'
+        }), 403
 
     sucursal_id = sucursal_row['id_sucursal']
 
@@ -91,7 +100,7 @@ def preview_nota_entrada(renta_id):
         conn.close()
         return jsonify({'error': 'Renta no encontrada'}), 404
 
-    # Obtener folio de salida y nota_salida_id
+    # Obtener folio de salida y nota_salida_id (incluir rentas con estado "Renta parcial")
     cursor.execute("""
         SELECT folio, id AS nota_salida_id
         FROM notas_salida
@@ -101,6 +110,15 @@ def preview_nota_entrada(renta_id):
     ns_row = cursor.fetchone()
     folio_salida = str(ns_row['folio']).zfill(5) if ns_row and ns_row['folio'] is not None else '-----'
     nota_salida_id = ns_row['nota_salida_id'] if ns_row else None
+
+    # Si no hay nota de salida, puede ser porque es una renta con renovaciones
+    if not nota_salida_id:
+        cursor.close()
+        conn.close()
+        return jsonify({
+            'error': 'No se encontró nota de salida para esta renta',
+            'message': 'Esta renta no tiene nota de salida asociada. Verifica que se haya generado correctamente.'
+        }), 404
 
     # Fecha y hora actual
     fecha_hora = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -138,7 +156,7 @@ def preview_nota_entrada(renta_id):
     cursor.execute("SELECT COUNT(*) AS total FROM notas_entrada WHERE renta_id = %s", (renta_id,))
     existe_entrada = cursor.fetchone()['total'] > 0
 
-    # Consulta de piezas pendientes (si ya hay notas de entrada)
+    # Consulta de piezas pendientes mejorada (funciona con cualquier estado de renta)
     cursor.execute("""
         SELECT
             nsd.id_pieza,
@@ -153,6 +171,7 @@ def preview_nota_entrada(renta_id):
         WHERE nsd.nota_salida_id = %s
         GROUP BY nsd.id_pieza, p.nombre_pieza, nsd.cantidad
         HAVING cantidad_pendiente > 0
+        ORDER BY p.nombre_pieza
     """, (renta_id, nota_salida_id))
     piezas_pendientes = cursor.fetchall()
 
@@ -212,6 +231,14 @@ def crear_nota_entrada(renta_id):
     cursor = conn.cursor(dictionary=True)
 
     try:
+        # Verificar si es una renta asociada antes de crear la nota
+        cursor.execute("SELECT renta_asociada_id FROM rentas WHERE id = %s", (renta_id,))
+        renta_check = cursor.fetchone()
+        if renta_check and renta_check['renta_asociada_id'] is not None:
+            return jsonify({
+                'success': False, 
+                'error': 'No se puede crear nota de entrada para rentas asociadas. Esta es una renovación parcial que no requiere devolución física del equipo.'
+            }), 403
         cobrar_retraso = data.get('cobrar_retraso', False)
         estado_retraso = 'Retraso Pendiente' if cobrar_retraso else 'Sin Retraso'
 
@@ -339,23 +366,32 @@ def crear_nota_entrada(renta_id):
             """, (renta_id,))
         else:
             # Verificar si quedan piezas pendientes después de esta nota
+            # Usar la misma lógica que el preview para consistencia
             cursor.execute("""
                 SELECT
-                    SUM(nsd.cantidad) AS total_salieron,
-                    IFNULL(SUM(ned.cantidad_recibida), 0) AS total_recibidas
+                    nsd.id_pieza,
+                    nsd.cantidad AS cantidad_salida,
+                    IFNULL(SUM(ned.cantidad_recibida), 0) AS cantidad_recibida_total,
+                    (nsd.cantidad - IFNULL(SUM(ned.cantidad_recibida), 0)) AS cantidad_pendiente
                 FROM notas_salida_detalle nsd
                 LEFT JOIN notas_entrada ne ON ne.renta_id = %s
                 LEFT JOIN notas_entrada_detalle ned ON ned.nota_entrada_id = ne.id AND ned.id_pieza = nsd.id_pieza
                 WHERE nsd.nota_salida_id = %s
+                GROUP BY nsd.id_pieza, nsd.cantidad
+                HAVING cantidad_pendiente > 0
             """, (renta_id, nota_salida_id))
-            row = cursor.fetchone()
-            total_salieron = row['total_salieron'] or 0
-            total_recibidas = row['total_recibidas'] or 0
+            piezas_pendientes = cursor.fetchall()
 
-            if total_salieron == total_recibidas:
+            if len(piezas_pendientes) == 0:
                 cursor.execute("""
                     UPDATE rentas SET estado_renta = 'finalizada'
                     WHERE id = %s
+                """, (renta_id,))
+                
+                # Finalizar también las rentas asociadas (renovaciones)
+                cursor.execute("""
+                    UPDATE rentas SET estado_renta = 'renovación finalizada'
+                    WHERE renta_asociada_id = %s AND estado_renta = 'activa renovación'
                 """, (renta_id,))
             else:
                 cursor.execute("""

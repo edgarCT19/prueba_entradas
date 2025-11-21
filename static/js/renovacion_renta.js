@@ -2,6 +2,24 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalEl = document.getElementById('modalNuevaRentaRenovacion');
     const botones = document.querySelectorAll('.btn-abrir-modal-renovacion');
     const formRenovar = document.getElementById('form-renovar-renta');
+    
+    // Función global para abrir modal de renovación
+    window.abrirModalRenovacion = function(rentaId, tipo = 'completa') {
+        formRenovar.action = `/rentas/renovar/${rentaId}`;
+        document.getElementById('renta_id_hidden').value = rentaId;
+        
+        // Actualizar título según tipo
+        const titulo = document.querySelector('#modalNuevaRentaRenovacionLabel');
+        if (titulo) {
+            titulo.innerHTML = tipo === 'parcial' 
+                ? '<i class="bi bi-arrow-repeat"></i> Renovar Equipos Pendientes'
+                : '<i class="bi bi-arrow-repeat"></i> Renovar Renta Completa';
+        }
+        
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        cargarDatosRenta(rentaId, tipo);
+    };
     const fechaInicioInput = document.getElementById('fecha_salida_modal');
     const fechaFinInput = document.getElementById('fecha_entrada_modal');
     const tbody = document.querySelector('#tabla-productos-renovacion tbody');
@@ -83,55 +101,63 @@ document.addEventListener('DOMContentLoaded', function () {
         recalcularTotalesDinamicos();
     }
 
+    // Función para cargar datos de renta unificada
+    function cargarDatosRenta(rentaId, tipo = 'completa') {
+        // Limpiar tabla y campos
+        tbody.innerHTML = '';
+        document.getElementById('cliente_nombre_modal').value = 'Cargando...';
+        document.getElementById('direccion_obra_modal').value = '';
+        fechaInicioInput.value = '';
+        fechaFinInput.value = '';
+        document.getElementById('observaciones_modal').value = '';
+
+        fetch(`/rentas/detalle/${rentaId}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('cliente_nombre_modal').value = data.cliente.nombre || '';
+                document.getElementById('direccion_obra_modal').value = data.renta.direccion_obra || '';
+                fechaInicioInput.value = data.renta.fecha_salida?.substring(0, 10) || '';
+                fechaFinInput.value = data.renta.fecha_entrada?.substring(0, 10) || '';
+                document.getElementById('observaciones_modal').value = data.renta.observaciones || '';
+
+                if (Array.isArray(data.productos)) {
+                    let productosParaMostrar = data.productos;
+                    
+                    // Si es tipo 'parcial', filtrar solo productos pendientes
+                    if (tipo === 'parcial') {
+                        productosParaMostrar = data.productos.filter(p => (p.cantidad_pendiente || 0) > 0);
+                    }
+                    
+                    productosParaMostrar.forEach(p => {
+                        const cantidad = tipo === 'parcial' 
+                            ? (Number(p.cantidad_pendiente) || 1)
+                            : (Number(p.cantidad) || 1);
+                        const dias = calcularDiasRenta();
+                        const precio = obtenerPrecioProducto(p.id_producto, dias);
+
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><input type="hidden" name="producto_id[]" value="${p.id_producto}">${p.nombre}</td>
+                            <td><input type="number" name="cantidad[]" class="form-control cantidad" min="1" value="${cantidad}"></td>
+                            <td><input type="number" name="dias_renta[]" class="form-control dias" min="1" value="${dias}" readonly style="width:50px;"></td>
+                            <td><input type="number" name="costo_unitario[]" class="form-control costo" step="0.01" min="0" value="${precio.toFixed(2)}" readonly></td>
+                            <td><input type="number" class="form-control subtotal" step="0.01" min="0" value="${(cantidad*dias*precio).toFixed(2)}" readonly></td>
+                            <td><button type="button" class="btn btn-danger btn-sm btn-quitar"><i class="bi bi-trash"></i></button></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    actualizarDiasYPrecios();
+                }
+            })
+            .catch(console.error);
+    }
+
     // Abrir modal y cargar datos
     botones.forEach(btn => {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
             const rentaId = this.dataset.rentaId;
-            formRenovar.action = `/rentas/renovar/${rentaId}`;
-            document.getElementById('renta_id_hidden').value = rentaId;
-
-            const modal = new bootstrap.Modal(modalEl);
-            modal.show();
-
-            // Limpiar tabla y campos
-            tbody.innerHTML = '';
-            document.getElementById('cliente_nombre_modal').value = 'Cargando...';
-            document.getElementById('direccion_obra_modal').value = '';
-            fechaInicioInput.value = '';
-            fechaFinInput.value = '';
-            document.getElementById('observaciones_modal').value = '';
-
-            fetch(`/rentas/detalle/${rentaId}`)
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('cliente_nombre_modal').value = data.cliente.nombre || '';
-                    document.getElementById('direccion_obra_modal').value = data.renta.direccion_obra || '';
-                    fechaInicioInput.value = data.renta.fecha_salida?.substring(0, 10) || '';
-                    fechaFinInput.value = data.renta.fecha_entrada?.substring(0, 10) || '';
-                    document.getElementById('observaciones_modal').value = data.renta.observaciones || '';
-
-                    if (Array.isArray(data.productos)) {
-                        data.productos.forEach(p => {
-                            const cantidad = Number(p.cantidad) || 1;
-                            const dias = calcularDiasRenta();
-                            const precio = obtenerPrecioProducto(p.id_producto, dias);
-
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                                <td><input type="hidden" name="producto_id[]" value="${p.id_producto}">${p.nombre}</td>
-                                <td><input type="number" name="cantidad[]" class="form-control cantidad" min="1" value="${cantidad}"></td>
-                                <td><input type="number" name="dias_renta[]" class="form-control dias" min="1" value="${dias}" readonly style="width:50px;"></td>
-                                <td><input type="number" name="costo_unitario[]" class="form-control costo" step="0.01" min="0" value="${precio.toFixed(2)}" readonly></td>
-                                <td><input type="number" class="form-control subtotal" step="0.01" min="0" value="${(cantidad*dias*precio).toFixed(2)}" readonly></td>
-                                <td><button type="button" class="btn btn-danger btn-sm btn-quitar"><i class="bi bi-trash"></i></button></td>
-                            `;
-                            tbody.appendChild(tr);
-                        });
-                        actualizarDiasYPrecios();
-                    }
-                })
-                .catch(console.error);
+            abrirModalRenovacion(rentaId, 'completa');
         });
     });
 

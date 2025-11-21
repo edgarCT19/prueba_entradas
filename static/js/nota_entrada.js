@@ -54,11 +54,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     function actualizarAvisosRetraso(data) {
-        // Oculta todos los avisos y opciones
-        document.getElementById('aviso-retraso-ninguno').classList.add('d-none');
-        document.getElementById('opcion-retraso-medio').classList.add('d-none');
-        document.getElementById('aviso-retraso-medio').classList.add('d-none');
-        document.getElementById('aviso-retraso-redondo').classList.add('d-none');
+        // Oculta todos los avisos y opciones (con verificación de seguridad)
+        const avisosIds = ['aviso-retraso-ninguno', 'opcion-retraso-medio', 'aviso-retraso-medio', 'aviso-retraso-redondo'];
+        avisosIds.forEach(id => {
+            const elemento = document.getElementById(id);
+            if (elemento) elemento.classList.add('d-none');
+        });
 
         const traslado = (data.traslado_original || '').toLowerCase();
         const estado = data.estado;
@@ -66,21 +67,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (estado === 'Retrasada' && diasRetraso > 0) {
             if (traslado === 'ninguno') {
-                document.getElementById('aviso-retraso-ninguno').classList.remove('d-none');
+                const aviso = document.getElementById('aviso-retraso-ninguno');
+                if (aviso) aviso.classList.remove('d-none');
             } else if (traslado === 'medio') {
-                document.getElementById('opcion-retraso-medio').classList.remove('d-none');
+                const opcion = document.getElementById('opcion-retraso-medio');
+                if (opcion) opcion.classList.remove('d-none');
                 const checkbox = document.getElementById('checkbox-cobrar-retraso-medio');
-                checkbox.checked = true;
-                checkbox.addEventListener('change', function () {
-                    if (checkbox.checked) {
-                        document.getElementById('aviso-retraso-medio').classList.remove('d-none');
-                    } else {
-                        document.getElementById('aviso-retraso-medio').classList.add('d-none');
-                    }
-                });
-                document.getElementById('aviso-retraso-medio').classList.remove('d-none');
+                if (checkbox) {
+                    checkbox.checked = true;
+                    checkbox.addEventListener('change', function () {
+                        const avisoMedio = document.getElementById('aviso-retraso-medio');
+                        if (avisoMedio) {
+                            if (checkbox.checked) {
+                                avisoMedio.classList.remove('d-none');
+                            } else {
+                                avisoMedio.classList.add('d-none');
+                            }
+                        }
+                    });
+                }
+                const avisoMedio = document.getElementById('aviso-retraso-medio');
+                if (avisoMedio) avisoMedio.classList.remove('d-none');
             } else if (traslado === 'redondo') {
-                document.getElementById('aviso-retraso-redondo').classList.remove('d-none');
+                const avisoRedondo = document.getElementById('aviso-retraso-redondo');
+                if (avisoRedondo) avisoRedondo.classList.remove('d-none');
             }
         }
     }
@@ -115,7 +125,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Fetch datos para el modal
             fetch(`/notas_entrada/preview/${rentaId}`)
-                .then(resp => resp.json())
+                .then(resp => {
+                    if (!resp.ok) {
+                        return resp.json().then(errorData => {
+                            throw new Error(errorData.message || errorData.error || 'Error en el servidor');
+                        });
+                    }
+                    return resp.json();
+                })
                 .then(data => {
                     if (data.error) {
                         document.getElementById('tabla-piezas-salieron').innerHTML = `<tr><td colspan="3" class="text-danger">${data.error}</td></tr>`;
@@ -227,8 +244,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     document.getElementById('tabla-evaluacion-piezas').innerHTML = evaluacionHtml;
                 })
                 .catch(err => {
-                    document.getElementById('tabla-piezas-salieron').innerHTML = '<tr><td colspan="3" class="text-danger">Error al cargar la nota de entrada.</td></tr>';
                     console.error('Error al obtener nota de entrada:', err);
+                    // Si es una renta asociada, mostrar mensaje específico y cerrar modal
+                    if (err.message && err.message.includes('renovación parcial')) {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('modalNotaEntrada'));
+                        modal.hide();
+                        Swal.fire({
+                            title: 'Renta Asociada',
+                            text: 'Esta es una renovación parcial. No se puede crear nota de entrada porque el equipo nunca regresó físicamente. Solo se puede generar facturación.',
+                            icon: 'info',
+                            confirmButtonText: 'Entendido'
+                        });
+                    } else {
+                        document.getElementById('tabla-piezas-salieron').innerHTML = `<tr><td colspan="3" class="text-danger">${err.message || 'Error al cargar la nota de entrada.'}</td></tr>`;
+                    }
                 });
         }
     });
@@ -426,14 +455,16 @@ document.addEventListener('DOMContentLoaded', function () {
                             cancelButtonText: 'Cerrar'
                         }).then((result) => {
                             if (result.isConfirmed) {
-                                // Aquí ejecutas la acción para abrir el modal de renovación
+                                // Simular click en botón de renovación para abrir modal unificado
                                 const btnRenovacion = document.querySelector('.btn-abrir-modal-renovacion');
                                 if (btnRenovacion) {
-                                    btnRenovacion.dataset.rentaId = rentaId; // Asegura que el ID esté actualizado
-                                    btnRenovacion.click(); // Simula el click para abrir el modal de renovación
+                                    btnRenovacion.dataset.rentaId = rentaId;
+                                    btnRenovacion.click();
+                                } else {
+                                    // Si no hay botón visible, trigger el modal directamente
+                                    window.abrirModalRenovacion(rentaId, 'parcial');
                                 }
                             } else {
-                                // Si cancela, simplemente recarga para refrescar la tabla
                                 window.location.reload();
                             }
                         });

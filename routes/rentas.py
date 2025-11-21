@@ -86,7 +86,13 @@ def modulo_rentas():
             FROM notas_entrada ne2
             JOIN notas_entrada_detalle ned ON ned.nota_entrada_id = ne2.id
             WHERE ne2.renta_id = r.id AND ned.cantidad_esperada > ned.cantidad_recibida
-        ) AS piezas_pendientes, 
+        ) AS piezas_pendientes,
+        -- Verificar si hay rentas asociadas (renovaciones)
+        (
+            SELECT COUNT(*)
+            FROM rentas r_hija
+            WHERE r_hija.renta_asociada_id = r.id
+        ) AS tiene_renovaciones,
         r.renta_asociada_id,
         r.id_sucursal,
         -- Calcular folio por sucursal
@@ -675,14 +681,14 @@ def renovar_renta(renta_id):
             flash("La renta original no existe.", "danger")
             return redirect(url_for('rentas.modulo_rentas'))
 
-        # Actualizar estado de la renta padre
-        cursor.execute("UPDATE rentas SET estado_renta=%s WHERE id=%s", ("Renta parcial", renta_id))
+        # Actualizar estado de la renta padre a 'activa renovación'
+        cursor.execute("UPDATE rentas SET estado_renta=%s WHERE id=%s", ("activa renovación", renta_id))
 
         fecha_registro = datetime.now()
         costo_traslado = renta_original[3] or 0
         traslado = renta_original[4] or 'ninguno'
 
-        # Insertar nueva renta hija
+        # Insertar nueva renta hija con estado 'activa renovación'
         cursor.execute("""
             INSERT INTO rentas (
                 cliente_id, fecha_registro, fecha_salida, fecha_entrada,
@@ -692,7 +698,7 @@ def renovar_renta(renta_id):
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             renta_original[0], fecha_registro, nueva_fecha_salida, fecha_entrada,
-            renta_original[1], 'en curso', 'Pago pendiente', 'Pendiente',
+            renta_original[1], 'activa renovación', 'Pago pendiente', 'Pendiente',
             0, 0, 0, observaciones, None, renta_original[2],
             costo_traslado, traslado, renta_id
         ))
@@ -743,6 +749,15 @@ def renovar_renta(renta_id):
             UPDATE rentas SET total=%s, iva=%s, total_con_iva=%s WHERE id=%s
         """, (total, total_iva, total_con_iva, nueva_renta_id))
 
+        # Actualizar las fechas de la renta padre para reflejar el período de renovación
+        # Esto evita cobros de retraso incorrectos ya que la renta está en renovación
+        cursor.execute("""
+            UPDATE rentas SET 
+                fecha_salida = %s,
+                fecha_entrada = %s
+            WHERE id = %s
+        """, (nueva_fecha_salida, fecha_entrada, renta_id))
+
         conn.commit()
         flash(f"Renta renovada con éxito (nueva renta ID {nueva_renta_id}).", "success")
 
@@ -758,3 +773,190 @@ def renovar_renta(renta_id):
             conn.close()
 
     return redirect(url_for('rentas.modulo_rentas'))
+
+
+@rentas_bp.route('/api/rentas_pendientes/<int:renta_id>')
+def api_rentas_pendientes(renta_id):
+    """Endpoint para obtener productos pendientes de una renta"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Obtener datos básicos de la renta
+        cursor.execute("""
+            SELECT r.direccion_obra, c.nombre as cliente_nombre
+            FROM rentas r
+            JOIN clientes c ON r.cliente_id = c.id
+            WHERE r.id = %s
+        """, (renta_id,))
+        
+        renta_data = cursor.fetchone()
+        if not renta_data:
+            return jsonify({'success': False, 'error': 'Renta no encontrada'})
+        
+        # Obtener productos pendientes
+        cursor.execute("""
+            SELECT 
+                dr.producto_id,
+                p.nombre as nombre_producto,
+                pi.nombre as nombre_pieza,
+                dr.cantidad_pendiente
+            FROM detalle_renta dr
+            JOIN productos p ON dr.producto_id = p.id
+            LEFT JOIN piezas pi ON dr.pieza_id = pi.id
+            WHERE dr.renta_id = %s AND dr.cantidad_pendiente > 0
+        """, (renta_id,))
+        
+        productos_pendientes = []
+        for row in cursor.fetchall():
+            productos_pendientes.append({
+                'producto_id': row[0],
+                'nombre_producto': row[1],
+                'nombre_pieza': row[2] or '',
+                'cantidad_pendiente': row[3]
+            })
+        
+        return jsonify({
+            'success': True,
+            'direccion_obra': renta_data[0] or '',
+            'cliente_nombre': renta_data[1] or '',
+            'pendientes': productos_pendientes
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+@rentas_bp.route('/renovacion_pendientes/<int:renta_id>', methods=['POST'])
+def crear_renovacion_pendientes(renta_id):
+    """Endpoint para crear renovación de productos pendientes"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        if not data.get('fecha_salida') or not data.get('fecha_entrada'):
+            return jsonify({'success': False, 'error': 'Fechas son requeridas'})
+        
+        # Obtener datos de la renta original
+        cursor.execute("""
+            SELECT cliente_id, sucursal_id, id_sucursal 
+            FROM rentas WHERE id = %s
+        """, (renta_id,))
+        
+        renta_original = cursor.fetchone()
+        if not renta_original:
+            return jsonify({'success': False, 'error': 'Renta original no encontrada'})
+        
+        # Crear nueva renta para la renovación
+        cursor.execute("""
+            INSERT INTO rentas (
+                cliente_id, sucursal_id, id_sucursal, fecha_salida, fecha_entrada,
+                direccion_obra, traslado_extra, costo_traslado_extra, 
+                factura_legal, estado, renta_asociada_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'activa', %s)
+        """, (
+            renta_original[0], renta_original[1], renta_original[2],
+            data['fecha_salida'], data['fecha_entrada'],
+            data.get('direccion_obra', ''),
+            data.get('traslado_extra', 'ninguno'),
+            data.get('costo_traslado_extra', 0),
+            data.get('factura_legal', 0),
+            renta_id
+        ))
+        
+        nueva_renta_id = cursor.lastrowid
+        
+        # Copiar productos pendientes a la nueva renta
+        total = 0
+        for pendiente in data.get('pendientes', []):
+            # Obtener precio del producto
+            cursor.execute("""
+                SELECT precio_dia, precio_7dias, precio_15dias, precio_30dias, precio_31mas, precio_unico
+                FROM productos WHERE id = %s
+            """, (pendiente['producto_id'],))
+            
+            precios = cursor.fetchone()
+            if precios:
+                # Calcular días de renta
+                fecha_salida = datetime.strptime(data['fecha_salida'], '%Y-%m-%dT%H:%M')
+                fecha_entrada = datetime.strptime(data['fecha_entrada'], '%Y-%m-%dT%H:%M')
+                dias = (fecha_entrada - fecha_salida).days + 1
+                
+                # Determinar precio según días
+                if precios[5] == 1:  # precio_unico
+                    precio = precios[0]
+                elif dias == 1:
+                    precio = precios[0]
+                elif dias <= 7:
+                    precio = precios[1]
+                elif dias <= 15:
+                    precio = precios[2]
+                elif dias <= 30:
+                    precio = precios[3]
+                else:
+                    precio = precios[4]
+                
+                # Insertar en detalle_renta
+                cursor.execute("""
+                    INSERT INTO detalle_renta (
+                        renta_id, producto_id, cantidad, precio_unitario, 
+                        cantidad_pendiente, cantidad_devuelta
+                    ) VALUES (%s, %s, %s, %s, %s, 0)
+                """, (
+                    nueva_renta_id, pendiente['producto_id'],
+                    pendiente['cantidad_pendiente'], precio,
+                    pendiente['cantidad_pendiente']
+                ))
+                
+                total += pendiente['cantidad_pendiente'] * precio * dias
+        
+        # Agregar costo de traslado
+        total += data.get('costo_traslado_extra', 0)
+        
+        # Calcular IVA y total final
+        iva = total * 0.16
+        total_con_iva = total + iva
+        
+        # Actualizar totales de la nueva renta
+        cursor.execute("""
+            UPDATE rentas SET total = %s, iva = %s, total_con_iva = %s
+            WHERE id = %s
+        """, (total, iva, total_con_iva, nueva_renta_id))
+        
+        # Actualizar estado de la renta original a 'renovación finalizada'
+        # y actualizar las fechas para reflejar el período de renovación
+        cursor.execute("""
+            UPDATE rentas SET 
+                estado = 'renovación finalizada',
+                fecha_salida = %s,
+                fecha_entrada = %s
+            WHERE id = %s
+        """, (data['fecha_salida'], data['fecha_entrada'], renta_id))
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'nueva_renta_id': nueva_renta_id,
+            'message': 'Renovación creada exitosamente'
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
