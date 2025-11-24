@@ -749,15 +749,6 @@ def renovar_renta(renta_id):
             UPDATE rentas SET total=%s, iva=%s, total_con_iva=%s WHERE id=%s
         """, (total, total_iva, total_con_iva, nueva_renta_id))
 
-        # Actualizar las fechas de la renta padre para reflejar el período de renovación
-        # Esto evita cobros de retraso incorrectos ya que la renta está en renovación
-        cursor.execute("""
-            UPDATE rentas SET 
-                fecha_salida = %s,
-                fecha_entrada = %s
-            WHERE id = %s
-        """, (nueva_fecha_salida, fecha_entrada, renta_id))
-
         conn.commit()
         flash(f"Renta renovada con éxito (nueva renta ID {nueva_renta_id}).", "success")
 
@@ -933,14 +924,10 @@ def crear_renovacion_pendientes(renta_id):
         """, (total, iva, total_con_iva, nueva_renta_id))
         
         # Actualizar estado de la renta original a 'renovación finalizada'
-        # y actualizar las fechas para reflejar el período de renovación
         cursor.execute("""
-            UPDATE rentas SET 
-                estado = 'renovación finalizada',
-                fecha_salida = %s,
-                fecha_entrada = %s
+            UPDATE rentas SET estado = 'renovación finalizada'
             WHERE id = %s
-        """, (data['fecha_salida'], data['fecha_entrada'], renta_id))
+        """, (renta_id,))
         
         conn.commit()
         

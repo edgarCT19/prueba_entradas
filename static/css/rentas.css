@@ -1,3 +1,6 @@
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    height: 1px !important;
 /* --- CONTENEDOR PRINCIPAL RENTAS --- */
 .rentas-box-container {
     background: #fff;
@@ -6,6 +9,7 @@
     padding: 1.5rem 1.2rem 1.2rem 1.2rem;
     margin-bottom: 2rem;
     margin-top: 1.2rem;
+    min-height: 520px; /* Espacio extra para los dropdowns de acciones */
 }
 
 .rentas-section-header {
@@ -94,6 +98,7 @@
     box-shadow: 0 2px 10px rgba(35, 57, 93, 0.07);
     background: #fff;
     font-size: 0.85rem;
+    min-height: 320px; /* Espacio extra para los dropdowns de acciones */
 }
 
 .table-rentas th {
@@ -102,7 +107,7 @@
     font-weight: bold;
     border-top: none;
     font-size: 0.9rem;
-    padding: 0.4em 0.3em;
+    padding: 0.05em 0.1em;
     text-align: center;
 }
 
@@ -110,11 +115,11 @@
     vertical-align: middle;
     border-bottom: 1px solid #e0e0e0;
     font-size: 0.85rem;
-    padding: 0.35em 0.3em;
+    padding: 0.05em 0.1em;
     text-align: center;
     background: #f8fafc;
     color: #23395d;
-    line-height: 1.3;
+    line-height: 1;
 }
 
 .table-rentas td small {
@@ -167,10 +172,45 @@
 }
 
 /* ESTADOS ESPECÍFICOS DE RENTA */
-.table-rentas .badge.bg-success {
-    background-color: #198754 !important;
-    /* VERDE para ACTIVO */
-    color: #ffffff !important;
+.badge.bg-success {
+    background-color: #009e2d !important; /* Verde intenso */
+    color: #fff !important;
+    opacity: 1 !important;
+    border: 2px solid #007a23 !important;
+    box-shadow: 0 2px 8px #007a2333 !important;
+    font-weight: bold !important;
+}
+.badge.bg-dark {
+    background-color: #212529 !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    border: 2px solid #111418 !important;
+    box-shadow: 0 2px 8px #11141833 !important;
+    font-weight: bold !important;
+}
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+    opacity: 1 !important;
+    border: 2px solid #b38600 !important;
+    box-shadow: 0 2px 8px #b3860033 !important;
+    font-weight: bold !important;
+}
+.badge.bg-primary {
+    background-color: #007bff !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    border: 2px solid #0056b3 !important;
+    box-shadow: 0 2px 8px #0056b333 !important;
+    font-weight: bold !important;
+}
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    border: 2px solid #a71d2a !important;
+    box-shadow: 0 2px 8px #a71d2a33 !important;
+    font-weight: bold !important;
 }
 
 .table-rentas .badge.bg-dark {

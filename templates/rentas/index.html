@@ -68,51 +68,6 @@
 
 
 
-    {% if es_admin %}
-    <!-- Panel de filtros para Administrador -->
-    <div class="card mb-3">
-      <div class="card-header bg-primary text-white">
-        <h6 class="mb-0"><i class="bi bi-funnel"></i> Filtros de Administrador</h6>
-      </div>
-      <div class="card-body">
-        <div class="row align-items-center">
-          <div class="col-md-8">
-            <h6 class="text-muted mb-2">Vista actual: <strong>{{ sucursal_actual.nombre }}</strong></h6>
-            <div class="btn-group flex-wrap" role="group">
-              <a href="{{ url_for('rentas.modulo_rentas') }}"
-                class="btn btn-sm {% if sucursal_actual.id == 'todas' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                <i class="bi bi-building"></i> Todas las Sucursales
-              </a>
-              {% for sucursal in sucursales %}
-              <a href="{{ url_for('rentas.modulo_rentas', sucursal_id=sucursal[0]) }}"
-                class="btn btn-sm {% if sucursal_actual.id == sucursal[0] %}btn-success{% else %}btn-outline-success{% endif %}">
-                <i class="bi bi-geo-alt"></i> {{ sucursal[1] }}
-              </a>
-              {% endfor %}
-            </div>
-          </div>
-          <div class="col-md-4 text-end">
-            <div class="dropdown">
-              <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                <i class="bi bi-filter"></i> Cambiar Vista
-              </button>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="{{ url_for('rentas.modulo_rentas') }}">
-                    <i class="bi bi-building me-2"></i>Todas las Sucursales</a></li>
-                <li>
-                  <hr class="dropdown-divider">
-                </li>
-                {% for sucursal in sucursales %}
-                <li><a class="dropdown-item" href="{{ url_for('rentas.modulo_rentas', sucursal_id=sucursal[0]) }}">
-                    <i class="bi bi-geo-alt me-2"></i>{{ sucursal[1] }}</a></li>
-                {% endfor %}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    {% endif %}
 
 
 
@@ -251,11 +206,13 @@
 
             <!-- COLUMNA ESTADO DE LA RENTA -->
             <td>
-              <span class="badge bg-{{ 
-    'success' if renta[4]|lower in ['activo', 'en curso', 'activa renovación'] 
-    else 'dark' if renta[4]|lower in ['finalizada', 'renovación finalizada'] 
-    else 'warning' if renta[4]|lower in ['programada', 'en recolección', 'renta parcial']
-    else 'primary' }}">
+              <span class="badge
+                {% if renta[4]|lower in ['activo', 'activa renovación'] %}bg-success
+                {% elif renta[4]|lower in ['finalizada', 'renovación finalizada'] %}bg-dark
+                {% elif renta[4]|lower in ['programada', 'en recolección', 'renta parcial'] %}bg-warning
+                {% elif renta[4]|lower == 'en curso' %}bg-primary
+                {% else %}bg-secondary
+                {% endif %}">
                 {{ renta[4].title() }}
               </span>
 
@@ -267,24 +224,23 @@
               <span class="badge bg-warning text-dark">Piezas pendientes</span>
               {% endif %}
               {% endif %}
-
             </td>
 
 
             <!-- COLUMNA ESTADO DE PAGO -->
             <td>
-              <span class="badge {{ 
-                'bg-success' if renta[5]|lower in ['pago realizado', 'pagado']
-                else 'bg-warning' if renta[5]|lower in ['pago pendiente', 'pendiente']
-                else 'bg-dark' if renta[5]|lower in ['cancelado', 'anulado']
-                else 'bg-warning' }}">
+              <span
+                class="badge
+                  {% if renta[5]|lower == 'pago realizado' %}bg-success
+                  {% elif renta[5]|lower == 'pago pendiente' %}bg-danger
+                  {% else %}bg-warning
+                  {% endif %}">
                 {{ renta[5] }}
               </span>
 
               {% if renta[17] %}
               <br>
-              <span class="badge {{ 'bg-warning' if renta[17] == 'Extra Pendiente' else 'bg-success' }}">{{ renta[17]
-                }}</span>
+              <span class="badge {{ 'bg-warning' if renta[17] == 'Extra Pendiente' else 'bg-success' }}">{{ renta[17] }}</span>
               {% endif %}
 
               {% if renta[20] == 'Retraso Pendiente' %}
@@ -317,7 +273,7 @@
                   <ul class="dropdown-menu">
                     <li><a class="dropdown-item" href="#"><i class="bi bi-pencil me-2"></i>Editar renta</a></li>
                     <li><a class="dropdown-item" href="#"><i class="bi bi-ban me-2"></i>Cancelar renta</a></li>
-                    {% if renta[4]|lower in ['activo', 'en curso'] and not renta[23] %}
+                    {% if renta[4] in ['activo', 'en curso'] and not renta[23] %}
                     <li><a class="dropdown-item btn-abrir-modal-renovacion" href="#" data-renta-id="{{ renta[0] }}"><i class="bi bi-arrow-repeat me-2"></i>Renovar renta</a></li>
                     {% endif %}
                     <li>
