@@ -18,6 +18,52 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Cancelar renta: abrir modal y enviar solicitud SOLO si el modal existe
+    const modalCancelarElem = document.getElementById('modalCancelarRenta');
+    if (modalCancelarElem) {
+        let rentaIdCancelar = null;
+        const modalCancelar = new bootstrap.Modal(modalCancelarElem);
+        document.body.addEventListener('click', function (e) {
+            const btn = e.target.closest('.btn-cancelar-renta');
+            if (btn) {
+                rentaIdCancelar = btn.getAttribute('data-renta-id');
+                document.getElementById('renta-id-cancelar').value = rentaIdCancelar;
+                document.getElementById('motivo-cancelacion').value = '';
+                document.getElementById('monto-reembolso').value = '';
+                modalCancelar.show();
+            }
+        });
+
+        document.getElementById('form-cancelar-renta').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const motivo = document.getElementById('motivo-cancelacion').value.trim();
+            const monto = document.getElementById('monto-reembolso').value;
+            if (!motivo || monto === '') {
+                Swal.fire('Error', 'Debes ingresar el motivo y el monto de reembolso.', 'warning');
+                return;
+            }
+            const rentaId = document.getElementById('renta-id-cancelar').value;
+            fetch(`/rentas/cancelar/${rentaId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `motivo_cancelacion=${encodeURIComponent(motivo)}&monto_reembolso=${encodeURIComponent(monto)}`
+            })
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    Swal.fire('Cancelada', data.mensaje, 'success').then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.mensaje || 'No se pudo cancelar la renta.', 'error');
+                }
+            })
+            .catch(() => {
+                Swal.fire('Error', 'Error inesperado al cancelar.', 'error');
+            });
+        });
+    }
+
     // Calcular días de renta
     function calcularDiasRenta() {
         const fechaInicio = document.getElementById('fecha_salida').value;

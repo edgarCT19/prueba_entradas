@@ -1,20 +1,118 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from flask import jsonify
-from datetime import datetime, timedelta  
-from utils.db import get_db_connection
 
+
+# ======================= IMPORTS =======================
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
+from datetime import datetime, timedelta
+from utils.db import get_db_connection
+from itertools import zip_longest
+# PDF/Reportlab imports (usados en otras rutas, mantener agrupados)
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from io import BytesIO
 
-from itertools import zip_longest
-
-
+# ======================= BLUEPRINT =======================
 rentas_bp = Blueprint('rentas', __name__, url_prefix='/rentas')
 
 
 
+###########################################################
+# ======================= ELIMINACIÓN DE RENTAS =======================
+@rentas_bp.route('/info_eliminar/<int:renta_id>')
+def info_eliminar_renta(renta_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Verificar notas de salida y entrada
+    cursor.execute("SELECT id FROM notas_salida WHERE renta_id = %s", (renta_id,))
+    nota_salida = cursor.fetchone()
+    cursor.execute("SELECT id FROM notas_entrada WHERE renta_id = %s", (renta_id,))
+    nota_entrada = cursor.fetchone()
+    mensaje = "¿Seguro que deseas eliminar esta renta?"  # Mensaje base
+    if nota_salida and not nota_entrada:
+        mensaje = "Esta renta tiene nota de salida pero no de entrada. Si eliminas, el equipo se descontará del inventario total. ¿Deseas continuar?"
+    elif nota_salida and nota_entrada:
+        mensaje = "Esta renta tiene nota de salida y de entrada. El equipo ya regresó, puedes eliminar sin afectar inventario. ¿Deseas continuar?"
+    elif not nota_salida:
+        mensaje += "Esta renta no tiene nota de salida. Se eliminará sin afectar inventario. ¿Deseas continuar?"
+    cursor.close()
+    conn.close()
+    return jsonify({"status": "ok", "mensaje": mensaje})
+
+
+
+@rentas_bp.route('/eliminar/<int:renta_id>', methods=['POST'])
+def eliminar_renta(renta_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Verificar notas de salida y entrada
+    cursor.execute("SELECT id FROM notas_salida WHERE renta_id = %s", (renta_id,))
+    nota_salida = cursor.fetchone()
+    cursor.execute("SELECT id FROM notas_entrada WHERE renta_id = %s", (renta_id,))
+    nota_entrada = cursor.fetchone()
+    # Eliminación de cobros pendiente removida
+    # Si hay nota de salida pero no de entrada, descontar equipo del inventario
+    if nota_salida and not nota_entrada:
+        # Obtener productos y cantidades de la renta
+        cursor.execute("SELECT id_producto, cantidad FROM renta_detalle WHERE renta_id = %s", (renta_id,))
+        productos = cursor.fetchall()
+        for id_producto, cantidad in productos:
+            # Descontar del inventario principal
+            cursor.execute("UPDATE productos SET cantidad = cantidad - %s WHERE id_producto = %s", (cantidad, id_producto))
+    # Soft delete: marcar la renta como eliminada
+    cursor.execute("UPDATE rentas SET estado_renta = 'eliminada' WHERE id = %s", (renta_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({"status": "ok", "mensaje": "Renta eliminada correctamente."})
+
+
+
+
+
+
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+# ======================= CANCELACIÓN DE RENTAS =======================
+@rentas_bp.route('/cancelar/<int:renta_id>', methods=['POST'])
+def cancelar_renta(renta_id):
+    motivo = request.form.get('motivo_cancelacion', '')
+    monto_reembolso = request.form.get('monto_reembolso', None)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Marcar la renta como cancelada y guardar motivo
+        cursor.execute("UPDATE rentas SET estado_renta = 'cancelada', estado_pago = 'Reembolsado' WHERE id = %s", (renta_id,))
+
+        # Registrar en historial de rentas
+        descripcion = f"Cancelación de renta. Motivo: {motivo}"
+        if monto_reembolso:
+            descripcion += f" | Reembolso: ${monto_reembolso}"
+        cursor.execute("""
+            INSERT INTO historial_rentas (renta_id, accion, descripcion, fecha)
+            VALUES (%s, %s, %s, NOW())
+        """, (renta_id, 'cancelacion', descripcion))
+
+        conn.commit()
+        return jsonify({"status": "ok", "mensaje": "Renta cancelada correctamente."})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "mensaje": str(e)})
+    finally:
+        cursor.close()
+        conn.close()
+
+
+
+
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+###########################################################
+# ======================= LISTADO Y CREACIÓN DE RENTAS =======================
 @rentas_bp.route('/')
 def modulo_rentas():
     conn = get_db_connection()
@@ -111,6 +209,8 @@ def modulo_rentas():
     rentas = cursor.fetchall()
 
     # Modificar consulta de detalles para filtrar por rentas de la sucursal
+    detalles = []
+    productos_por_renta = {}
     if rentas:
         renta_ids = [str(renta[0]) for renta in rentas]
         cursor.execute(f"""
@@ -120,13 +220,11 @@ def modulo_rentas():
             WHERE d.renta_id IN ({','.join(['%s'] * len(renta_ids))})
         """, renta_ids)
         detalles = cursor.fetchall()
-    else:
-        detalles = []
-
-    # Agrupar productos por renta
-    productos_por_renta = {}
-    for renta_id, nombre, cantidad, id_producto, tipo in detalles:
-        productos_por_renta.setdefault(renta_id, []).append(f"{nombre} x{cantidad}")
+        for renta_id, nombre, cantidad, id_producto, tipo in detalles:
+            productos_por_renta.setdefault(renta_id, []).append(f"{nombre} x{cantidad}")        
+                # Si no se especifica sucursal_id, redirigir a Matriz Colosio (id=1)
+            if not sucursal_filtro:
+                return redirect(url_for('rentas.modulo_rentas', sucursal_id=1))
 
     # Clientes activos
     cursor.execute("SELECT id, nombre, apellido1 FROM clientes WHERE activo = 1")
@@ -231,6 +329,8 @@ def modulo_rentas():
     )
 
 
+
+# ======================= UTILIDADES =======================
 def obtener_siguiente_folio_sucursal(cursor, sucursal_id):
     """
     Obtiene el siguiente folio consecutivo para una sucursal específica
@@ -242,7 +342,6 @@ def obtener_siguiente_folio_sucursal(cursor, sucursal_id):
         FROM rentas r 
         WHERE r.id_sucursal = %s
     """, (sucursal_id, sucursal_id))
-    
     resultado = cursor.fetchone()
     return resultado[0] if resultado else 1
 
@@ -266,6 +365,8 @@ def generar_folio_display(sucursal_id, folio_numero):
 ###########################################################
 ###########################################################
 ###########################################################
+###########################################################
+# ======================= CREAR RENTA =======================
 @rentas_bp.route('/crear', methods=['POST'])
 def crear_renta():
     try:
@@ -350,7 +451,28 @@ def crear_renta():
                 if dias_renta < 1:
                     dias_renta = 1
 
-            subtotal = cant * dias_renta * float(costos[i])
+            # Obtener precios y si es precio_unico
+            cursor.execute("SELECT precio_dia, precio_7dias, precio_15dias, precio_30dias, precio_31mas FROM producto_precios WHERE id_producto = %s", (prod_id,))
+            precios = cursor.fetchone()
+            cursor.execute("SELECT precio_unico FROM productos WHERE id_producto = %s", (prod_id,))
+            precio_unico = cursor.fetchone()[0]
+
+            # Selección de precio según días
+            if precio_unico == 1:
+                costo_unitario = float(precios[0])
+            else:
+                if dias_renta <= 2:
+                    costo_unitario = float(precios[0])
+                elif dias_renta <= 7:
+                    costo_unitario = float(precios[1])
+                elif dias_renta <= 15:
+                    costo_unitario = float(precios[2])
+                elif dias_renta <= 30:
+                    costo_unitario = float(precios[3])
+                else:
+                    costo_unitario = float(precios[4])
+
+            subtotal = cant * dias_renta * costo_unitario
             total += subtotal
 
             cursor.execute("""
@@ -360,7 +482,7 @@ def crear_renta():
                 ) VALUES (%s, %s, %s, %s, %s, %s)
             """, (
                 renta_id, prod_id, cant, dias_renta,
-                float(costos[i]), subtotal
+                costo_unitario, subtotal
             ))
 
         # Calcular IVA y total con IVA
@@ -392,8 +514,9 @@ def crear_renta():
 ############################################################
 #############################################################
 ##############################################################|
-##############################################################
-# Actualizar fecha de entrada de una renta
+#############################################################
+###########################################################
+# ======================= ACTUALIZAR FECHA DE ENTRADA =======================
 @rentas_bp.route('/actualizar_fecha_entrada/<int:renta_id>', methods=['POST'])
 def actualizar_fecha_entrada(renta_id):
     try:
@@ -472,6 +595,8 @@ def actualizar_fecha_entrada(renta_id):
 ###########################################################
 
 # Ejemplo de endpoint para cerrar renta y actualizar días/subtotales
+###########################################################
+# ======================= CERRAR RENTA =======================
 @rentas_bp.route('/cerrar/<int:renta_id>', methods=['POST'])
 def cerrar_renta(renta_id):
     try:
@@ -524,10 +649,21 @@ def cerrar_renta(renta_id):
         iva = total * 0.16
         total_con_iva = total + iva
 
-        cursor.execute("""
-            UPDATE rentas SET fecha_entrada=%s, total=%s, iva=%s, total_con_iva=%s, estado_renta='cerrada'
-            WHERE id=%s
-        """, (fecha_entrada, total, iva, total_con_iva, renta_id))
+        # Verificar estado actual de la renta
+        cursor.execute("SELECT estado_renta FROM rentas WHERE id = %s", (renta_id,))
+        estado_actual = cursor.fetchone()[0]
+        if estado_actual == 'cancelada':
+            # Si está cancelada, solo actualiza totales y fecha_entrada, no el estado
+            cursor.execute("""
+                UPDATE rentas SET fecha_entrada=%s, total=%s, iva=%s, total_con_iva=%s
+                WHERE id=%s
+            """, (fecha_entrada, total, iva, total_con_iva, renta_id))
+        else:
+            # Si no está cancelada, actualiza también el estado a 'cerrada'
+            cursor.execute("""
+                UPDATE rentas SET fecha_entrada=%s, total=%s, iva=%s, total_con_iva=%s, estado_renta='cerrada'
+                WHERE id=%s
+            """, (fecha_entrada, total, iva, total_con_iva, renta_id))
 
         conn.commit()
         flash("Renta cerrada y actualizada con éxito.", "success")
@@ -550,6 +686,8 @@ def cerrar_renta(renta_id):
 ###########################################################
 ############# DETALLES DE LA RENTA - VISUALIZACIÓN DETALLES 
 
+###########################################################
+# ======================= DETALLE DE RENTA =======================
 @rentas_bp.route('/detalle/<int:renta_id>')
 def obtener_detalle_renta(renta_id):
     conn = get_db_connection()
@@ -650,6 +788,8 @@ def obtener_detalle_renta(renta_id):
 ###########################################################
 ###########################################################
 
+###########################################################
+# ======================= RENOVAR RENTA =======================
 @rentas_bp.route('/renovar/<int:renta_id>', methods=['POST'])
 def renovar_renta(renta_id):
     conn = None
@@ -708,14 +848,21 @@ def renovar_renta(renta_id):
         total = 0
         for prod_id_raw, cant_raw, dias_raw, costo_raw in zip_longest(productos, cantidades, dias_form, costos):
             # Saltar si algún dato es inválido
-            if not prod_id_raw or not cant_raw or not costo_raw:
+            if not prod_id_raw or not cant_raw:
                 continue
             try:
                 prod_id = int(prod_id_raw)
                 cant = int(cant_raw)
-                costo_unitario = float(costo_raw)
             except ValueError:
                 continue
+
+            # Buscar el precio unitario original de la renta padre
+            cursor.execute("SELECT costo_unitario FROM renta_detalle WHERE renta_id = %s AND id_producto = %s LIMIT 1", (renta_id, prod_id))
+            result = cursor.fetchone()
+            if result:
+                costo_unitario = float(result[0])
+            else:
+                costo_unitario = 0.0
 
             # Calcular días según fechas o datos existentes
             if fecha_entrada:
@@ -766,6 +913,8 @@ def renovar_renta(renta_id):
     return redirect(url_for('rentas.modulo_rentas'))
 
 
+###########################################################
+# ======================= API: RENTAS PENDIENTES =======================
 @rentas_bp.route('/api/rentas_pendientes/<int:renta_id>')
 def api_rentas_pendientes(renta_id):
     """Endpoint para obtener productos pendientes de una renta"""
@@ -824,6 +973,8 @@ def api_rentas_pendientes(renta_id):
             conn.close()
 
 
+###########################################################
+# ======================= CREAR RENOVACIÓN DE PENDIENTES =======================
 @rentas_bp.route('/renovacion_pendientes/<int:renta_id>', methods=['POST'])
 def crear_renovacion_pendientes(renta_id):
     """Endpoint para crear renovación de productos pendientes"""
@@ -869,46 +1020,36 @@ def crear_renovacion_pendientes(renta_id):
         # Copiar productos pendientes a la nueva renta
         total = 0
         for pendiente in data.get('pendientes', []):
-            # Obtener precio del producto
+            # Obtener el precio original de la renta padre
             cursor.execute("""
-                SELECT precio_dia, precio_7dias, precio_15dias, precio_30dias, precio_31mas, precio_unico
-                FROM productos WHERE id = %s
-            """, (pendiente['producto_id'],))
-            
-            precios = cursor.fetchone()
-            if precios:
-                # Calcular días de renta
-                fecha_salida = datetime.strptime(data['fecha_salida'], '%Y-%m-%dT%H:%M')
-                fecha_entrada = datetime.strptime(data['fecha_entrada'], '%Y-%m-%dT%H:%M')
-                dias = (fecha_entrada - fecha_salida).days + 1
-                
-                # Determinar precio según días
-                if precios[5] == 1:  # precio_unico
-                    precio = precios[0]
-                elif dias == 1:
-                    precio = precios[0]
-                elif dias <= 7:
-                    precio = precios[1]
-                elif dias <= 15:
-                    precio = precios[2]
-                elif dias <= 30:
-                    precio = precios[3]
-                else:
-                    precio = precios[4]
-                
-                # Insertar en detalle_renta
-                cursor.execute("""
-                    INSERT INTO detalle_renta (
-                        renta_id, producto_id, cantidad, precio_unitario, 
-                        cantidad_pendiente, cantidad_devuelta
-                    ) VALUES (%s, %s, %s, %s, %s, 0)
-                """, (
-                    nueva_renta_id, pendiente['producto_id'],
-                    pendiente['cantidad_pendiente'], precio,
-                    pendiente['cantidad_pendiente']
-                ))
-                
-                total += pendiente['cantidad_pendiente'] * precio * dias
+                SELECT costo_unitario, dias_renta
+                FROM renta_detalle
+                WHERE renta_id = %s AND id_producto = %s
+                LIMIT 1
+            """, (renta_id, pendiente['producto_id']))
+            result = cursor.fetchone()
+            if result:
+                costo_unitario = float(result[0])
+            else:
+                costo_unitario = 0.0
+            # Calcular días de renta
+            fecha_salida = datetime.strptime(data['fecha_salida'], '%Y-%m-%dT%H:%M')
+            fecha_entrada = datetime.strptime(data['fecha_entrada'], '%Y-%m-%dT%H:%M')
+            dias = (fecha_entrada - fecha_salida).days + 1
+            if dias < 1:
+                dias = 1
+            # Insertar en detalle_renta (o renta_detalle si corresponde)
+            cursor.execute("""
+                INSERT INTO renta_detalle (
+                    renta_id, id_producto, cantidad, dias_renta,
+                    costo_unitario, subtotal
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                nueva_renta_id, pendiente['producto_id'],
+                pendiente['cantidad_pendiente'], dias,
+                costo_unitario, pendiente['cantidad_pendiente'] * dias * costo_unitario
+            ))
+            total += pendiente['cantidad_pendiente'] * costo_unitario * dias
         
         # Agregar costo de traslado
         total += data.get('costo_traslado_extra', 0)

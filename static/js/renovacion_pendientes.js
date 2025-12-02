@@ -17,12 +17,45 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(data => {
                 pendientesRenovacion = data.pendientes || [];
                 llenarModalRenovacion(data, pendientesRenovacion);
+                // Guardar los precios originales en la estructura de pendientes
+                if (Array.isArray(pendientesRenovacion)) {
+                    pendientesRenovacion.forEach((p, idx) => {
+                        // Obtener el precio original desde la API si está disponible
+                        if (data.productos && Array.isArray(data.productos)) {
+                            const prod = data.productos.find(pr => pr.id_producto === p.producto_id);
+                            if (prod && prod.costo_unitario !== undefined) {
+                                p.costo_unitario = prod.costo_unitario;
+                            }
+                        }
+                    });
+                }
+                mostrarTablaPendientesRenovacion(pendientesRenovacion);
                 const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalRenovacionPendientes'));
                 modal.show();
             })
             .catch(() => {
                 Swal.fire('Error', 'No se pudieron cargar los productos pendientes.', 'error');
             });
+    }
+
+    function mostrarTablaPendientesRenovacion(pendientes) {
+        const tbody = document.getElementById('tabla-pendientes-renovacion');
+        tbody.innerHTML = '';
+        const dias = 1; // Puedes calcular los días si tienes fechas
+        pendientes.forEach(p => {
+            const cantidad = Number(p.cantidad_pendiente) || 1;
+            const precio = p.costo_unitario !== undefined ? parseFloat(p.costo_unitario) : 0;
+            const subtotal = cantidad * dias * precio;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="hidden" name="producto_id[]" value="${p.producto_id}">${p.nombre_producto}</td>
+                <td><input type="number" name="cantidad[]" class="form-control cantidad" min="1" value="${cantidad}"></td>
+                <td><input type="number" name="dias_renta[]" class="form-control dias" min="1" value="${dias}" readonly></td>
+                <td><input type="number" name="costo_unitario[]" class="form-control costo" step="0.01" min="0" value="${precio.toFixed(2)}" readonly data-fijo="1"></td>
+                <td><input type="number" class="form-control subtotal" step="0.01" min="0" value="${subtotal.toFixed(2)}" readonly></td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 
     function llenarModalRenovacion(data, pendientes) {
