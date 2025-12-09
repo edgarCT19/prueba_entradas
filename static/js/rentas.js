@@ -138,6 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputCantidad = document.getElementById('cantidad_producto');
     const tbody = document.querySelector('#tabla-productos tbody');
 
+    
     if (btnAgregar && selectProducto && inputCantidad && tbody) {
         btnAgregar.addEventListener('click', function () {
             const productoId = selectProducto.value;

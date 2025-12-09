@@ -123,12 +123,25 @@ def preview_nota_entrada(renta_id):
     # Fecha y hora actual
     fecha_hora = datetime.now().strftime('%d/%m/%Y %H:%M')
 
-    # Fecha límite (un día después de fecha_entrada)
+    # Buscar si existe una renovación activa (total o parcial) para esta renta
+    cursor.execute("""
+        SELECT r.id, r.fecha_entrada
+        FROM rentas r
+        WHERE r.renta_asociada_id = %s AND r.estado_renta IN ('activa renovación', 'activo')
+        ORDER BY r.fecha_entrada DESC LIMIT 1
+    """, (renta_id,))
+    renovacion = cursor.fetchone()
+
     fecha_limite = '--/--/---- --:--'
     estado = '---'
     dias_retraso = 0
-    if renta['fecha_entrada']:
+    fecha_base = None
+    if renovacion and renovacion['fecha_entrada']:
+        fecha_base = renovacion['fecha_entrada']
+    elif renta['fecha_entrada']:
         fecha_base = renta['fecha_entrada']
+
+    if fecha_base:
         if isinstance(fecha_base, datetime):
             fecha_base = fecha_base.date()
         fecha_limite_dt = datetime.combine(fecha_base + timedelta(days=1), datetime.strptime('10:00', '%H:%M').time())
@@ -239,7 +252,32 @@ def crear_nota_entrada(renta_id):
                 'success': False, 
                 'error': 'No se puede crear nota de entrada para rentas asociadas. Esta es una renovación parcial que no requiere devolución física del equipo.'
             }), 403
-        cobrar_retraso = data.get('cobrar_retraso', False)
+
+        # --- Lógica para distinguir renovación total vs parcial ---
+        # Si existe una renovación activa (total), no se debe cobrar retraso
+        cursor.execute("""
+            SELECT COUNT(*) AS total_renovaciones
+            FROM rentas
+            WHERE renta_asociada_id = %s AND estado_renta IN ('activa renovación', 'activo')
+        """, (renta_id,))
+        total_renovaciones = cursor.fetchone()['total_renovaciones']
+
+        # Obtener piezas de la nota de salida (todas las piezas que salieron)
+        cursor.execute("""
+            SELECT nsd.id_pieza, nsd.cantidad AS cantidad_salida
+            FROM notas_salida ns
+            JOIN notas_salida_detalle nsd ON ns.id = nsd.nota_salida_id
+            WHERE ns.renta_id = %s
+        """, (renta_id,))
+        piezas_salida = cursor.fetchall()
+        total_piezas_salida = sum([p['cantidad_salida'] for p in piezas_salida])
+        total_piezas_recibidas = sum([int(p.get('cantidad_recibida', 0)) for p in piezas])
+
+        # Si hay una renovación activa y todas las piezas están siendo renovadas (total), no cobrar retraso
+        if total_renovaciones > 0 and total_piezas_recibidas == total_piezas_salida:
+            cobrar_retraso = False
+        else:
+            cobrar_retraso = data.get('cobrar_retraso', False)
         estado_retraso = 'Retraso Pendiente' if cobrar_retraso else 'Sin Retraso'
 
         # Buscar si ya existe una nota de entrada en recolección para esta renta
