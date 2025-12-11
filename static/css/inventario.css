@@ -1,3 +1,28 @@
+#tablaPiezasAgregadas input[type="number"], #tablaPiezasAgregadasAlta input[type="number"] {
+    width: 48px;
+    height: 32px;
+    padding: 2px 6px;
+    font-size: 1rem;
+}
+#tablaPiezasAgregadas .btn, #tablaPiezasAgregadasAlta .btn {
+    padding: 0.18rem 0.45rem;
+    font-size: 0.92rem;
+}
+#tablaPiezasAgregadas .btn-danger, #tablaPiezasAgregadasAlta .btn-danger {
+    padding: 0.12rem 0.38rem;
+    font-size: 0.85rem;
+}
+#tablaPiezasAgregadasAlta td, #tablaPiezasAgregadasAlta th {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    vertical-align: middle;
+}
+.modal-content {
+    border: none !important;
+    border-radius: 20px !important;
+    box-shadow: none !important;
+    background: #23395d !important;
+}
 /* --- CONTENEDOR PRINCIPAL INVENTARIO (estilo clientes) --- */
 .inventario-box-container {
     background: #fff;
@@ -825,26 +850,9 @@
    ============================================== */
 
 /* Modal de Alta de Equipo - Estilo moderno como nuevo cliente */
-.modal-content {
-    border-radius: 24px !important;
-    border: 3px solid #23395d !important;
-    box-shadow: 0 8px 32px rgba(35, 57, 93, 0.25), 0 2px 8px rgba(35, 57, 93, 0.15) !important;
-    position: relative !important;
-    overflow: hidden !important;
-}
 
-.modal-content::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 6px;
-    background: linear-gradient(90deg, #23395d 0%, #c62828 50%, #2e7d32 100%);
-    border-radius: 24px 24px 0 0;
-    z-index: 1;
-}
 
+/* Header moderno para ambos modales */
 .modal-header {
     border-bottom: 3px solid #23395d !important;
     border-radius: 24px 24px 0 0 !important;
@@ -854,6 +862,7 @@
     z-index: 2 !important;
 }
 
+/* Título moderno para ambos modales */
 .modal-title {
     color: #ffffff !important;
     font-weight: 700 !important;
@@ -862,6 +871,7 @@
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
 }
 
+/* Body moderno para ambos modales */
 .modal-body {
     padding: 2rem !important;
     background: #ffffff !important;
@@ -869,6 +879,7 @@
     border-right: 3px solid #23395d !important;
 }
 
+/* Footer moderno para ambos modales */
 .modal-footer {
     border-top: 3px solid #23395d !important;
     background: linear-gradient(135deg, #23395d 0%, #2c4a72 100%) !important;
@@ -1579,4 +1590,27 @@
 /* Backdrop */
 .swal2-backdrop-show {
     background: rgba(35, 57, 93, 0.4) !important;
+}
+
+/* Estilos específicos para la tabla de piezas agregadas en el modal de alta de equipo (inventario)
+   Estos estilos solo afectan el modal de alta de equipo y no chocan con otros componentes. */
+
+#tablaPiezasAgregadasAlta td, #tablaPiezasAgregadasAlta th {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    vertical-align: middle;
+}
+#tablaPiezasAgregadasAlta input[type="number"] {
+    width: 48px;
+    height: 32px;
+    padding: 2px 6px;
+    font-size: 1rem;
+}
+#tablaPiezasAgregadasAlta .btn {
+    padding: 0.18rem 0.45rem;
+    font-size: 0.92rem;
+}
+#tablaPiezasAgregadasAlta .btn-danger {
+    padding: 0.12rem 0.38rem;
+    font-size: 0.85rem;
 }

@@ -180,34 +180,43 @@ def modulo_rentas():
         nce.id AS cobro_extra_id,
         ne.estado_retraso,
         (
-            SELECT COUNT(*) FROM (
-                SELECT nsd.id_pieza,
-                       nsd.cantidad AS cantidad_salida,
-                       (
-                           SELECT COALESCE(SUM(ned2.cantidad_recibida), 0)
-                           FROM notas_entrada ne2
-                           JOIN notas_entrada_detalle ned2 ON ned2.nota_entrada_id = ne2.id
-                           WHERE (
-                               ne2.renta_id = r.id
-                               OR ne2.renta_id IN (SELECT id FROM rentas WHERE renta_asociada_id = r.id)
-                           )
-                           AND ned2.id_pieza = nsd.id_pieza
-                       ) AS cantidad_recibida_total
-                FROM notas_salida ns
-                JOIN notas_salida_detalle nsd ON nsd.nota_salida_id = ns.id
-                WHERE ns.renta_id = r.id
-                GROUP BY nsd.id_pieza, nsd.cantidad
-                HAVING nsd.cantidad > (
-                    SELECT COALESCE(SUM(ned2.cantidad_recibida), 0)
-                    FROM notas_entrada ne2
-                    JOIN notas_entrada_detalle ned2 ON ned2.nota_entrada_id = ne2.id
-                    WHERE (
-                        ne2.renta_id = r.id
-                        OR ne2.renta_id IN (SELECT id FROM rentas WHERE renta_asociada_id = r.id)
-                    )
-                    AND ned2.id_pieza = nsd.id_pieza
+            CASE
+                WHEN (
+                    SELECT COUNT(*) FROM notas_entrada ne
+                    WHERE ne.renta_id = r.id OR ne.renta_id IN (SELECT id FROM rentas WHERE renta_asociada_id = r.id)
+                ) > 0
+                THEN (
+                    SELECT COUNT(*) FROM (
+                        SELECT nsd.id_pieza,
+                               nsd.cantidad AS cantidad_salida,
+                               (
+                                   SELECT COALESCE(SUM(ned2.cantidad_recibida), 0)
+                                   FROM notas_entrada ne2
+                                   JOIN notas_entrada_detalle ned2 ON ned2.nota_entrada_id = ne2.id
+                                   WHERE (
+                                       ne2.renta_id = r.id
+                                       OR ne2.renta_id IN (SELECT id FROM rentas WHERE renta_asociada_id = r.id)
+                                   )
+                                   AND ned2.id_pieza = nsd.id_pieza
+                               ) AS cantidad_recibida_total
+                        FROM notas_salida ns
+                        JOIN notas_salida_detalle nsd ON nsd.nota_salida_id = ns.id
+                        WHERE ns.renta_id = r.id
+                        GROUP BY nsd.id_pieza, nsd.cantidad
+                        HAVING nsd.cantidad > (
+                            SELECT COALESCE(SUM(ned2.cantidad_recibida), 0)
+                            FROM notas_entrada ne2
+                            JOIN notas_entrada_detalle ned2 ON ned2.nota_entrada_id = ne2.id
+                            WHERE (
+                                ne2.renta_id = r.id
+                                OR ne2.renta_id IN (SELECT id FROM rentas WHERE renta_asociada_id = r.id)
+                            )
+                            AND ned2.id_pieza = nsd.id_pieza
+                        )
+                    ) AS pendientes
                 )
-            ) AS pendientes
+                ELSE 0
+            END
         ) AS piezas_pendientes,
         -- Verificar si hay rentas asociadas (renovaciones)
         (
@@ -532,8 +541,6 @@ def crear_renta():
 
 
 
-
-
 ############################################################
 ############################################################
 #############################################################
@@ -604,11 +611,6 @@ def actualizar_fecha_entrada(renta_id):
     finally:
         cursor.close()
         conn.close()
-
-
-
-
-
 
 
 
@@ -708,9 +710,6 @@ def cerrar_renta(renta_id):
 ###########################################################
 ###########################################################
 ###########################################################
-############# DETALLES DE LA RENTA - VISUALIZACIÓN DETALLES 
-
-###########################################################
 # ======================= DETALLE DE RENTA =======================
 @rentas_bp.route('/detalle/<int:renta_id>')
 def obtener_detalle_renta(renta_id):
@@ -803,15 +802,11 @@ def obtener_detalle_renta(renta_id):
 
 
 
-
-
-
 ###########################################################
 ###########################################################
 ###########################################################
 ###########################################################
 ###########################################################
-
 ###########################################################
 # ======================= RENOVAR RENTA =======================
 @rentas_bp.route('/renovar/<int:renta_id>', methods=['POST'])
