@@ -78,21 +78,29 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="#" class="btn btn-sm btn-outline-primary action-btn-clientes" title="Editar" data-bs-toggle="modal"
-                            data-bs-target="#modalEditarEmpleado{{ empleado.id }}">
-                            <i class="bi bi-pencil"></i>
-                        </a>
-                        <a href="#" class="btn btn-sm btn-outline-primary action-btn-clientes" title="Permisos" data-bs-toggle="modal"
-                            data-bs-target="#modalPermisosEmpleado{{ empleado.id }}">
-                            <i class="bi bi-shield-lock"></i>
-                        </a>
-                        {% if empleado.estado == 'activo' %}
-                        <a href="{{ url_for('empleados.baja_empleado', id=empleado.id) }}" class="btn btn-sm btn-outline-danger action-btn-clientes"
-                            title="Dar de baja"><i class="bi bi-person-x"></i></a>
-                        {% else %}
-                        <a href="{{ url_for('empleados.alta_empleado', id=empleado.id) }}"
-                            class="btn btn-sm btn-outline-success action-btn-clientes" title="Reactivar"><i class="bi bi-person-check"></i></a>
-                        {% endif %}
+                        <div class="d-flex flex-column gap-1">
+                            <a href="#" class="btn btn-square btn-outline-warning action-btn-inventario" title="Editar" data-bs-toggle="modal"
+                                data-bs-target="#modalEditarEmpleado{{ empleado.id }}">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="#" class="btn btn-square btn-outline-info action-btn-inventario" title="Permisos" data-bs-toggle="modal"
+                                data-bs-target="#modalPermisosEmpleado{{ empleado.id }}">
+                                <i class="bi bi-shield-lock"></i>
+                            </a>
+                            {% if empleado.estado == 'activo' %}
+                            <form method="POST" action="{{ url_for('empleados.baja_empleado', id=empleado.id) }}" style="display:inline;" class="form-dar-baja-empleado">
+                                <button type="button" class="btn btn-square btn-outline-danger action-btn-inventario btn-dar-baja-empleado" title="Dar de baja" data-nombre="{{ empleado.nombre }} {{ empleado.apellido1 }} {{ empleado.apellido2 }}">
+                                    <i class="bi bi-person-x"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <form method="POST" action="{{ url_for('empleados.alta_empleado', id=empleado.id) }}" style="display:inline;" class="form-dar-alta-empleado">
+                                <button type="button" class="btn btn-square btn-outline-success action-btn-inventario btn-dar-alta-empleado" title="Reactivar" data-nombre="{{ empleado.nombre }} {{ empleado.apellido1 }} {{ empleado.apellido2 }}">
+                                    <i class="bi bi-person-check"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -102,62 +110,96 @@
 </div>
 
 
-<!-- Modal: Nuevo Empleado -->
-<div class="modal fade" id="modalNuevoEmpleado" tabindex="-1" aria-labelledby="modalNuevoEmpleadoLabel"
-    aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form method="post" action="{{ url_for('empleados.nuevo_empleado') }}">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalNuevoEmpleadoLabel">Nuevo Empleado</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+
+<!-- Modal: Nuevo Empleado (Rediseñado) -->
+<div class="modal fade" id="modalNuevoEmpleado" tabindex="-1" aria-labelledby="modalNuevoEmpleadoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <form method="post" action="{{ url_for('empleados.nuevo_empleado') }}">
+            <div class="modal-content">
+                <div class="modal-header" style="background: #23395d; color: #fff;">
+                    <h5 class="modal-title" id="modalNuevoEmpleadoLabel"><i class="bi bi-person-plus"></i> Nuevo Empleado</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label for="nombre" class="form-label">Nombre</label>
-                            <input type="text" class="form-control" name="nombre" required>
+                    <div class="row g-3 align-items-stretch">
+                        <div class="col-xl-7 d-flex flex-column" style="min-height: 350px;">
+                            <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 250px;">
+                                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                                    <h6 class="mb-0"><i class="bi bi-person"></i> Datos Personales</h6>
+                                </div>
+                                <div class="card-body d-flex flex-column" style="flex:1;">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="nombre" class="form-label">Nombre</label>
+                                            <input type="text" class="form-control" name="nombre" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="apellido1" class="form-label">Apellido 1</label>
+                                            <input type="text" class="form-control" name="apellido1" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label for="apellido2" class="form-label">Apellido 2</label>
+                                            <input type="text" class="form-control" name="apellido2" required>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-8">
+                                            <label for="correo" class="form-label">Correo electrónico</label>
+                                            <input type="email" class="form-control" name="correo" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label for="apellido1" class="form-label">Apellido 1</label>
-                            <input type="text" class="form-control" name="apellido1" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="apellido2" class="form-label">Apellido 2</label>
-                            <input type="text" class="form-control" name="apellido2" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="correo" class="form-label">Correo electrónico</label>
-                            <input type="email" class="form-control" name="correo" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="sucursal" class="form-label">Sucursal</label>
-                            <select class="form-select" name="sucursal_id" required>
-                                {% for sucursal in sucursales %}
-                                <option value="{{ sucursal.id }}">{{ sucursal.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="rol" class="form-label">Rol</label>
-                            <select class="form-select" name="rol_id" required>
-                                {% for rol in roles %}
-                                <option value="{{ rol.id }}">{{ rol.nombre }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="col-xl-5 d-flex flex-column">
+                            <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 250px;">
+                                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                                    <h6 class="mb-0"><i class="bi bi-briefcase"></i> Datos Laborales</h6>
+                                </div>
+                                <div class="card-body d-flex flex-column" style="flex:1;">
+                                    <div class="row g-3">
+                                        <div class="col-md-12 mb-2">
+                                            <label for="sucursal" class="form-label">Sucursal</label>
+                                            <select class="form-select" name="sucursal_id" required>
+                                                {% for sucursal in sucursales %}
+                                                <option value="{{ sucursal.id }}">{{ sucursal.nombre }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-12 mb-2">
+                                            <label for="rol" class="form-label">Rol</label>
+                                            <select class="form-select" name="rol_id" required>
+                                                {% for rol in roles %}
+                                                <option value="{{ rol.id }}">{{ rol.nombre }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-clientes-main">Guardar</button>
+                <div class="modal-footer modal-footer-azul">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-clientes-main">
+                        <i class="bi bi-person-plus"></i> Guardar
+                    </button>
                 </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 
 {% for empleado in empleados %}
+
+
+
+
+
+
 <!-- Modal: Gestión de Permisos -->
 <div class="modal fade" id="modalPermisosEmpleado{{ empleado.id }}" tabindex="-1"
     aria-labelledby="modalPermisosEmpleadoLabel{{ empleado.id }}" aria-hidden="true">
@@ -203,59 +245,154 @@
 </div>
 
 
-<!-- Modal: Editar Empleado -->
-<div class="modal fade" id="modalEditarEmpleado{{ empleado.id }}" tabindex="-1"
-    aria-labelledby="modalEditarEmpleadoLabel{{ empleado.id }}" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form method="post" action="{{ url_for('empleados.editar_empleado', id=empleado.id) }}">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modalEditarEmpleadoLabel{{ empleado.id }}">Editar Empleado</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+
+
+
+
+
+<!-- Modal: Editar Empleado (Rediseñado) -->
+<div class="modal fade" id="modalEditarEmpleado{{ empleado.id }}" tabindex="-1" aria-labelledby="modalEditarEmpleadoLabel{{ empleado.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <form method="post" action="{{ url_for('empleados.editar_empleado', id=empleado.id) }}">
+            <div class="modal-content">
+                <div class="modal-header" style="background: #23395d; color: #fff;">
+                    <h5 class="modal-title" id="modalEditarEmpleadoLabel{{ empleado.id }}"><i class="bi bi-pencil"></i> Editar Empleado</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" class="form-control" name="nombre" value="{{ empleado.nombre }}" required>
+                    <div class="row g-3 align-items-stretch">
+                        <div class="col-xl-7 d-flex flex-column" style="min-height: 350px;">
+                            <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 250px;">
+                                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                                    <h6 class="mb-0"><i class="bi bi-person"></i> Datos Personales</h6>
+                                </div>
+                                <div class="card-body d-flex flex-column" style="flex:1;">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label">Nombre</label>
+                                            <input type="text" class="form-control" name="nombre" value="{{ empleado.nombre }}" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Apellido 1</label>
+                                            <input type="text" class="form-control" name="apellido1" value="{{ empleado.apellido1 }}" required>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Apellido 2</label>
+                                            <input type="text" class="form-control" name="apellido2" value="{{ empleado.apellido2 }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3 mt-2">
+                                        <div class="col-md-8">
+                                            <label class="form-label">Correo electrónico</label>
+                                            <input type="email" class="form-control" name="correo" value="{{ empleado.correo }}" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Apellido 1</label>
-                            <input type="text" class="form-control" name="apellido1" value="{{ empleado.apellido1 }}" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Apellido 2</label>
-                            <input type="text" class="form-control" name="apellido2" value="{{ empleado.apellido2 }}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Correo electrónico</label>
-                            <input type="email" class="form-control" name="correo" value="{{ empleado.correo }}" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Sucursal</label>
-                            <select class="form-select" name="sucursal_id" required>
-                                {% for sucursal in sucursales %}
-                                <option value="{{ sucursal.id }}" {% if sucursal.id == empleado.sucursal_id %}selected{% endif %}>{{ sucursal.nombre }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Rol</label>
-                            <select class="form-select" name="rol_id" required>
-                                {% for rol in roles %}
-                                <option value="{{ rol.id }}" {% if rol.id == empleado.rol_id %}selected{% endif %}>{{ rol.nombre }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="col-xl-5 d-flex flex-column">
+                            <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 250px;">
+                                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                                    <h6 class="mb-0"><i class="bi bi-briefcase"></i> Datos Laborales</h6>
+                                </div>
+                                <div class="card-body d-flex flex-column" style="flex:1;">
+                                    <div class="row g-3">
+                                        <div class="col-md-12 mb-2">
+                                            <label class="form-label">Sucursal</label>
+                                            <select class="form-select" name="sucursal_id" required>
+                                                {% for sucursal in sucursales %}
+                                                <option value="{{ sucursal.id }}" {% if sucursal.id == empleado.sucursal_id %}selected{% endif %}>{{ sucursal.nombre }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-12 mb-2">
+                                            <label class="form-label">Rol</label>
+                                            <select class="form-select" name="rol_id" required>
+                                                {% for rol in roles %}
+                                                <option value="{{ rol.id }}" {% if rol.id == empleado.rol_id %}selected{% endif %}>{{ rol.nombre }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-clientes-main">Guardar cambios</button>
+                <div class="modal-footer modal-footer-azul">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-clientes-main">
+                        <i class="bi bi-pencil"></i> Guardar cambios
+                    </button>
                 </div>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.btn-dar-baja-empleado').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = btn.closest('form');
+            const nombre = btn.getAttribute('data-nombre') || 'este empleado';
+            Swal.fire({
+                title: '¿Dar de baja empleado?',
+                html: `<b>${nombre}</b><br>El empleado no podrá acceder al sistema, pero sus datos se conservarán.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#c62828',
+                cancelButtonColor: '#b0b0b0',
+                confirmButtonText: 'Sí, dar de baja',
+                cancelButtonText: 'Cancelar',
+                customClass: {
+                    confirmButton: 'btn btn-danger',
+                    cancelButton: 'btn btn-secondary'
+                },
+                buttonsStyling: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('.btn-dar-alta-empleado').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = btn.closest('form');
+            const nombre = btn.getAttribute('data-nombre') || 'este empleado';
+            Swal.fire({
+                title: '¿Reactivar empleado?',
+                html: `<b>${nombre}</b><br>El empleado podrá acceder nuevamente al sistema.`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#2e7d32',
+                cancelButtonColor: '#b0b0b0',
+                confirmButtonText: 'Sí, reactivar',
+                cancelButtonText: 'Cancelar',
+                customClass: {
+                    confirmButton: 'btn btn-success',
+                    cancelButton: 'btn btn-secondary'
+                },
+                buttonsStyling: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

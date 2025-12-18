@@ -109,18 +109,14 @@
             </button>
             {% endif %}
             {% if producto.estatus == 'activo' and 'baja_producto' in session['permisos'] %}
-            <form method="POST" action="{{ url_for('producto.dar_baja_producto', id_producto=producto.id_producto) }}"
-              style="display:inline;">
-              <button class="btn btn-sm btn-outline-secondary action-btn-productos" title="Descontinuar"
-                onclick="return confirm('¿Descontinuar este producto?');">
+            <form method="POST" action="{{ url_for('producto.dar_baja_producto', id_producto=producto.id_producto) }}" style="display:inline;" class="form-dar-baja-producto">
+              <button type="button" class="btn btn-sm btn-outline-secondary action-btn-productos btn-dar-baja-producto" title="Descontinuar" data-nombre="{{ producto.nombre }}">
                 <i class="bi bi-ban"></i>
               </button>
             </form>
             {% elif producto.estatus != 'activo' and 'alta_producto' in session['permisos'] %}
-            <form method="POST" action="{{ url_for('producto.dar_alta_producto', id_producto=producto.id_producto) }}"
-              style="display:inline;">
-              <button class="btn btn-sm btn-outline-success action-btn-productos" title="Activar"
-                onclick="return confirm('¿Activar este producto?');">
+            <form method="POST" action="{{ url_for('producto.dar_alta_producto', id_producto=producto.id_producto) }}" style="display:inline;" class="form-dar-alta-producto">
+              <button type="button" class="btn btn-sm btn-outline-success action-btn-productos btn-dar-alta-producto" title="Activar" data-nombre="{{ producto.nombre }}">
                 <i class="bi bi-arrow-up-circle"></i>
               </button>
             </form>
@@ -134,126 +130,142 @@
   </div>
 </div>
 
+
+
+
+
 <!-- Modal Editar Producto -->
 {% if 'editar_producto' in session['permisos'] %}
 {% for producto in productos %}
-<div class="modal fade" id="modalEditarProducto{{ producto.id_producto }}" tabindex="-1"
-  aria-labelledby="modalEditarProductoLabel{{ producto.id_producto }}" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade" id="modalEditarProducto{{ producto.id_producto }}" tabindex="-1" aria-labelledby="modalEditarProductoLabel{{ producto.id_producto }}" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
     <form method="POST" action="{{ url_for('producto.editar_producto', id_producto=producto.id_producto) }}">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="modalEditarProductoLabel{{ producto.id_producto }}">
-            Editar Producto
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header" style="background: #23395d; color: #fff;">
+          <h5 class="modal-title" id="modalEditarProductoLabel{{ producto.id_producto }}"><i class="bi bi-pencil"></i> Editar Producto</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <div class="row">
-            <div class="col-md-6 mb-2">
-              <label class="form-label">Nombre</label>
-              <input type="text" class="form-control" name="nombre" value="{{ producto.nombre }}" required>
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">Tipo</label>
-              <select class="form-select" name="tipo" id="tipoProductoEditar{{ producto.id_producto }}" required
-                onchange="mostrarSelectorPiezasEditar({{ producto.id_producto }})">
-                <option value="individual" {% if producto.tipo=='individual' %}selected{% endif %}>Individual</option>
-                <option value="conjunto" {% if producto.tipo=='conjunto' %}selected{% endif %}>Kit (conjunto)</option>
-              </select>
-            </div>
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Descripción</label>
-            <textarea class="form-control" name="descripcion">{{ producto.descripcion }}</textarea>
-          </div>
-          <div class="row">
-            <div class="col-md-3 mb-2">
-              <label class="form-label">¿Precio único por día?</label>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="precioUnicoEditar{{ producto.id_producto }}"
-                  name="precio_unico" value="1" {% if producto.precio_unico %}checked{% endif %} 
-                  onchange="toggleCamposPrecioEditar({{ producto.id_producto }})">
-                <label class="form-check-label" for="precioUnicoEditar{{ producto.id_producto }}">Sí</label>
-              </div>
-            </div>
-            <div class="col-md-3 mb-2" id="campoPrecioDiaEditar{{ producto.id_producto }}">
-              <label class="form-label">Precio por 1 día</label>
-              <input type="number" step="0.01" class="form-control" name="precio_dia"
-                value="{{ producto.precio_dia or '' }}" required>
-            </div>
-          </div>
-          <div class="row" id="camposRangosEditar{{ producto.id_producto }}">
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 1-7 días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_7dias"
-                value="{{ producto.precio_7dias or '' }}">
-            </div>
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 8-15 días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_15dias"
-                value="{{ producto.precio_15dias or '' }}">
-            </div>
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 16-30 días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_30dias"
-                value="{{ producto.precio_30dias or '' }}">
-            </div>
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 31+ días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_31mas"
-                value="{{ producto.precio_31mas or '' }}">
-            </div>
-          </div>
-          <hr>
-          <div class="mb-2" id="selectorPiezasEditar{{ producto.id_producto }}">
-            <div id="piezasIndividualEditar{{ producto.id_producto }}"
-              style="display:{{ 'block' if producto.tipo == 'individual' else 'none' }};">
-              <label class="form-label">Pieza asociada</label>
-              <select class="form-select" name="pieza_individual">
-                {% for pieza in piezas %}
-                <option value="{{ pieza.id_pieza }}" title="{{ pieza.descripcion }}" {% if
-                  producto.piezas[0].id_pieza==pieza.id_pieza %}selected{% endif %}>
-                  {{ pieza.nombre_pieza }} - {{ pieza.descripcion }}
-                </option>
-                {% endfor %}
-              </select>
-            </div>
-            <div id="piezasKitEditar{{ producto.id_producto }}"
-              style="display:{{ 'block' if producto.tipo == 'conjunto' else 'none' }};">
-              <label class="form-label">Piezas del kit</label>
-              <div id="kitPiezasContainerEditar{{ producto.id_producto }}">
-                {% for pieza in producto.piezas %}
-                <div class="row mb-2 kit-pieza-row">
-                  <div class="col-7">
-                    <select class="form-select" name="pieza_kit[]">
-                      {% for p in piezas %}
-                      <option value="{{ p.id_pieza }}" title="{{ p.descripcion }}" {% if pieza.id_pieza==p.id_pieza
-                        %}selected{% endif %}>
-                        {{ p.nombre_pieza }} - {{ p.descripcion }}
-                      </option>
-                      {% endfor %}
-                    </select>
+          <div class="row g-3 align-items-stretch">
+            <div class="col-xl-7 d-flex flex-column" style="min-height: 400px;">
+              <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 300px;">
+                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                  <h6 class="mb-0"><i class="bi bi-box"></i> Información del Producto</h6>
+                </div>
+                <div class="card-body d-flex flex-column" style="flex:1;">
+                  <div class="row">
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Nombre</label>
+                      <input type="text" class="form-control" name="nombre" value="{{ producto.nombre }}" required>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Tipo</label>
+                      <select class="form-select" name="tipo" id="tipoProductoEditar{{ producto.id_producto }}" required onchange="mostrarSelectorPiezasEditar({{ producto.id_producto }})">
+                        <option value="individual" {% if producto.tipo=='individual' %}selected{% endif %}>Individual</option>
+                        <option value="conjunto" {% if producto.tipo=='conjunto' %}selected{% endif %}>Kit (conjunto)</option>
+                      </select>
+                    </div>
                   </div>
-                  <div class="col-3">
-                    <input type="number" class="form-control" name="cantidad_kit[]" min="1" value="{{ pieza.cantidad }}"
-                      required>
-                  </div>
-                  <div class="col-2">
-                    <button type="button" class="btn btn-danger btn-sm"
-                      onclick="eliminarKitPiezaRowEditar(this)">&times;</button>
+                  <div class="mb-2">
+                    <label class="form-label">Descripción</label>
+                    <textarea class="form-control" name="descripcion">{{ producto.descripcion }}</textarea>
                   </div>
                 </div>
-                {% endfor %}
               </div>
-              <button type="button" class="btn btn-outline-primary btn-sm"
-                onclick="agregarKitPiezaRowEditar({{producto.id_producto}})"> Agregar pieza</button>
+              <div class="card card-borde-azul mb-3" style="flex:0 0 auto;">
+                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                  <h6 class="mb-0"><i class="bi bi-cash-coin"></i> Precios</h6>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">¿Precio único por día?</label>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="precioUnicoEditar{{ producto.id_producto }}" name="precio_unico" value="1" {% if producto.precio_unico %}checked{% endif %} onchange="toggleCamposPrecioEditar({{ producto.id_producto }})">
+                        <label class="form-check-label" for="precioUnicoEditar{{ producto.id_producto }}">Sí</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3 mb-2" id="campoPrecioDiaEditar{{ producto.id_producto }}">
+                      <label class="form-label">Precio por 1 día</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_dia" value="{{ producto.precio_dia or '' }}" required>
+                    </div>
+                  </div>
+                  <div class="row" id="camposRangosEditar{{ producto.id_producto }}">
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 1-7 días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_7dias" value="{{ producto.precio_7dias or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 8-15 días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_15dias" value="{{ producto.precio_15dias or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 16-30 días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_30dias" value="{{ producto.precio_30dias or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 31+ días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_31mas" value="{{ producto.precio_31mas or '' }}">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-5 d-flex flex-column">
+              <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 300px;">
+                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                  <h6 class="mb-0"><i class="bi bi-gear"></i> Piezas Asociadas</h6>
+                </div>
+                <div class="card-body d-flex flex-column" style="flex:1;">
+                  <div class="mb-2" id="selectorPiezasEditar{{ producto.id_producto }}">
+                    <div id="piezasIndividualEditar{{ producto.id_producto }}" style="display:{{ 'block' if producto.tipo == 'individual' else 'none' }};">
+                      <label class="form-label">Pieza asociada</label>
+                      <select class="form-select" name="pieza_individual">
+                        {% for pieza in piezas %}
+                        <option value="{{ pieza.id_pieza }}" title="{{ pieza.descripcion }}" {% if producto.piezas[0].id_pieza==pieza.id_pieza %}selected{% endif %}>
+                          {{ pieza.nombre_pieza }} - {{ pieza.descripcion }}
+                        </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div id="piezasKitEditar{{ producto.id_producto }}" style="display:{{ 'block' if producto.tipo == 'conjunto' else 'none' }};">
+                      <label class="form-label">Piezas del kit</label>
+                      <div id="kitPiezasContainerEditar{{ producto.id_producto }}">
+                        {% for pieza in producto.piezas %}
+                        <div class="row mb-2 kit-pieza-row">
+                          <div class="col-7">
+                            <select class="form-select" name="pieza_kit[]">
+                              {% for p in piezas %}
+                              <option value="{{ p.id_pieza }}" title="{{ p.descripcion }}" {% if pieza.id_pieza==p.id_pieza %}selected{% endif %}>
+                                {{ p.nombre_pieza }} - {{ p.descripcion }}
+                              </option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div class="col-3">
+                            <input type="number" class="form-control" name="cantidad_kit[]" min="1" value="{{ pieza.cantidad }}" required>
+                          </div>
+                          <div class="col-2">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="eliminarKitPiezaRowEditar(this)">&times;</button>
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                      <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarKitPiezaRowEditar({{producto.id_producto}})">Agregar pieza</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        <div class="modal-footer modal-footer-azul">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-pencil"></i> Guardar cambios
+          </button>
         </div>
       </div>
     </form>
@@ -264,109 +276,136 @@
 
 
 
+<!-- ///////////////////////////////////////////////////-->
 <!-- Modal Nuevo Producto -->
 {% if 'crear_producto' in session['permisos'] %}
-<div class="modal fade" id="modalNuevoProducto" tabindex="-1" aria-labelledby="modalNuevoProductoLabel"
-  aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade" id="modalNuevoProducto" tabindex="-1" aria-labelledby="modalNuevoProductoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
     <form method="POST" action="{{ url_for('producto.crear_producto') }}">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="modalNuevoProductoLabel">Nuevo Producto</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header" style="background: #23395d; color: #fff;">
+          <h5 class="modal-title" id="modalNuevoProductoLabel"><i class="bi bi-plus-circle"></i> Nuevo Producto</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <div class="row">
-            <div class="col-md-6 mb-2">
-              <label class="form-label">Nombre</label>
-              <input type="text" class="form-control" name="nombre" required>
-            </div>
-            <div class="col-md-6 mb-2">
-              <label class="form-label">Tipo</label>
-              <select class="form-select" name="tipo" id="tipoProducto" required onchange="mostrarSelectorPiezas()">
-                <option value="individual">Individual</option>
-                <option value="conjunto">Kit (conjunto)</option>
-              </select>
-            </div>
-          </div>
-          <div class="mb-2">
-            <label class="form-label">Descripción</label>
-            <textarea class="form-control" name="descripcion"></textarea>
-          </div>
-          <div class="row">
-            <div class="col-md-3 mb-2">
-              <label class="form-label">¿Precio único por día?</label>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="precioUnicoNuevo" name="precio_unico" value="1"
-                  onchange="toggleCamposPrecioNuevo()">
-                <label class="form-check-label" for="precioUnicoNuevo">Sí</label>
-              </div>
-            </div>
-            <div class="col-md-3 mb-2" id="campoPrecioDiaNuevo">
-              <label class="form-label">Precio por 1 día</label>
-              <input type="number" step="0.01" class="form-control" name="precio_dia" required>
-            </div>
-          </div>
-          <div class="row" id="camposRangosNuevo">
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 1-7 días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_7dias" required>
-            </div>
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 8-15 días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_15dias" required>
-            </div>
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 16-30 días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_30dias" required>
-            </div>
-            <div class="col-md-3 mb-2">
-              <label class="form-label">Precio 31+ días</label>
-              <input type="number" step="0.01" class="form-control" name="precio_31mas" required>
-            </div>
-          </div>
-          <hr>
-          <div class="mb-2" id="selectorPiezas">
-            <div id="piezasIndividual" style="display:block;">
-              <label class="form-label">Selecciona la pieza del inventario</label>
-              <select class="form-select" name="pieza_individual">
-                {% for pieza in piezas %}
-                <option value="{{ pieza.id_pieza }}" title="{{ pieza.descripcion }}">
-                  {{ pieza.nombre_pieza }} - {{ pieza.descripcion }}
-                </option>
-                {% endfor %}
-              </select>
-            </div>
-            <div id="piezasKit" style="display:none;">
-              <label class="form-label">Agrega piezas al kit</label>
-              <div id="kitPiezasContainer">
-                <div class="row mb-2 kit-pieza-row">
-                  <div class="col-8">
-                    <select class="form-select" name="pieza_kit[]">
-                      {% for pieza in piezas %}
-                      <option value="{{ pieza.id_pieza }}" title="{{ pieza.descripcion }}">
-                        {{ pieza.nombre_pieza }} - {{ pieza.descripcion }}
-                      </option>
-                      {% endfor %}
-                    </select>
+          <div class="row g-3 align-items-stretch">
+            <div class="col-xl-7 d-flex flex-column" style="min-height: 400px;">
+              <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 300px;">
+                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                  <h6 class="mb-0"><i class="bi bi-box"></i> Información del Producto</h6>
+                </div>
+                <div class="card-body d-flex flex-column" style="flex:1;">
+                  <div class="row">
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Nombre</label>
+                      <input type="text" class="form-control" name="nombre" required>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                      <label class="form-label">Tipo</label>
+                      <select class="form-select" name="tipo" id="tipoProducto" required onchange="mostrarSelectorPiezas()">
+                        <option value="individual">Individual</option>
+                        <option value="conjunto">Kit (conjunto)</option>
+                      </select>
+                    </div>
                   </div>
-                  <div class="col-3">
-                    <input type="number" class="form-control" name="cantidad_kit[]" min="1" value="1" required>
-                  </div>
-                  <div class="col-1">
-                    <button type="button" class="btn btn-danger btn-sm"
-                      onclick="eliminarKitPiezaRow(this)">&times;</button>
+                  <div class="mb-2">
+                    <label class="form-label">Descripción</label>
+                    <textarea class="form-control" name="descripcion"></textarea>
                   </div>
                 </div>
               </div>
-              <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarKitPiezaRow()">Agregar
-                pieza</button>
+              <div class="card card-borde-azul mb-3" style="flex:0 0 auto;">
+                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                  <h6 class="mb-0"><i class="bi bi-cash-coin"></i> Precios</h6>
+                </div>
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">¿Precio único por día?</label>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="precioUnicoNuevo" name="precio_unico" value="1" onchange="toggleCamposPrecioNuevo()">
+                        <label class="form-check-label" for="precioUnicoNuevo">Sí</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3 mb-2" id="campoPrecioDiaNuevo">
+                      <label class="form-label">Precio por 1 día</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_dia" required>
+                    </div>
+                  </div>
+                  <div class="row" id="camposRangosNuevo">
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 1-7 días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_7dias" required>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 8-15 días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_15dias" required>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 16-30 días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_30dias" required>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                      <label class="form-label">Precio 31+ días</label>
+                      <input type="number" step="0.01" class="form-control" name="precio_31mas" required>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-5 d-flex flex-column">
+              <div class="card card-borde-azul mb-3 flex-grow-1 d-flex flex-column" style="min-height: 300px;">
+                <div class="card-header card-header-azul" style="background: #23395d; color: #fff;">
+                  <h6 class="mb-0"><i class="bi bi-gear"></i> Piezas Asociadas</h6>
+                </div>
+                <div class="card-body d-flex flex-column" style="flex:1;">
+                  <div class="mb-2" id="selectorPiezas">
+                    <div id="piezasIndividual" style="display:block;">
+                      <label class="form-label">Selecciona la pieza del inventario</label>
+                      <select class="form-select" name="pieza_individual">
+                        {% for pieza in piezas %}
+                        <option value="{{ pieza.id_pieza }}" title="{{ pieza.descripcion }}">
+                          {{ pieza.nombre_pieza }} - {{ pieza.descripcion }}
+                        </option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div id="piezasKit" style="display:none;">
+                      <label class="form-label">Agrega piezas al kit</label>
+                      <div id="kitPiezasContainer">
+                        <div class="row mb-2 kit-pieza-row">
+                          <div class="col-8">
+                            <select class="form-select" name="pieza_kit[]">
+                              {% for pieza in piezas %}
+                              <option value="{{ pieza.id_pieza }}" title="{{ pieza.descripcion }}">
+                                {{ pieza.nombre_pieza }} - {{ pieza.descripcion }}
+                              </option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div class="col-3">
+                            <input type="number" class="form-control" name="cantidad_kit[]" min="1" value="1" required>
+                          </div>
+                          <div class="col-1">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="eliminarKitPiezaRow(this)">&times;</button>
+                          </div>
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarKitPiezaRow()">Agregar pieza</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-danger" id="btn-guardar-producto">Guardar</button>
+        <div class="modal-footer modal-footer-azul">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary" id="btn-guardar-producto">
+            <i class="bi bi-plus-circle"></i> Guardar
+          </button>
         </div>
       </div>
     </form>
@@ -379,5 +418,66 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/producto.js') }}"></script>
+
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.btn-dar-baja-producto').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const form = btn.closest('form');
+      const nombre = btn.getAttribute('data-nombre') || 'este producto';
+      Swal.fire({
+        title: '¿Descontinuar producto?',
+        html: `<b>${nombre}</b><br>Esta acción puede revertirse después.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#23395d',
+        cancelButtonColor: '#b0b0b0',
+        confirmButtonText: 'Sí, descontinuar',
+        cancelButtonText: 'Cancelar',
+        customClass: {
+          confirmButton: 'btn btn-primary',
+          cancelButton: 'btn btn-secondary'
+        },
+        buttonsStyling: false
+      }).then((result) => {
+        if (result.isConfirmed) {
+          form.submit();
+        }
+      });
+    });
+  });
+
+  document.querySelectorAll('.btn-dar-alta-producto').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      const form = btn.closest('form');
+      const nombre = btn.getAttribute('data-nombre') || 'este producto';
+      Swal.fire({
+        title: '¿Activar producto?',
+        html: `<b>${nombre}</b><br>El producto volverá a estar disponible para operaciones.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2e7d32',
+        cancelButtonColor: '#b0b0b0',
+        confirmButtonText: 'Sí, activar',
+        cancelButtonText: 'Cancelar',
+        customClass: {
+          confirmButton: 'btn btn-success',
+          cancelButton: 'btn btn-secondary'
+        },
+        buttonsStyling: false
+      }).then((result) => {
+        if (result.isConfirmed) {
+          form.submit();
+        }
+      });
+    });
+  });
+});
+</script>
 
 {% endblock %}

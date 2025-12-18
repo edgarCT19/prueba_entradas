@@ -1,3 +1,5 @@
+
+
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app
 from utils.db import get_db_connection
 from functools import wraps
@@ -55,6 +57,8 @@ def obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id):
 
     resultado = cursor.fetchone()
     return resultado['siguiente_folio'] if resultado and resultado.get('siguiente_folio') else 1
+
+
 
 @bp_inventario.route('/general')
 @requiere_permiso('ver_inventario_general')
@@ -210,9 +214,9 @@ def editar_pieza(id_pieza):
 
 
 
-from flask import session
 
-# ...existing code...
+
+
 
 @bp_inventario.route('/alta_baja_pieza', methods=['POST'])
 @requiere_permiso('modificar_existencias_inventario_general')
@@ -260,56 +264,34 @@ def alta_baja_pieza():
     return redirect(url_for('inventario.inventario_general'))
 
 
-@bp_inventario.route('/transferir_pieza', methods=['POST'])
-@requiere_permiso('transferir_piezas_inventario')
-def transferir_pieza():
-    id_pieza = request.form['id_pieza']
-    id_sucursal_origen = request.form['id_sucursal_origen']
-    id_sucursal_destino = request.form['id_sucursal_destino']
-    cantidad = int(request.form['cantidad'])
-    usuario_id = session.get('user_id')  # <-- Obtén el usuario de la sesión
 
+
+
+##################################################
+##################################################
+##################################################
+
+# Endpoint para obtener piezas y cantidades disponibles de una sucursal 
+@bp_inventario.route('/piezas-sucursal/<int:sucursal_id>')
+@requiere_permiso('ver_inventario_general')
+def piezas_sucursal(sucursal_id):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    # Resta en origen
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("""
-        UPDATE inventario_sucursal 
-        SET total=GREATEST(total-%s,0), disponibles=GREATEST(disponibles-%s,0) 
-        WHERE id_pieza=%s AND id_sucursal=%s
-    """, (cantidad, cantidad, id_pieza, id_sucursal_origen))
-    # Suma en destino (o crea si no existe)
-    cursor.execute("SELECT total FROM inventario_sucursal WHERE id_pieza=%s AND id_sucursal=%s", (id_pieza, id_sucursal_destino))
-    row = cursor.fetchone()
-    if row:
-        cursor.execute("""
-            UPDATE inventario_sucursal 
-            SET total=total+%s, disponibles=disponibles+%s 
-            WHERE id_pieza=%s AND id_sucursal=%s
-        """, (cantidad, cantidad, id_pieza, id_sucursal_destino))
-    else:
-        cursor.execute("""
-            INSERT INTO inventario_sucursal 
-            (id_pieza, id_sucursal, total, disponibles, rentadas, daniadas, en_reparacion) 
-            VALUES (%s, %s, %s, %s, 0, 0, 0)
-        """, (id_pieza, id_sucursal_destino, cantidad, cantidad))
-    # Registrar movimiento de transferencia (ahora incluye usuario)
-    cursor.execute("""
-        INSERT INTO movimientos_inventario (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (id_pieza, id_sucursal_origen, 'transferencia_salida', cantidad, f'Transferencia a sucursal {id_sucursal_destino}', usuario_id))
-    cursor.execute("""
-        INSERT INTO movimientos_inventario (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (id_pieza, id_sucursal_destino, 'transferencia_entrada', cantidad, f'Transferencia desde sucursal {id_sucursal_origen}', usuario_id))
-    conn.commit()
+        SELECT p.id_pieza, p.codigo_pieza, p.nombre_pieza, p.categoria, p.descripcion,
+               IFNULL(i.total, 0) AS total,
+               IFNULL(i.disponibles, 0) AS disponibles,
+               IFNULL(i.rentadas, 0) AS rentadas,
+               IFNULL(i.daniadas, 0) AS daniadas,
+               IFNULL(i.en_reparacion, 0) AS en_reparacion
+        FROM piezas p
+        LEFT JOIN inventario_sucursal i ON p.id_pieza = i.id_pieza AND i.id_sucursal = %s
+        ORDER BY p.nombre_pieza
+    """, (sucursal_id,))
+    piezas = cursor.fetchall()
     cursor.close()
     conn.close()
-    return redirect(url_for('inventario.inventario_general'))
-
-
-##################################
-############################# INVENTARIO MATRIZ
-####################################
+    return jsonify({'success': True, 'piezas': piezas})
 
 
 
@@ -347,13 +329,6 @@ def inventario_sucursal(sucursal_id):
     conn.close()
     
     return render_template('inventario/inventario_sucursal.html', piezas=piezas, sucursal=sucursal)
-
-
-
-
-
-
-
 
 
 
@@ -542,6 +517,10 @@ def recibir_equipos():
             
     except Exception as e:
         return jsonify({'success': False, 'error': f'Error en el procesamiento: {str(e)}'})
+
+
+
+
 
 
 @bp_inventario.route('/transferir-piezas-multiple', methods=['POST'])

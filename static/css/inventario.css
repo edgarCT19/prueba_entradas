@@ -1,3 +1,18 @@
+/* Ajuste para input de cantidad y botón eliminar en tabla de piezas agregadas del modal de transferencia general */
+#tablaPiezasAgregadasTransferencia input[type="number"] {
+    width: 48px;
+    height: 32px;
+    padding: 2px 6px;
+    font-size: 1rem;
+}
+#tablaPiezasAgregadasTransferencia .btn {
+    padding: 0.18rem 0.45rem;
+    font-size: 0.92rem;
+}
+#tablaPiezasAgregadasTransferencia .btn-danger {
+    padding: 0.12rem 0.38rem;
+    font-size: 0.85rem;
+}
 #tablaPiezasAgregadas input[type="number"], #tablaPiezasAgregadasAlta input[type="number"] {
     width: 48px;
     height: 32px;
