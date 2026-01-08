@@ -62,6 +62,9 @@
         <a href="{{ url_for('cotizaciones.index') }}" class="btn btn-tab">
           <i class="bi bi-calculator me-1"></i>Cotizaciones
         </a>
+        <a href="{{ url_for('salidas_internas.index') }}" class="btn btn-tab">
+          <i class="bi bi-box-arrow-right me-1"></i>Salidas Internas
+        </a>
       </div>
     </div>
 
@@ -225,14 +228,17 @@
 
             <!-- COLUMNA ESTADO DE PAGO -->
             <td>
+
+              {# Estado de pago: mostrar 'Saldo pendiente' si corresponde #}
               <span
                 class="badge
                   {% if renta[4]|lower == 'cancelada' %}bg-info
                   {% elif renta[5]|lower == 'pago realizado' %}bg-success
+                  {% elif renta[5]|lower == 'saldo pendiente' %}bg-warning
                   {% elif renta[5]|lower == 'pago pendiente' %}bg-danger
-                  {% else %}bg-warning
+                  {% else %}bg-secondary
                   {% endif %}">
-                {% if renta[4]|lower == 'cancelada' %}Reembolsado{% else %}{{ renta[5] }}{% endif %}
+                {% if renta[4]|lower == 'cancelada' %}Reembolsado{% elif renta[5]|lower == 'saldo pendiente' %}Saldo pendiente{% else %}{{ renta[5] }}{% endif %}
               </span>
 
               {% if renta[17] %}
@@ -353,7 +359,7 @@
                         href="#" data-renta-id="{{ renta[0] }}" data-fecha-salida="{{ renta[2] }}"
                         data-fecha-entrada="{{ renta[3].strftime('%Y-%m-%d') if renta[3] else '' }}" {% if
                         renta[5]|lower=='pago realizado' %}tabindex="-1" aria-disabled="true" {% endif %}>
-                        <i class="bi bi-journal-check me-2 text-success"></i>Generar Prefactura
+                        <i class="bi bi-journal-check me-2 text-success"></i>{% if renta[5]|lower == 'saldo pendiente' %}Abonar{% else %}Generar Prefactura{% endif %}
                       </a>
                     </li>
                     {% if renta[17] == 'Extra Pendiente' %}

@@ -52,7 +52,7 @@
         <button type="submit" class="btn btn-clientes-filter"><i class="bi bi-search"></i> Buscar</button>
     </form>
     <div class="table-responsive">
-        <table class="table table-clientes align-middle">
+        <table class="table table-clientes align-middle" style="border-spacing:0 2px;">
             <thead>
                 <tr>
                     <th>Nombre</th>
@@ -65,7 +65,7 @@
             </thead>
             <tbody>
                 {% for empleado in empleados %}
-                <tr>
+                <tr style="height:38px;">
                     <td>{{ empleado.nombre }} {{ empleado.apellido1 }} {{ empleado.apellido2 }}</td>
                     <td>{{ empleado.correo }}</td>
                     <td>{{ empleado.sucursal }}</td>
@@ -78,24 +78,22 @@
                         {% endif %}
                     </td>
                     <td>
-                        <div class="d-flex flex-column gap-1">
-                            <a href="#" class="btn btn-square btn-outline-warning action-btn-inventario" title="Editar" data-bs-toggle="modal"
-                                data-bs-target="#modalEditarEmpleado{{ empleado.id }}">
+                        <div class="d-flex flex-row gap-1 justify-content-center align-items-center">
+                            <a href="#" class="btn btn-square btn-outline-warning action-btn-inventario p-0 d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;min-height:36px;" title="Editar" data-bs-toggle="modal" data-bs-target="#modalEditarEmpleado{{ empleado.id }}">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="#" class="btn btn-square btn-outline-info action-btn-inventario" title="Permisos" data-bs-toggle="modal"
-                                data-bs-target="#modalPermisosEmpleado{{ empleado.id }}">
+                            <a href="#" class="btn btn-square btn-outline-info action-btn-inventario p-0 d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;min-height:36px;" title="Permisos" data-bs-toggle="modal" data-bs-target="#modalPermisosEmpleado{{ empleado.id }}">
                                 <i class="bi bi-shield-lock"></i>
                             </a>
                             {% if empleado.estado == 'activo' %}
-                            <form method="POST" action="{{ url_for('empleados.baja_empleado', id=empleado.id) }}" style="display:inline;" class="form-dar-baja-empleado">
-                                <button type="button" class="btn btn-square btn-outline-danger action-btn-inventario btn-dar-baja-empleado" title="Dar de baja" data-nombre="{{ empleado.nombre }} {{ empleado.apellido1 }} {{ empleado.apellido2 }}">
+                            <form method="POST" action="{{ url_for('empleados.baja_empleado', id=empleado.id) }}" style="display:inline;" class="form-dar-baja-empleado m-0 p-0">
+                                <button type="button" class="btn btn-square btn-outline-danger action-btn-inventario btn-dar-baja-empleado p-0 d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;min-height:36px;" title="Dar de baja" data-nombre="{{ empleado.nombre }} {{ empleado.apellido1 }} {{ empleado.apellido2 }}">
                                     <i class="bi bi-person-x"></i>
                                 </button>
                             </form>
                             {% else %}
-                            <form method="POST" action="{{ url_for('empleados.alta_empleado', id=empleado.id) }}" style="display:inline;" class="form-dar-alta-empleado">
-                                <button type="button" class="btn btn-square btn-outline-success action-btn-inventario btn-dar-alta-empleado" title="Reactivar" data-nombre="{{ empleado.nombre }} {{ empleado.apellido1 }} {{ empleado.apellido2 }}">
+                            <form method="POST" action="{{ url_for('empleados.alta_empleado', id=empleado.id) }}" style="display:inline;" class="form-dar-alta-empleado m-0 p-0">
+                                <button type="button" class="btn btn-square btn-outline-success action-btn-inventario btn-dar-alta-empleado p-0 d-flex align-items-center justify-content-center" style="width:36px;height:36px;min-width:36px;min-height:36px;" title="Reactivar" data-nombre="{{ empleado.nombre }} {{ empleado.apellido1 }} {{ empleado.apellido2 }}">
                                     <i class="bi bi-person-check"></i>
                                 </button>
                             </form>

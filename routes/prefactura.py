@@ -1,3 +1,4 @@
+
 import os
 from io import BytesIO
 from datetime import datetime
@@ -48,6 +49,69 @@ def obtener_prefactura(renta_id):
 
 
 
+@prefactura_bp.route('/api/pagos/<int:renta_id>')
+def obtener_historial_pagos(renta_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('''
+        SELECT id, tipo, metodo_pago, monto, DATE_FORMAT(fecha_emision, '%d/%m/%Y %H:%i') as fecha_emision
+        FROM prefacturas
+        WHERE renta_id = %s AND pagada = 1
+        ORDER BY fecha_emision ASC
+    ''', (renta_id,))
+    pagos = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return jsonify(pagos)
+
+@prefactura_bp.route('/api/info-redondeo/<int:renta_id>')
+def obtener_info_redondeo(renta_id):
+    """Obtiene información sobre si se debe aplicar redondeo basado en el primer abono"""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Verificar si ya hay abonos y cuál fue el primer método
+    cursor.execute("""
+        SELECT COUNT(*) as total_abonos,
+               COALESCE(SUM(monto), 0) as total_pagado,
+               (SELECT metodo_pago FROM prefacturas WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1 ORDER BY fecha_emision ASC LIMIT 1) as primer_metodo
+        FROM prefacturas 
+        WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1
+    """, (renta_id, renta_id))
+    abono_info = cursor.fetchone()
+    
+    # Obtener total de la renta
+    cursor.execute("SELECT total_con_iva FROM rentas WHERE id = %s", (renta_id,))
+    renta_info = cursor.fetchone()
+    total_renta = renta_info['total_con_iva'] if renta_info else 0
+    
+    cursor.close()
+    conn.close()
+    
+    es_primer_abono = abono_info['total_abonos'] == 0
+    total_ya_pagado = float(abono_info['total_pagado']) if abono_info['total_pagado'] is not None else 0.0
+    primer_metodo_abono = abono_info['primer_metodo']
+    saldo_pendiente = float(total_renta) - total_ya_pagado
+    
+    # Determinar si se debe aplicar redondeo
+    aplicar_redondeo = False
+    if es_primer_abono:
+        aplicar_redondeo = True  
+    else:
+        aplicar_redondeo = primer_metodo_abono == 'EFECTIVO'
+    
+    return jsonify({
+        'es_primer_abono': es_primer_abono,
+        'primer_metodo_abono': primer_metodo_abono,
+        'saldo_pendiente': saldo_pendiente,
+        'total_renta': total_renta,
+        'total_pagado': total_ya_pagado,
+        'aplicar_redondeo': aplicar_redondeo
+    })
+
+
+
+
 # === Endpoint: Registrar pago 
 @prefactura_bp.route('/pago/<int:renta_id>', methods=['POST'])
 def registrar_pago_prefactura(renta_id):
@@ -88,6 +152,94 @@ def registrar_pago_prefactura(renta_id):
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        # Función para redondear según reglas de efectivo
+        def redondear_efectivo(monto):
+            entero = int(monto)
+            centavos = round((monto - entero) * 100)
+            if centavos <= 49:
+                return entero
+            elif centavos >= 60:
+                return entero + 1
+            else:
+                return entero + 0.5
+
+        # Aplicar redondeo para pagos iniciales en efectivo
+        if tipo == 'inicial' and metodo.upper() == 'EFECTIVO':
+            monto_original = float(monto)
+            monto_redondeado = redondear_efectivo(monto_original)
+            print(f"Pago inicial efectivo - Monto original: {monto_original}, Monto redondeado: {monto_redondeado}")
+            monto = monto_redondeado
+            # Recalcular cambio si es necesario
+            if monto_recibido and float(monto_recibido) > monto_redondeado:
+                cambio = float(monto_recibido) - monto_redondeado
+
+        # Verificar si es el primer abono para aplicar redondeo
+        if tipo == 'abono':
+            cursor.execute("""
+                SELECT COUNT(*) as total_abonos, 
+                       COALESCE(SUM(monto), 0) as total_pagado,
+                       (SELECT metodo_pago FROM prefacturas WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1 ORDER BY fecha_emision ASC LIMIT 1) as primer_metodo
+                FROM prefacturas 
+                WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1
+            """, (renta_id, renta_id))
+            abono_info = cursor.fetchone()
+            es_primer_abono = abono_info[0] == 0
+            total_ya_pagado = abono_info[1]
+            primer_metodo_abono = abono_info[2]
+            
+            # Obtener total de la renta
+            cursor.execute("SELECT total_con_iva FROM rentas WHERE id = %s", (renta_id,))
+            total_renta = cursor.fetchone()[0]
+            saldo_pendiente = total_renta - total_ya_pagado
+            
+            print(f"es_primer_abono: {es_primer_abono}, primer_metodo: {primer_metodo_abono}, saldo_pendiente: {saldo_pendiente}")
+            
+
+            # Aplicar redondeo solo si es el primer abono Y es efectivo
+            if es_primer_abono and metodo.upper() == 'EFECTIVO':
+                saldo_redondeado = redondear_efectivo(saldo_pendiente)
+                print(f"Saldo original: {saldo_pendiente}, Saldo redondeado: {saldo_redondeado}")
+                # Si el monto a pagar es mayor o igual al saldo pendiente original, es liquidación
+                if float(monto) >= saldo_pendiente:
+                    monto = saldo_redondeado  # Cobrar el monto redondeado
+                    if float(monto_recibido) > saldo_redondeado:
+                        cambio = float(monto_recibido) - saldo_redondeado
+                    # Forzar saldo pendiente a cero si se liquida con redondeo
+                    saldo_pendiente = 0.0
+
+        # --- Nueva lógica: Si el primer abono fue efectivo y se redondeó, nunca mostrar los centavos en abonos futuros ---
+        # Esto se aplica a todos los métodos de pago en abonos posteriores
+        cursor.execute("""
+            SELECT COUNT(*) as total_abonos,
+                   (SELECT metodo_pago FROM prefacturas WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1 ORDER BY fecha_emision ASC LIMIT 1) as primer_metodo
+            FROM prefacturas 
+            WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1
+        """, (renta_id, renta_id))
+        abono_info2 = cursor.fetchone()
+        primer_metodo_abono2 = abono_info2[1]
+        if primer_metodo_abono2 == 'EFECTIVO':
+            # Buscar el primer abono efectivo y ver si hubo redondeo
+            cursor.execute("""
+                SELECT monto, (SELECT total_con_iva FROM rentas WHERE id = %s) as total_renta
+                FROM prefacturas WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1 ORDER BY fecha_emision ASC LIMIT 1
+            """, (renta_id, renta_id))
+            primer_abono = cursor.fetchone()
+            if primer_abono:
+                monto_abono = float(primer_abono[0])
+                total_renta = float(primer_abono[1])
+                # Si el monto del primer abono no tiene centavos, asumimos que hubo redondeo
+                if abs(monto_abono - round(monto_abono)) in [0, 0.5, 1]:
+                    # Forzar saldo pendiente a 0 si ya se liquidó el monto redondeado
+                    cursor.execute("""
+                        SELECT COALESCE(SUM(monto),0) as total_pagado
+                        FROM prefacturas
+                        WHERE renta_id = %s AND pagada = 1
+                    """, (renta_id,))
+                    total_pagado = float(cursor.fetchone()[0])
+                    if total_pagado >= monto_abono:
+                        saldo_pendiente = 0.0
+                
+        # Insertar la prefactura (abono o inicial)
         cursor.execute("""
             INSERT INTO prefacturas (
             renta_id, fecha_emision, tipo, pagada, metodo_pago, monto, 
@@ -97,19 +249,39 @@ def registrar_pago_prefactura(renta_id):
             renta_id, tipo, metodo.upper(), monto, monto_recibido, cambio, 
             numero_seguimiento, facturable_int  
         ))
-        
         prefactura_id = cursor.lastrowid
-        
+
+        # Calcular el total pagado hasta ahora (sumar todas las prefacturas pagadas de la renta)
         cursor.execute("""
-            UPDATE rentas SET estado_pago='Pago realizado', metodo_pago=%s WHERE id=%s
-        """, (metodo.upper(), renta_id))
-        
+            SELECT COALESCE(SUM(monto),0) as total_pagado
+            FROM prefacturas
+            WHERE renta_id = %s AND pagada = 1
+        """, (renta_id,))
+        total_pagado = cursor.fetchone()[0]
+
+        # Obtener el total a pagar de la renta
+        cursor.execute("SELECT total_con_iva FROM rentas WHERE id = %s", (renta_id,))
+        total_renta = cursor.fetchone()[0]
+
+        # Determinar el nuevo estado de pago
+        if total_pagado >= total_renta:
+            nuevo_estado = 'Pago realizado'
+        elif total_pagado > 0:
+            nuevo_estado = 'Saldo pendiente'
+        else:
+            nuevo_estado = 'Pago pendiente'
+
+        # Actualizar el estado de la renta
+        cursor.execute("""
+            UPDATE rentas SET estado_pago=%s, metodo_pago=%s WHERE id=%s
+        """, (nuevo_estado, metodo.upper(), renta_id))
+
         conn.commit()
-        
+
         # VERIFICAR QUE SE GUARDÓ CORRECTAMENTE
         cursor.execute("SELECT metodo_pago, numero_seguimiento FROM prefacturas WHERE id = %s", (prefactura_id,))
         verificacion = cursor.fetchone()
-        
+
         cursor.close()
         conn.close()
 

@@ -25,6 +25,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     cargarDatosCliente(data.cliente);
                     cargarProductos(data.productos);
 
+                    // Cargar historial de pagos/prefacturas
+                    fetch(`/prefactura/api/pagos/${rentaId}`)
+                        .then(resp => resp.json())
+                        .then(pagos => {
+                            cargarHistorialPagos(pagos, data.renta.total);
+                        })
+                        .catch(err => {
+                            console.error('Error al cargar pagos:', err);
+                            document.getElementById('detalle-pagos-tabla').innerHTML = 
+                                '<tr><td colspan="6" class="text-center text-danger">Error al cargar historial de pagos</td></tr>';
+                        });
 
                     fetch(`/notas_entrada/historial/${rentaId}`)
                         .then(resp => resp.json())
@@ -127,6 +138,82 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td>${producto.dias_renta || 'N/A'}</td>
                     <td>$${parseFloat(producto.costo_unitario || 0).toFixed(2)}</td>
                     <td>$${parseFloat(producto.subtotal || 0).toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function cargarHistorialPagos(pagos, totalRenta) {
+        const tbody = document.getElementById('detalle-pagos-tabla');
+        const resumenDiv = document.getElementById('detalle-resumen-pagos');
+        
+        if (!pagos || pagos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin historial de pagos</td></tr>';
+            resumenDiv.innerHTML = '<div class="alert alert-info">No hay pagos registrados para esta renta.</div>';
+            return;
+        }
+
+        // Calcular totales
+        let totalAbonado = 0;
+        pagos.forEach(pago => {
+            totalAbonado += parseFloat(pago.monto) || 0;
+        });
+        const saldoPendiente = totalRenta - totalAbonado;
+
+        // Mostrar resumen
+        let estadoClass = '';
+        let estadoTexto = '';
+        if (saldoPendiente <= 0) {
+            estadoClass = 'alert-success';
+            estadoTexto = 'Renta totalmente pagada';
+        } else if (totalAbonado > 0) {
+            estadoClass = 'alert-warning';
+            estadoTexto = 'Renta parcialmente pagada';
+        } else {
+            estadoClass = 'alert-danger';
+            estadoTexto = 'Renta sin pagos';
+        }
+
+        resumenDiv.innerHTML = `
+            <div class="${estadoClass}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Total renta:</strong><br>
+                        $${totalRenta.toFixed(2)}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Total abonado:</strong><br>
+                        $${totalAbonado.toFixed(2)}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Saldo pendiente:</strong><br>
+                        $${saldoPendiente.toFixed(2)}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Estado:</strong><br>
+                        ${estadoTexto}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Mostrar tabla de pagos
+        let html = '';
+        pagos.forEach(pago => {
+            html += `
+                <tr>
+                    <td>${pago.id}</td>
+                    <td><span class="badge ${pago.tipo === 'inicial' ? 'bg-primary' : 'bg-success'}">${pago.tipo}</span></td>
+                    <td>${pago.metodo_pago}</td>
+                    <td>$${parseFloat(pago.monto).toFixed(2)}</td>
+                    <td>${pago.fecha_emision}</td>
+                    <td>
+                        <a href="/prefactura/pdf/${pago.id}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-file-earmark-pdf"></i> PDF
+                        </a>
+                    </td>
                 </tr>
             `;
         });

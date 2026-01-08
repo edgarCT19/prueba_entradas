@@ -22,11 +22,11 @@ document.addEventListener('DOMContentLoaded', function () {
         form.reset();
         form.dataset.rentaId = rentaId;
 
-        // Selecciona el tipo de prefactura y deshabilita el select
+        // Selecciona el tipo de prefactura y permite elegir
         const tipoSelect = document.getElementById('tipo_prefactura_pago');
         if (tipoSelect) {
             tipoSelect.value = tipoNota;
-            tipoSelect.disabled = true;
+            tipoSelect.disabled = false;
         }
 
         document.getElementById('prefactura-detalle-pago').innerHTML = '<div class="text-center text-muted">Cargando...</div>';
@@ -49,146 +49,297 @@ document.addEventListener('DOMContentLoaded', function () {
         montoRecibido.value = '';
         cambio.textContent = '0.00';
         numSeguimiento.value = '';
-        btnGenerar.style.display = 'none';
+        btnGenerar.style.display = '';
         facturable.value = '';
         if (montoExacto) montoExacto.value = '';
+        
+        // Ocultar info de saldo
+        document.getElementById('info-saldo').style.display = 'none';
 
-        // Cargar datos de prefactura
-        fetch(`/prefactura/${rentaId}`)
-            .then(resp => resp.json())
-            .then(data => {
-                let html = `
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Cantidad</th>
-                                <th>Días</th>
-                                <th>Costo unitario</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-                data.detalle.forEach(item => {
-                    html += `
+        // Cargar datos de prefactura y abonos
+        Promise.all([
+            fetch(`/prefactura/${rentaId}`).then(resp => resp.json()),
+            fetch(`/prefactura/api/pagos/${rentaId}`).then(resp => resp.json()),
+            fetch(`/prefactura/api/info-redondeo/${rentaId}`).then(resp => resp.json())
+        ]).then(([data, pagos, infoRedondeo]) => {
+            let html = `
+                <table class="table table-bordered">
+                    <thead>
                         <tr>
-                            <td>${item.nombre}</td>
-                            <td>${item.cantidad}</td>
-                            <td>${item.dias_renta}</td>
-                            <td>$${parseFloat(item.costo_unitario).toFixed(2)}</td>
-                            <td>$${parseFloat(item.subtotal).toFixed(2)}</td>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Días</th>
+                            <th>Costo unitario</th>
+                            <th>Subtotal</th>
                         </tr>
-                    `;
-                });
-                html += `</tbody></table>`;
-
-                let subtotal = 0;
-                data.detalle.forEach(item => {
-                    subtotal += parseFloat(item.subtotal) || 0;
-                });
-
-                let trasladoHtml = '';
-                if (data.costo_traslado && data.costo_traslado > 0) {
-                    trasladoHtml = `<tr>
-                        <td>Traslado <span class="text-muted">(${data.traslado})</span></td>
-                        <td colspan="4" class="text-end">$${parseFloat(data.costo_traslado).toFixed(2)}</td>
-                    </tr>`;
-                }
-
-                const total = parseFloat(data.total_con_iva) || 0;
-                const iva = total - subtotal - (parseFloat(data.costo_traslado) || 0);
-
+                    </thead>
+                    <tbody>
+            `;
+            data.detalle.forEach(item => {
                 html += `
-                    <table class="table table-sm">
-                        <tr>
-                            <td>Subtotal</td>
-                            <td colspan="4" class="text-end">$${subtotal.toFixed(2)}</td>
-                        </tr>
-                        ${trasladoHtml}
-                        <tr>
-                            <td>+IVA (16%)</td>
-                            <td colspan="4" class="text-end">$${iva.toFixed(2)}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Total</strong></td>
-                            <td colspan="4" class="text-end"><strong>$${total.toFixed(2)}</strong></td>
-                        </tr>
-                    </table>
+                    <tr>
+                        <td>${item.nombre}</td>
+                        <td>${item.cantidad}</td>
+                        <td>${item.dias_renta}</td>
+                        <td>$${parseFloat(item.costo_unitario).toFixed(2)}</td>
+                        <td>$${parseFloat(item.subtotal).toFixed(2)}</td>
+                    </tr>
                 `;
+            });
+            html += `</tbody></table>`;
 
-                document.getElementById('prefactura-detalle-pago').innerHTML = html;
-                document.getElementById('pago-total-pago').textContent = total.toFixed(2);
+            let subtotal = 0;
+            data.detalle.forEach(item => {
+                subtotal += parseFloat(item.subtotal) || 0;
+            });
 
-                // Listeners para pago
-                metodoPago.onchange = () => {
-                    const metodo = metodoPago.value;
-                    btnGenerar.style.display = 'none';
-                    montoRecibido.value = '';
-                    cambio.textContent = '0.00';
-                    numSeguimiento.value = '';
+            let trasladoHtml = '';
+            if (data.costo_traslado && data.costo_traslado > 0) {
+                trasladoHtml = `<tr>
+                    <td>Traslado <span class="text-muted">(${data.traslado})</span></td>
+                    <td colspan="4" class="text-end">$${parseFloat(data.costo_traslado).toFixed(2)}</td>
+                </tr>`;
+            }
 
-                    if (metodo === 'EFECTIVO') {
-                        efectivo.style.display = '';
-                        seguimiento.style.display = 'none';
-                        const montoRedondeado = redondearEfectivo(total);
-                        document.getElementById('pago-total-pago').textContent = montoRedondeado.toFixed(2);
-                    } else if (metodo) {
-                        efectivo.style.display = 'none';
-                        seguimiento.style.display = '';
-                        document.getElementById('pago-total-pago').textContent = total.toFixed(2);
-                        document.getElementById('monto-exacto-display').textContent = total.toFixed(2);
+            const total = parseFloat(data.total_con_iva) || 0;
+            const iva = total - subtotal - (parseFloat(data.costo_traslado) || 0);
+
+            html += `
+                <table class="table table-sm">
+                    <tr>
+                        <td>Subtotal</td>
+                        <td colspan="4" class="text-end">$${subtotal.toFixed(2)}</td>
+                    </tr>
+                    ${trasladoHtml}
+                    <tr>
+                        <td>+IVA (16%)</td>
+                        <td colspan="4" class="text-end">$${iva.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total</strong></td>
+                        <td colspan="4" class="text-end"><strong>$${total.toFixed(2)}</strong></td>
+                    </tr>
+                </table>
+            `;
+
+            // Mostrar historial de pagos/abonos
+            let totalAbonado = 0;
+            let pagosHtml = '';
+            if (pagos && pagos.length > 0) {
+                pagosHtml += `<div class="mt-2"><strong>Historial de pagos:</strong></div>`;
+                pagosHtml += `<table class="table table-sm table-bordered"><thead><tr><th>Folio</th><th>Tipo</th><th>Método</th><th>Monto</th><th>Fecha</th><th>PDF</th></tr></thead><tbody>`;
+                pagos.forEach(p => {
+                    totalAbonado += parseFloat(p.monto) || 0;
+                    pagosHtml += `<tr>
+                        <td>${p.id}</td>
+                        <td>${p.tipo}</td>
+                        <td>${p.metodo_pago}</td>
+                        <td>$${parseFloat(p.monto).toFixed(2)}</td>
+                        <td>${p.fecha_emision}</td>
+                        <td><a href="/prefactura/pdf/${p.id}" target="_blank">PDF</a></td>
+                    </tr>`;
+                });
+                pagosHtml += `</tbody></table>`;
+            }
+            const saldoPendiente = parseFloat(infoRedondeo.saldo_pendiente) || 0;
+            const totalPagado = parseFloat(infoRedondeo.total_pagado) || 0;
+            html += `<div class="mt-2"><strong>Total abonado:</strong> $${totalPagado.toFixed(2)}<br><strong>Saldo pendiente:</strong> $${saldoPendiente.toFixed(2)}</div>`;
+            html += pagosHtml;
+
+            document.getElementById('prefactura-detalle-pago').innerHTML = html;
+
+            // Lógica para mostrar el monto correcto según tipo de prefactura
+            function actualizarMontoPagar() {
+                const tipo = tipoSelect.value;
+                const infoSaldo = document.getElementById('info-saldo');
+                const montoExactoInput = document.getElementById('monto-exacto-input');
+                const montoExactoDisplay = document.getElementById('monto-exacto-display');
+                const montoExactoHelp = document.getElementById('monto-exacto-help');
+                
+                if (tipo === 'abono') {
+                    // Para abonos, mostrar siempre el saldo pendiente real
+                    infoSaldo.style.display = '';
+                    // Redondear saldo pendiente a 2 decimales para evitar errores de precisión
+                    let saldoRedondeado = Math.round(saldoPendiente * 100) / 100;
+                    if (saldoRedondeado < 0.01) saldoRedondeado = 0;
+                    document.getElementById('saldo-pendiente-display').textContent = saldoRedondeado.toFixed(2);
+                    // Si el método es tarjeta/transferencia, permitir liquidar con centavos exactos
+                    if (metodoPago.value && metodoPago.value !== 'EFECTIVO') {
+                        montoExactoInput.style.display = '';
+                        montoExactoDisplay.style.display = 'none';
+                        montoExactoHelp.style.display = '';
+                        montoExactoInput.value = saldoRedondeado.toFixed(2);
+                        montoExactoInput.max = saldoRedondeado.toFixed(2);
+                        document.getElementById('pago-total-pago').textContent = montoExactoInput.value;
                     } else {
-                        efectivo.style.display = 'none';
-                        seguimiento.style.display = 'none';
-                        document.getElementById('pago-total-pago').textContent = total.toFixed(2);
+                        document.getElementById('pago-total-pago').textContent = saldoRedondeado.toFixed(2);
                     }
-                };
+                } else {
+                    // Pago inicial: mostrar total completo de la renta
+                    infoSaldo.style.display = 'none';
+                    document.getElementById('pago-total-pago').textContent = total.toFixed(2);
+                    
+                    // Asegurar que el campo editable esté oculto
+                    montoExactoInput.style.display = 'none';
+                    montoExactoDisplay.style.display = '';
+                    montoExactoHelp.style.display = 'none';
+                }
+                
+                // Aplicar redondeo según el tipo y método
+                if (metodoPago.value === 'EFECTIVO') {
+                    if (tipo === 'inicial') {
+                        // Pago inicial en efectivo: siempre redondear
+                        const montoRedondeado = redondearEfectivo(parseFloat(document.getElementById('pago-total-pago').textContent));
+                        document.getElementById('pago-total-pago').textContent = montoRedondeado.toFixed(2);
+                    } else if (tipo === 'abono' && infoRedondeo.aplicar_redondeo) {
+                        // Abono en efectivo: redondear solo si aplica (primer abono efectivo o ya se estableció efectivo)
+                        const montoRedondeado = redondearEfectivo(saldoPendiente);
+                        document.getElementById('pago-total-pago').textContent = montoRedondeado.toFixed(2);
+                    }
+                }
+                
+                document.getElementById('monto-exacto-display').textContent = document.getElementById('pago-total-pago').textContent;
+            }
 
-                montoRecibido.oninput = () => {
-                    const recibido = parseFloat(montoRecibido.value) || 0;
-                    const totalPagar = parseFloat(document.getElementById('pago-total-pago').textContent) || 0;
+            tipoSelect.onchange = actualizarMontoPagar;
+            actualizarMontoPagar();
+            
+
+
+            // Listeners para pago
+            metodoPago.onchange = () => {
+                const metodo = metodoPago.value;
+                montoRecibido.value = '';
+                cambio.textContent = '0.00';
+                numSeguimiento.value = '';
+
+                const montoExactoInput = document.getElementById('monto-exacto-input');
+                const montoExactoDisplay = document.getElementById('monto-exacto-display');
+                const montoExactoHelp = document.getElementById('monto-exacto-help');
+                
+                if (metodo === 'EFECTIVO') {
+                    efectivo.style.display = '';
+                    seguimiento.style.display = 'none';
+                    montoExactoInput.style.display = 'none';
+                    montoExactoDisplay.style.display = '';
+                    montoExactoHelp.style.display = 'none';
+                } else if (metodo) {
+                    efectivo.style.display = 'none';
+                    seguimiento.style.display = '';
+                    // Para abonos con otros métodos, mostrar campo editable
+                    if (tipoSelect.value === 'abono') {
+                        montoExactoInput.style.display = '';
+                        montoExactoDisplay.style.display = 'none';
+                        montoExactoHelp.style.display = '';
+                        montoExactoInput.value = saldoPendiente.toFixed(2);
+                        montoExactoInput.max = saldoPendiente;
+                    } else {
+                        montoExactoInput.style.display = 'none';
+                        montoExactoDisplay.style.display = '';
+                        montoExactoHelp.style.display = 'none';
+                    }
+                } else {
+                    efectivo.style.display = 'none';
+                    seguimiento.style.display = 'none';
+                    montoExactoInput.style.display = 'none';
+                    montoExactoDisplay.style.display = '';
+                    montoExactoHelp.style.display = 'none';
+                }
+                
+                // Recalcular el monto después del cambio de método
+                actualizarMontoPagar();
+            };
+
+            montoRecibido.oninput = () => {
+                const recibido = parseFloat(montoRecibido.value) || 0;
+                const tipo = tipoSelect.value;
+                const totalPagar = parseFloat(document.getElementById('pago-total-pago').textContent) || 0;
+                
+                if (tipo === 'abono') {
+                    // Para abonos, permitir hasta el doble del saldo para cambio
+                    if (recibido > saldoPendiente * 2) {
+                        montoRecibido.value = (saldoPendiente * 2).toFixed(2);
+                        return;
+                    }
+                    
+                    // Determinar el monto real a cobrar y el cambio
+                    let montoCobrar, cambioCalculado;
+                    if (recibido >= saldoPendiente) {
+                        // Liquidación: cobrar según redondeo si aplica
+                        if (metodoPago.value === 'EFECTIVO' && infoRedondeo.aplicar_redondeo) {
+                            montoCobrar = redondearEfectivo(saldoPendiente);
+                        } else {
+                            montoCobrar = saldoPendiente;
+                        }
+                        cambioCalculado = recibido - montoCobrar;
+                        
+                        const ayudaTexto = document.querySelector('#info-saldo .text-info, #info-saldo .text-success');
+                        if (ayudaTexto) {
+                            ayudaTexto.textContent = '✓ Liquidando saldo completo - se calculará cambio si aplica';
+                            ayudaTexto.className = 'text-success d-block';
+                        }
+                    } else {
+                        // Abono parcial: cobrar exactamente lo recibido
+                        montoCobrar = recibido;
+                        cambioCalculado = 0;
+                        
+                        const ayudaTexto = document.querySelector('#info-saldo .text-success, #info-saldo .text-info');
+                        if (ayudaTexto) {
+                            ayudaTexto.textContent = 'Abono parcial - no se genera cambio';
+                            ayudaTexto.className = 'text-info d-block';
+                        }
+                    }
+                    
+                    document.getElementById('pago-total-pago').textContent = montoCobrar.toFixed(2);
+                    cambio.textContent = cambioCalculado > 0 ? cambioCalculado.toFixed(2) : '0.00';
+                } else {
+                    // Pago inicial: comportamiento normal
                     const calcCambio = recibido - totalPagar;
                     cambio.textContent = calcCambio > 0 ? calcCambio.toFixed(2) : '0.00';
-                    btnGenerar.style.display = (recibido >= totalPagar && validarFormulario()) ? '' : 'none';
-                };
-
-                // Validación para tarjetas/transferencia
-                const validarPagoNoEfectivo = () => {
-                    const numSeg = numSeguimiento.value.trim();
-                    if (metodoPago.value !== 'EFECTIVO' && metodoPago.value !== '') {
-                        const totalPagar = parseFloat(document.getElementById('pago-total-pago').textContent) || 0;
-                        document.getElementById('monto-exacto-display').textContent = totalPagar.toFixed(2);
-                        btnGenerar.style.display = (numSeg.length > 0 && validarFormulario()) ? '' : 'none';
-                    }
-                };
-
-                numSeguimiento.oninput = validarPagoNoEfectivo;
-                if (montoExacto) {
-                    montoExacto.addEventListener('input', validarPagoNoEfectivo);
                 }
+            };
 
-                facturable.onchange = () => {
-                    if (metodoPago.value === 'EFECTIVO') {
-                        const recibido = parseFloat(montoRecibido.value) || 0;
-                        const totalPagar = parseFloat(document.getElementById('pago-total-pago').textContent) || 0;
-                        btnGenerar.style.display = (recibido >= totalPagar && validarFormulario()) ? '' : 'none';
-                    } else if (metodoPago.value !== '' && metodoPago.value !== 'EFECTIVO') {
-                        validarPagoNoEfectivo();
+            // Listener para el campo editable de monto exacto (abonos con tarjeta/transferencia)
+            const montoExactoInput = document.getElementById('monto-exacto-input');
+            montoExactoInput.addEventListener('input', function() {
+                const tipo = tipoSelect.value;
+                if (tipo === 'abono' && metodoPago.value !== 'EFECTIVO') {
+                    const montoAbono = parseFloat(this.value) || 0;
+                    const maxAbono = parseFloat(this.max) || saldoPendiente;
+                    if (montoAbono > maxAbono) {
+                        this.value = maxAbono.toFixed(2);
                     }
-                };
-
-                function validarFormulario() {
-                    const facturableVal = facturable.value;
-                    const metodoVal = metodoPago.value;
-                    if (!facturableVal || !metodoVal) return false;
-                    return true;
+                    const montoFinal = parseFloat(this.value) || 0;
+                    document.getElementById('pago-total-pago').textContent = montoFinal.toFixed(2);
                 }
-            })
-            .catch(err => {
-                document.getElementById('prefactura-detalle-pago').innerHTML = '<div class="text-danger">Error al cargar la prefactura.</div>';
-                console.error('Error al obtener prefactura:', err);
             });
+
+            // Validación para tarjetas/transferencia
+            const validarPagoNoEfectivo = () => {
+                const numSeg = numSeguimiento.value.trim();
+                const tipo = tipoSelect.value;
+                const totalPagar = parseFloat(document.getElementById('pago-total-pago').textContent) || 0;
+                if (metodoPago.value !== 'EFECTIVO' && metodoPago.value !== '') {
+                    document.getElementById('monto-exacto-display').textContent = totalPagar.toFixed(2);
+                }
+            };
+
+            numSeguimiento.oninput = validarPagoNoEfectivo;
+            if (montoExacto) {
+                montoExacto.addEventListener('input', validarPagoNoEfectivo);
+            }
+
+            facturable.onchange = () => {
+                // Ya no se condiciona el botón
+            };
+
+            function validarFormulario() {
+                return true;
+            }
+        }).catch(err => {
+            document.getElementById('prefactura-detalle-pago').innerHTML = '<div class="text-danger">Error al cargar la prefactura o abonos.</div>';
+            console.error('Error al obtener prefactura o abonos:', err);
+        });
     };
 
     // Mantén el listener para el botón manual (por si lo usas en otras partes)
@@ -252,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const rentaId = form.dataset.rentaId;
             const tipo = document.getElementById('tipo_prefactura_pago').value;
-            const monto = parseFloat(document.getElementById('pago-total-pago').textContent);
+            const monto = parseFloat(document.getElementById('pago-total-pago').textContent) || 0;
 
             let montoRecibido, cambio, seguimiento;
             if (metodo === 'EFECTIVO') {

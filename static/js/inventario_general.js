@@ -142,35 +142,40 @@ function limpiarFormulariosGestion() {
 // Función para cargar equipos disponibles para baja
 function cargarEquiposParaBaja() {
   const sucursalId = document.getElementById('id_sucursal_operacion_general').value;
-  
   if (!sucursalId) {
     document.getElementById('tipoEquipoBaja').innerHTML = '<option value="">Primero selecciona una sucursal...</option>';
     return;
   }
-  
-  fetch(`/inventario/equipos-disponibles-baja?sucursal_id=${sucursalId}`)
+  fetch(`/inventario/piezas-sucursal/${sucursalId}`)
     .then(response => response.json())
     .then(data => {
       const select = document.getElementById('tipoEquipoBaja');
       select.innerHTML = '<option value="">Seleccionar equipo...</option>';
-      
-      if (data.success && data.equipos.length > 0) {
-        data.equipos.forEach(equipo => {
-          const option = document.createElement('option');
-          option.value = equipo.id;
-          option.textContent = `${equipo.nombre} (${equipo.categoria}) - Disponible: ${equipo.cantidad}`;
-          option.dataset.cantidad = equipo.cantidad;
-          option.dataset.categoria = equipo.categoria;
-          option.dataset.nombre = equipo.nombre;
-          select.appendChild(option);
+      if (data.success && data.piezas.length > 0) {
+        // Solo mostrar piezas con disponibles > 0
+        let hayDisponibles = false;
+        data.piezas.forEach(pieza => {
+          if (pieza.disponibles > 0) {
+            hayDisponibles = true;
+            const option = document.createElement('option');
+            option.value = pieza.id_pieza;
+            option.textContent = `${pieza.nombre_pieza} (${pieza.categoria || '-'}) - Disponible: ${pieza.disponibles}`;
+            option.dataset.cantidad = pieza.disponibles;
+            option.dataset.categoria = pieza.categoria || '-';
+            option.dataset.nombre = pieza.nombre_pieza;
+            select.appendChild(option);
+          }
         });
+        if (!hayDisponibles) {
+          select.innerHTML = '<option value="">No hay piezas disponibles en esta sucursal</option>';
+        }
       } else {
-        select.innerHTML = '<option value="">No hay equipos disponibles en esta sucursal</option>';
+        select.innerHTML = '<option value="">No hay piezas disponibles en esta sucursal</option>';
       }
     })
     .catch(error => {
-      console.error('Error al cargar equipos:', error);
-      Swal.fire('Error', 'No se pudieron cargar los equipos disponibles', 'error');
+      console.error('Error al cargar piezas:', error);
+      Swal.fire('Error', 'No se pudieron cargar las piezas disponibles', 'error');
     });
 }
 
@@ -384,21 +389,12 @@ function procesarGestionEquipos() {
     return;
   }
   
-  // Preparar datos
-  const gestionData = {
-    tipo_operacion: tipoOperacion,
-    equipos: equiposGestionGeneral,
-    observaciones: observaciones,
-    motivo_baja: motivoBaja || null,
-    sucursal_id: parseInt(sucursalId)
-  };
-  
   // Mostrar confirmación
   const titulo = tipoOperacion === 'alta' ? 'Confirmar Alta de Equipos' : 'Confirmar Baja de Equipos';
   const texto = tipoOperacion === 'alta' 
     ? `¿Confirmas el alta de ${equiposGestionGeneral.length} tipo(s) de equipos?`
     : `¿Confirmas la baja de ${equiposGestionGeneral.length} tipo(s) de equipos? Esta acción no se puede deshacer.`;
-  
+
   Swal.fire({
     title: titulo,
     text: texto,
@@ -410,74 +406,76 @@ function procesarGestionEquipos() {
     cancelButtonText: 'Cancelar'
   }).then((result) => {
     if (result.isConfirmed) {
-      ejecutarGestionEquipos(gestionData, tipoOperacion);
+      ejecutarGestionEquiposAltaBaja(tipoOperacion, sucursalId, equiposGestionGeneral, motivoBaja, observaciones);
     }
   });
 }
 
-// Función para ejecutar la gestión de equipos
-function ejecutarGestionEquipos(gestionData, tipoOperacion) {
-  // Deshabilitar botón
+// Nueva función para ejecutar la gestión de equipos usando el endpoint existente
+function ejecutarGestionEquiposAltaBaja(tipoOperacion, sucursalId, equipos, motivoBaja, observaciones) {
   const btnConfirmar = document.getElementById('btnConfirmarAltaEquipoGeneral');
   btnConfirmar.disabled = true;
   btnConfirmar.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
-  
-  // Enviar datos
-  fetch('/inventario/gestion-equipo-general', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(gestionData)
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      const esAlta = tipoOperacion === 'alta';
-      Swal.fire({
-        title: esAlta ? '¡Alta de Equipos Exitosa!' : '¡Baja de Equipos Exitosa!',
-        html: `
-          <div style="width: 500px; margin: 0 auto;">
-            <div class="row text-start">
-              <div class="col-6"><strong>Folio:</strong></div>
-              <div class="col-6">${data.folio}</div>
-            </div>
-            <div class="row text-start">
-              <div class="col-6"><strong>Sucursal:</strong></div>
-              <div class="col-6">${data.sucursal}</div>
-            </div>
-            <div class="row text-start">
-              <div class="col-6"><strong>Total equipos:</strong></div>
-              <div class="col-6">${data.total_equipos}</div>
-            </div>
-            ${data.motivo ? `
-            <div class="row text-start">
-              <div class="col-6"><strong>Motivo:</strong></div>
-              <div class="col-6">${data.motivo}</div>
-            </div>
-            ` : ''}
-          </div>
-        `,
-        icon: 'success',
-        confirmButtonText: 'Entendido',
-        confirmButtonColor: '#0d6efd',
-        allowOutsideClick: false
-      }).then(() => {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalAltaEquipoGeneral'));
-        modal.hide();
-        window.location.reload();
-      });
-    } else {
-      Swal.fire('Error', data.message || 'Error en la operación', 'error');
+
+  // Procesar cada equipo individualmente (una petición por equipo)
+  let exitos = 0;
+  let errores = 0;
+  let erroresMsg = [];
+  let totalEquipos = equipos.length;
+  let procesados = 0;
+
+  equipos.forEach((equipo, idx) => {
+    const formData = new FormData();
+    formData.append('id_pieza', equipo.id);
+    formData.append('id_sucursal', sucursalId);
+    formData.append('cantidad', equipo.cantidad);
+    formData.append('tipo', tipoOperacion);
+    if (tipoOperacion === 'baja') {
+      formData.append('descripcion', motivoBaja || '');
     }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    Swal.fire('Error', 'Error en la conexión', 'error');
-  })
-  .finally(() => {
-    btnConfirmar.disabled = false;
-    btnConfirmar.innerHTML = `<i class="bi bi-${tipoOperacion === 'alta' ? 'plus' : 'dash'}-circle"></i> Confirmar ${tipoOperacion === 'alta' ? 'Alta' : 'Baja'}`;
+    // Observaciones no se usa en backend actual, pero si se requiere, agregar aquí
+
+    fetch('/inventario/alta_baja_pieza', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => {
+      // Si redirige, considerar como éxito
+      if (response.redirected || response.status === 200) {
+        exitos++;
+      } else {
+        errores++;
+        erroresMsg.push(`Error en equipo: ${equipo.nombre}`);
+      }
+    })
+    .catch(() => {
+      errores++;
+      erroresMsg.push(`Error en equipo: ${equipo.nombre}`);
+    })
+    .finally(() => {
+      procesados++;
+      if (procesados === totalEquipos) {
+        // Mostrar resultado final
+        if (exitos > 0) {
+          Swal.fire({
+            title: tipoOperacion === 'alta' ? '¡Alta de Equipos Exitosa!' : '¡Baja de Equipos Exitosa!',
+            html: `<div class='text-start'>Se procesaron ${exitos} de ${totalEquipos} equipos correctamente.${errores > 0 ? '<br><br><b>Errores:</b><br>' + erroresMsg.join('<br>') : ''}</div>`,
+            icon: 'success',
+            confirmButtonText: 'Entendido',
+            confirmButtonColor: '#0d6efd',
+            allowOutsideClick: false
+          }).then(() => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalAltaEquipoGeneral'));
+            if (modal) modal.hide();
+            window.location.reload();
+          });
+        } else {
+          Swal.fire('Error', erroresMsg.join('<br>') || 'Error en la operación', 'error');
+        }
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = `<i class="bi bi-${tipoOperacion === 'alta' ? 'plus' : 'dash'}-circle"></i> Confirmar ${tipoOperacion === 'alta' ? 'Alta' : 'Baja'}`;
+      }
+    });
   });
 }
 

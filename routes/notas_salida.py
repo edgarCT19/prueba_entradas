@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, redirect, request, send_file, current_app, url_for
 from datetime import datetime, timedelta
 from utils.db import get_db_connection
+# Importar función de folio centralizada desde inventario
+from routes.inventario import obtener_siguiente_folio_nota_sucursal
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from PyPDF2 import PdfReader, PdfWriter
@@ -13,44 +15,6 @@ from reportlab.lib.units import inch
 import os
 
 notas_salida_bp = Blueprint('notas_salida', __name__, url_prefix='/notas_salida')
-
-def obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id):
-    """
-    Obtiene el siguiente folio consecutivo para notas (entrada y salida) de una sucursal específica
-    Incluye tanto notas de rentas como notas de transferencias
-    """
-    # Considerar notas vinculadas a rentas Y folios de transferencias para determinar el siguiente folio
-    cursor.execute("""
-        SELECT IFNULL(MAX(folio), 0) + 1 AS siguiente_folio
-        FROM (
-            SELECT ne.folio 
-            FROM notas_entrada ne
-            JOIN rentas r ON ne.renta_id = r.id
-            WHERE r.id_sucursal = %s
-            UNION ALL
-            SELECT ns.folio 
-            FROM notas_salida ns
-            JOIN rentas r ON ns.renta_id = r.id
-            WHERE r.id_sucursal = %s
-            UNION ALL
-            SELECT CAST(mi.folio_nota_salida AS UNSIGNED) as folio
-            FROM movimientos_inventario mi
-            WHERE mi.id_sucursal = %s 
-            AND mi.folio_nota_salida IS NOT NULL
-            AND mi.folio_nota_salida != ''
-            AND mi.tipo_movimiento = 'transferencia_salida'
-            UNION ALL
-            SELECT CAST(mi.folio_nota_entrada AS UNSIGNED) as folio
-            FROM movimientos_inventario mi
-            WHERE mi.id_sucursal = %s 
-            AND mi.folio_nota_entrada IS NOT NULL
-            AND mi.folio_nota_entrada != ''
-            AND mi.tipo_movimiento = 'transferencia_entrada'
-        ) AS todos_folios_sucursal
-    """, (sucursal_id, sucursal_id, sucursal_id, sucursal_id))
-    
-    resultado = cursor.fetchone()
-    return resultado['siguiente_folio'] if resultado and resultado['siguiente_folio'] else 1
 
 @notas_salida_bp.route('/preview/<int:renta_id>')
 def preview_nota_salida(renta_id):

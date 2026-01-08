@@ -13,141 +13,298 @@ document.getElementById('buscadorSucursal').addEventListener('keyup', function (
 });
 
 // ========================================
-// FUNCIONES DE REPARACIÓN
+// VARIABLES GLOBALES
 // ========================================
 
-// Confirmar envío a reparación
-function confirmarEnvioReparacion(idPieza, nombrePieza, maxCantidad) {
-    const cantidadInput = document.getElementById(`cantidad_reparacion_${idPieza}`);
-    const cantidad = parseInt(cantidadInput.value);
-
-    if (!cantidad || cantidad < 1) {
-        Swal.fire('Error', 'Debes ingresar una cantidad válida', 'error');
-        return;
-    }
-
-    if (cantidad > maxCantidad) {
-        Swal.fire('Error', `No puedes enviar más de ${maxCantidad} piezas dañadas`, 'error');
-        return;
-    }
-
-    Swal.fire({
-        title: '¿Enviar a reparación?',
-        html: `¿Estás seguro que deseas enviar <strong>${cantidad}</strong> ${cantidad === 1 ? 'pieza' : 'piezas'} de <strong>"${nombrePieza}"</strong> a reparación?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#ffc107',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, enviar a reparación',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            enviarAReparacion(idPieza, cantidad);
-        }
-    });
-}
-
-// Confirmar regreso a disponibles
-function confirmarRegresarDisponible(idPieza, nombrePieza, maxCantidad) {
-    const cantidadInput = document.getElementById(`cantidad_disponible_${idPieza}`);
-    const cantidad = parseInt(cantidadInput.value);
-
-    if (!cantidad || cantidad < 1) {
-        Swal.fire('Error', 'Debes ingresar una cantidad válida', 'error');
-        return;
-    }
-
-    if (cantidad > maxCantidad) {
-        Swal.fire('Error', `No puedes regresar más de ${maxCantidad} piezas en reparación`, 'error');
-        return;
-    }
-
-    Swal.fire({
-        title: '¿Regresar a disponibles?',
-        html: `¿Estás seguro que deseas regresar <strong>${cantidad}</strong> ${cantidad === 1 ? 'pieza' : 'piezas'} de <strong>"${nombrePieza}"</strong> a disponibles?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Sí, regresar a disponibles',
-        cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            regresarADisponible(idPieza, cantidad);
-        }
-    });
-}
-
-// Enviar pieza a reparación
-function enviarAReparacion(idPieza, cantidad) {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    
-    // Crear la URL usando la variable global definida en el template
-    form.action = window.inventarioRoutes.mandarAReparacion;
-
-    const inputPieza = document.createElement('input');
-    inputPieza.type = 'hidden';
-    inputPieza.name = 'id_pieza';
-    inputPieza.value = idPieza;
-
-    const inputSucursal = document.createElement('input');
-    inputSucursal.type = 'hidden';
-    inputSucursal.name = 'id_sucursal';
-    inputSucursal.value = window.sucursalData.id_sucursal;
-
-    const inputCantidad = document.createElement('input');
-    inputCantidad.type = 'hidden';
-    inputCantidad.name = 'cantidad';
-    inputCantidad.value = cantidad;
-
-    form.appendChild(inputPieza);
-    form.appendChild(inputSucursal);
-    form.appendChild(inputCantidad);
-
-    document.body.appendChild(form);
-    form.submit();
-}
-
-// Regresar pieza a disponibles
-function regresarADisponible(idPieza, cantidad) {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    
-    // Crear la URL usando la variable global definida en el template
-    form.action = window.inventarioRoutes.regresarADisponible;
-
-    const inputPieza = document.createElement('input');
-    inputPieza.type = 'hidden';
-    inputPieza.name = 'id_pieza';
-    inputPieza.value = idPieza;
-
-    const inputSucursal = document.createElement('input');
-    inputSucursal.type = 'hidden';
-    inputSucursal.name = 'id_sucursal';
-    inputSucursal.value = window.sucursalData.id_sucursal;
-
-    const inputCantidad = document.createElement('input');
-    inputCantidad.type = 'hidden';
-    inputCantidad.name = 'cantidad';
-    inputCantidad.value = cantidad;
-
-    form.appendChild(inputPieza);
-    form.appendChild(inputSucursal);
-    form.appendChild(inputCantidad);
-
-    document.body.appendChild(form);
-    form.submit();
-}
+let piezasReparacion = [];
+let piezasFinalizarReparacion = [];
+let piezasAltaEquipo = [];
+let piezasMarcarDaniadas = [];
 
 // ========================================
-// MODAL DE TRANSFERENCIA - FUNCIONALIDAD
+// MODAL DE REPARACIÓN POR LOTES - FUNCIONALIDAD
 // ========================================
 
-let piezasAgregadas = [];
-
-// Manejar cambio de tipo de operación
+// Inicializar funcionalidad del modal de reparación por lotes
 document.addEventListener('DOMContentLoaded', function () {
+    // Modal de reparación por lotes
+    const selectorPiezaReparacion = document.getElementById('selectorPiezaReparacion');
+    const btnAgregarReparacion = document.getElementById('btnAgregarPiezaReparacion');
+    const infoDivReparacion = document.getElementById('infoPiezaSeleccionadaReparacion');
+
+    if (selectorPiezaReparacion) {
+        selectorPiezaReparacion.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+
+            if (this.value) {
+                const nombrePieza = option.dataset.nombre;
+                const daniadas = parseInt(option.dataset.daniadas);
+
+                document.getElementById('nombrePiezaInfoReparacion').textContent = nombrePieza;
+                document.getElementById('daniadasPiezaInfoReparacion').textContent = daniadas;
+
+                infoDivReparacion.style.display = 'block';
+                btnAgregarReparacion.disabled = false;
+            } else {
+                infoDivReparacion.style.display = 'none';
+                btnAgregarReparacion.disabled = true;
+            }
+        });
+    }
+
+    if (btnAgregarReparacion) {
+        btnAgregarReparacion.addEventListener('click', function () {
+            const selector = document.getElementById('selectorPiezaReparacion');
+            const option = selector.options[selector.selectedIndex];
+
+            if (!selector.value) {
+                Swal.fire('Error', 'Selecciona un equipo primero', 'error');
+                return;
+            }
+
+            const idPieza = selector.value;
+            const nombrePieza = option.dataset.nombre;
+            const daniadas = parseInt(option.dataset.daniadas);
+
+            const yaExiste = piezasReparacion.find(p => p.id === idPieza);
+            if (yaExiste) {
+                Swal.fire('Error', 'Este equipo ya está agregado', 'error');
+                return;
+            }
+
+            piezasReparacion.push({
+                id: idPieza,
+                nombre: nombrePieza,
+                cantidad: 1,
+                maxCantidad: daniadas
+            });
+
+            actualizarListaPiezasReparacion();
+            actualizarResumenReparacion();
+
+            selector.value = '';
+            btnAgregarReparacion.disabled = true;
+            infoDivReparacion.style.display = 'none';
+        });
+    }
+
+    // Modal de finalizar reparaciones
+    const selectorPiezaFinalizar = document.getElementById('selectorPiezaFinalizar');
+    const btnAgregarFinalizar = document.getElementById('btnAgregarPiezaFinalizar');
+    const infoDivFinalizar = document.getElementById('infoPiezaSeleccionadaFinalizar');
+
+    if (selectorPiezaFinalizar) {
+        selectorPiezaFinalizar.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+
+            if (this.value) {
+                const nombrePieza = option.dataset.nombre;
+                const enReparacion = parseInt(option.dataset.en_reparacion);
+
+                document.getElementById('nombrePiezaInfoFinalizar').textContent = nombrePieza;
+                document.getElementById('enReparacionPiezaInfo').textContent = enReparacion;
+
+                infoDivFinalizar.style.display = 'block';
+                btnAgregarFinalizar.disabled = false;
+            } else {
+                infoDivFinalizar.style.display = 'none';
+                btnAgregarFinalizar.disabled = true;
+            }
+        });
+    }
+
+    if (btnAgregarFinalizar) {
+        btnAgregarFinalizar.addEventListener('click', function () {
+            const selector = document.getElementById('selectorPiezaFinalizar');
+            const option = selector.options[selector.selectedIndex];
+
+            if (!selector.value) {
+                Swal.fire('Error', 'Selecciona un equipo primero', 'error');
+                return;
+            }
+
+            const idPieza = selector.value;
+            const nombrePieza = option.dataset.nombre;
+            const enReparacion = parseInt(option.dataset.en_reparacion);
+
+            const yaExiste = piezasFinalizarReparacion.find(p => p.id === idPieza);
+            if (yaExiste) {
+                Swal.fire('Error', 'Este equipo ya está agregado', 'error');
+                return;
+            }
+
+            piezasFinalizarReparacion.push({
+                id: idPieza,
+                nombre: nombrePieza,
+                cantidad: 1,
+                maxCantidad: enReparacion
+            });
+
+            actualizarListaPiezasFinalizar();
+            actualizarResumenFinalizar();
+
+            selector.value = '';
+            btnAgregarFinalizar.disabled = true;
+            infoDivFinalizar.style.display = 'none';
+        });
+    }
+
+    // Limpiar modales cuando se cierren
+    const modalReparacion = document.getElementById('modalReparacionLote');
+    if (modalReparacion) {
+        modalReparacion.addEventListener('hidden.bs.modal', function () {
+            piezasReparacion = [];
+            document.getElementById('selectorPiezaReparacion').value = '';
+            document.getElementById('btnAgregarPiezaReparacion').disabled = true;
+            document.getElementById('infoPiezaSeleccionadaReparacion').style.display = 'none';
+            document.getElementById('listaPiezasAgregadasReparacion').style.display = 'none';
+            document.getElementById('resumenReparacionLote').style.display = 'none';
+            document.getElementById('btnConfirmarReparacionLote').disabled = true;
+            document.getElementById('observacionesReparacion').value = '';
+        });
+    }
+
+    const modalFinalizar = document.getElementById('modalFinalizarReparaciones');
+    if (modalFinalizar) {
+        modalFinalizar.addEventListener('hidden.bs.modal', function () {
+            piezasFinalizarReparacion = [];
+            document.getElementById('selectorPiezaFinalizar').value = '';
+            document.getElementById('btnAgregarPiezaFinalizar').disabled = true;
+            document.getElementById('infoPiezaSeleccionadaFinalizar').style.display = 'none';
+            document.getElementById('listaPiezasAgregadasFinalizar').style.display = 'none';
+            document.getElementById('resumenFinalizarReparaciones').style.display = 'none';
+            document.getElementById('btnConfirmarFinalizarReparaciones').disabled = true;
+        });
+    }
+
+    // Envío de formularios
+    const formReparacion = document.getElementById('formReparacionLote');
+    if (formReparacion) {
+        formReparacion.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (piezasReparacion.length === 0) {
+                Swal.fire('Error', 'Debes agregar al menos un equipo', 'error');
+                return;
+            }
+
+            const observaciones = document.getElementById('observacionesReparacion').value || '';
+
+            const piezasData = piezasReparacion.map(pieza => ({
+                id_pieza: pieza.id,
+                cantidad: pieza.cantidad
+            }));
+
+            const reparacionData = {
+                sucursal_id: window.sucursalData.id_sucursal,
+                piezas: piezasData,
+                observaciones: observaciones
+            };
+
+            const btnConfirmar = document.getElementById('btnConfirmarReparacionLote');
+            const originalText = btnConfirmar.innerHTML;
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
+
+            fetch('/inventario/reparacion-lote', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(reparacionData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            html: `${data.message}<br><br><strong>¿Deseas descargar el PDF de la nota de salida?</strong>`,
+                            icon: 'success',
+                            showCancelButton: true,
+                            confirmButtonColor: '#28a745',
+                            cancelButtonColor: '#6c757d',
+                            confirmButtonText: 'Sí, descargar PDF',
+                            cancelButtonText: 'Solo cerrar'
+                        }).then((result) => {
+                            if (result.isConfirmed && data.folio) {
+                                window.open(`/inventario/pdf-transferencia-salida/${data.folio}`, '_blank');
+                            }
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.error || 'Ocurrió un error', 'error');
+                    }
+                })
+                .catch(error => {
+                    Swal.fire('Error', 'Error de conexión', 'error');
+                })
+                .finally(() => {
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.innerHTML = originalText;
+                });
+        });
+    }
+
+    const formFinalizar = document.getElementById('formFinalizarReparaciones');
+    if (formFinalizar) {
+        formFinalizar.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (piezasFinalizarReparacion.length === 0) {
+                Swal.fire('Error', 'Debes agregar al menos un equipo', 'error');
+                return;
+            }
+
+            const piezasData = piezasFinalizarReparacion.map(pieza => ({
+                id_pieza: pieza.id,
+                cantidad: pieza.cantidad
+            }));
+
+            const finalizarData = {
+                sucursal_id: window.sucursalData.id_sucursal,
+                piezas: piezasData
+            };
+
+            const btnConfirmar = document.getElementById('btnConfirmarFinalizarReparaciones');
+            const originalText = btnConfirmar.innerHTML;
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = '<i class="bi bi-hourglass-split"></i> Procesando...';
+
+            fetch('/inventario/finalizar-reparaciones', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(finalizarData)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('¡Éxito!', data.message, 'success').then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', data.error || 'Ocurrió un error', 'error');
+                    }
+                })
+                .catch(error => {
+                    Swal.fire('Error', 'Error de conexión', 'error');
+                })
+                .finally(() => {
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.innerHTML = originalText;
+                });
+        });
+    }
+
+    // ========================================
+    // FUNCIONES DE TRANSFERENCIA - FUNCIONALIDAD EXISTENTE
+    // ========================================
+    
+    // Variables para transferencias
+    let piezasAgregadas = [];
+
+    // Manejar cambio de tipo de operación
     const radioMandar = document.getElementById('operacion_mandar');
     const radioRecibir = document.getElementById('operacion_recibir');
     const contenidoMandar = document.getElementById('contenido_mandar');
@@ -445,7 +602,492 @@ document.addEventListener('DOMContentLoaded', function () {
             btnConfirmar.innerHTML = originalText;
         });
     });
+    
+    // ========================================
+    // MODAL DE ALTA DE EQUIPO NUEVO
+    // ========================================
+
+    // Event listeners para modal de alta de equipo
+    const selectorPiezaAlta = document.getElementById('selectorPiezaAlta');
+    const btnAgregarAlta = document.getElementById('btnAgregarPiezaAlta');
+    const infoDivAlta = document.getElementById('infoPiezaSeleccionadaAlta');
+
+    if (selectorPiezaAlta) {
+        selectorPiezaAlta.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+
+            if (this.value) {
+                const nombre = option.dataset.nombre;
+                const categoria = option.dataset.categoria || 'Sin categoría';
+
+                btnAgregarAlta.disabled = false;
+
+                // Mostrar información
+                document.getElementById('nombrePiezaInfoAlta').textContent = nombre;
+                document.getElementById('categoriaPiezaInfoAlta').textContent = categoria;
+                infoDivAlta.style.display = 'block';
+            } else {
+                btnAgregarAlta.disabled = true;
+                infoDivAlta.style.display = 'none';
+            }
+        });
+    }
+
+    if (btnAgregarAlta) {
+        btnAgregarAlta.addEventListener('click', function () {
+            const selector = document.getElementById('selectorPiezaAlta');
+            const option = selector.options[selector.selectedIndex];
+
+            if (!selector.value) {
+                Swal.fire('Error', 'Debes seleccionar una pieza', 'error');
+                return;
+            }
+
+            const idPieza = selector.value;
+            const nombrePieza = option.dataset.nombre;
+            const categoria = option.dataset.categoria || 'Sin categoría';
+
+            const yaExiste = piezasAltaEquipo.find(p => p.id === idPieza);
+            if (yaExiste) {
+                Swal.fire('Error', 'Esta pieza ya está en la lista', 'warning');
+                return;
+            }
+
+            piezasAltaEquipo.push({
+                id: idPieza,
+                nombre: nombrePieza,
+                categoria: categoria,
+                cantidad: 1
+            });
+
+            actualizarListaPiezasAlta();
+            actualizarResumenAltaEquipo();
+
+            selector.value = '';
+            btnAgregarAlta.disabled = true;
+            infoDivAlta.style.display = 'none';
+        });
+    }
+
+    // Limpiar modal cuando se cierre
+    const modalAltaEquipo = document.getElementById('modalAltaEquipoNuevo');
+    if (modalAltaEquipo) {
+        modalAltaEquipo.addEventListener('hidden.bs.modal', function () {
+            piezasAltaEquipo = [];
+            document.getElementById('selectorPiezaAlta').value = '';
+            document.getElementById('btnAgregarPiezaAlta').disabled = true;
+            document.getElementById('infoPiezaSeleccionadaAlta').style.display = 'none';
+            document.getElementById('listaPiezasAgregadasAlta').style.display = 'none';
+            document.getElementById('resumenAltaEquipo').style.display = 'none';
+            document.getElementById('btnConfirmarAltaEquipo').disabled = true;
+            document.getElementById('observacionesAlta').value = '';
+        });
+    }
+
+    // Event listener para el formulario de alta
+    const formAltaEquipo = document.getElementById('formAltaEquipoNuevo');
+    if (formAltaEquipo) {
+        formAltaEquipo.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            if (piezasAltaEquipo.length === 0) {
+                Swal.fire('Error', 'Debes agregar al menos una pieza', 'error');
+                return;
+            }
+
+            // Validación de permisos (si está definida la variable global)
+            if (typeof window.userData !== 'undefined') {
+                const sucursalId = window.sucursalData?.id_sucursal;
+                
+                if (window.userData.rol_id !== 1 && window.userData.sucursal_id !== sucursalId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Sin permisos',
+                        text: 'Solo puedes realizar altas de equipo en tu sucursal asignada.',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+            }
+
+            const observaciones = document.getElementById('observacionesAlta').value || '';
+
+            const piezasData = piezasAltaEquipo.map(pieza => ({
+                id_pieza: pieza.id,
+                cantidad: pieza.cantidad
+            }));
+
+            const altaData = {
+                id_sucursal: window.sucursalData?.id_sucursal,
+                piezas: piezasData,
+                observaciones: observaciones
+            };
+
+            const btnConfirmar = document.getElementById('btnConfirmarAltaEquipo');
+            const originalText = btnConfirmar.innerHTML;
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
+
+            fetch('/inventario/alta-equipo-nuevo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(altaData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        html: `${data.message}<br><br><strong>¿Deseas descargar el PDF del alta?</strong>`,
+                        icon: 'success',
+                        showCancelButton: true,
+                        confirmButtonColor: '#28a745',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, descargar PDF',
+                        cancelButtonText: 'Solo cerrar'
+                    }).then((result) => {
+                        if (result.isConfirmed && data.folio) {
+                            descargarPDFAltaEquipo(data.folio);
+                        }
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.error || 'Error al realizar el alta', 'error');
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Error de conexión', 'error');
+            })
+            .finally(() => {
+                btnConfirmar.disabled = false;
+                btnConfirmar.innerHTML = originalText;
+            });
+        });
+    }
+    
+    // ========================================
+    // MODAL DE MARCAR COMO DAÑADAS - FUNCIONALIDAD
+    // ========================================
+    
+    // Event listeners para modal de marcar como dañadas
+    const selectorPiezaDaniada = document.getElementById('selectorPiezaDaniada');
+    const btnAgregarDaniada = document.getElementById('btnAgregarPiezaDaniada');
+    const infoDivDaniada = document.getElementById('infoPiezaSeleccionadaDaniada');
+
+    if (selectorPiezaDaniada) {
+        selectorPiezaDaniada.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+            
+            if (this.value) {
+                const disponibles = parseInt(option.dataset.disponibles);
+                document.getElementById('nombrePiezaDaniada').textContent = option.dataset.nombre;
+                document.getElementById('disponiblesPiezaDaniada').textContent = disponibles;
+                infoDivDaniada.style.display = 'block';
+                btnAgregarDaniada.disabled = false;
+            } else {
+                infoDivDaniada.style.display = 'none';
+                btnAgregarDaniada.disabled = true;
+            }
+        });
+    }
+
+    if (btnAgregarDaniada) {
+        btnAgregarDaniada.addEventListener('click', function () {
+            const selector = document.getElementById('selectorPiezaDaniada');
+            const option = selector.options[selector.selectedIndex];
+
+            if (!selector.value) {
+                Swal.fire('Error', 'Debe seleccionar una pieza', 'error');
+                return;
+            }
+
+            const idPieza = selector.value;
+            const nombrePieza = option.dataset.nombre;
+            const disponibles = parseInt(option.dataset.disponibles);
+
+            // Verificar si ya está agregada
+            const yaExiste = piezasMarcarDaniadas.find(p => p.id === idPieza);
+            if (yaExiste) {
+                Swal.fire('Información', 'Esta pieza ya está en la lista', 'info');
+                return;
+            }
+
+            // Agregar a la lista
+            piezasMarcarDaniadas.push({
+                id: idPieza,
+                nombre: nombrePieza,
+                cantidad: 1,
+                maxCantidad: disponibles
+            });
+
+            // Actualizar UI
+            actualizarListaPiezasDaniadas();
+            actualizarResumenMarcarDaniadas();
+
+            // Limpiar selector
+            selector.value = '';
+            btnAgregarDaniada.disabled = true;
+            infoDivDaniada.style.display = 'none';
+        });
+    }
+    
+    // Limpiar modal cuando se cierre
+    const modalMarcarDaniadas = document.getElementById('modalMarcarDaniadas');
+    if (modalMarcarDaniadas) {
+        modalMarcarDaniadas.addEventListener('hidden.bs.modal', function () {
+            piezasMarcarDaniadas = [];
+            document.getElementById('selectorPiezaDaniada').value = '';
+            document.getElementById('btnAgregarPiezaDaniada').disabled = true;
+            document.getElementById('infoPiezaSeleccionadaDaniada').style.display = 'none';
+            document.getElementById('listaPiezasAgregadasDaniadas').style.display = 'none';
+            document.getElementById('resumenMarcarDaniadas').style.display = 'none';
+            document.getElementById('btnConfirmarMarcarDaniadas').disabled = true;
+            document.getElementById('observacionesDaniada').value = '';
+        });
+    }
+    
+    // Event listener para el formulario de marcar como dañadas
+    const formMarcarDaniadas = document.getElementById('formMarcarDaniadas');
+    if (formMarcarDaniadas) {
+        formMarcarDaniadas.addEventListener('submit', function (e) {
+            e.preventDefault();
+            
+            if (piezasMarcarDaniadas.length === 0) {
+                Swal.fire('Error', 'Debe agregar al menos una pieza para marcar como dañada', 'error');
+                return;
+            }
+            
+            const observaciones = document.getElementById('observacionesDaniada').value.trim();
+            
+            const data = {
+                sucursal_id: window.sucursalData.id_sucursal,
+                piezas: piezasMarcarDaniadas.map(p => ({
+                    id_pieza: p.id,
+                    cantidad: p.cantidad
+                })),
+                observaciones: observaciones
+            };
+            
+            Swal.fire({
+                title: '¿Confirmar marcado como dañadas?',
+                text: `Se marcarán ${piezasMarcarDaniadas.length} tipo(s) de piezas como dañadas`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, marcar como dañadas',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Mostrar loading
+                    Swal.fire({
+                        title: 'Procesando...',
+                        text: 'Marcando equipos como dañados',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    fetch('/inventario/marcar-daniadas', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            Swal.fire({
+                                title: '¡Éxito!',
+                                text: result.message,
+                                icon: 'success',
+                                confirmButtonText: 'Aceptar'
+                            }).then(() => {
+                                // Cerrar modal y recargar página
+                                document.getElementById('modalMarcarDaniadas').querySelector('[data-bs-dismiss="modal"]').click();
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire('Error', result.error || 'Error al procesar la solicitud', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire('Error', 'Error de conexión al procesar la solicitud', 'error');
+                    });
+                }
+            });
+        });
+    }
 });
+
+// ========================================
+// FUNCIONES AUXILIARES DE TRANSFERENCIA
+// ========================================
+
+// Actualizar lista de piezas agregadas
+function actualizarListaPiezasReparacion() {
+    const lista = document.getElementById('listaPiezasAgregadasReparacion');
+    const tabla = document.getElementById('tablaPiezasAgregadasReparacion');
+
+    if (piezasReparacion.length === 0) {
+        lista.style.display = 'none';
+        return;
+    }
+
+    lista.style.display = 'block';
+
+    let html = '';
+    piezasReparacion.forEach((pieza, index) => {
+        html += `
+            <tr>
+                <td>${pieza.nombre}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" 
+                           value="${pieza.cantidad}" min="1" max="${pieza.maxCantidad}"
+                           onchange="actualizarCantidadPiezaReparacion(${index}, this.value)">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" 
+                            onclick="eliminarPiezaReparacion(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tabla.innerHTML = html;
+}
+
+// Actualizar cantidad de una pieza en reparación
+function actualizarCantidadPiezaReparacion(index, nuevaCantidad) {
+    const cantidad = parseInt(nuevaCantidad);
+    const pieza = piezasReparacion[index];
+
+    if (cantidad < 1 || cantidad > pieza.maxCantidad) {
+        Swal.fire('Error', `La cantidad debe estar entre 1 y ${pieza.maxCantidad}`, 'error');
+        actualizarListaPiezasReparacion(); // Reset
+        return;
+    }
+
+    piezasReparacion[index].cantidad = cantidad;
+    actualizarResumenReparacion();
+}
+
+// Eliminar pieza de la lista de reparación
+function eliminarPiezaReparacion(index) {
+    piezasReparacion.splice(index, 1);
+    actualizarListaPiezasReparacion();
+    actualizarResumenReparacion();
+}
+
+// Actualizar resumen de reparación
+function actualizarResumenReparacion() {
+    const resumenDiv = document.getElementById('resumenReparacionLote');
+    const contenido = document.getElementById('resumenContenidoReparacion');
+    const btnConfirmar = document.getElementById('btnConfirmarReparacionLote');
+
+    if (piezasReparacion.length === 0) {
+        resumenDiv.style.display = 'none';
+        btnConfirmar.disabled = true;
+        return;
+    }
+
+    resumenDiv.style.display = 'block';
+    btnConfirmar.disabled = false;
+
+    let html = '<ul class="list-unstyled mb-0">';
+    piezasReparacion.forEach(pieza => {
+        html += `<li><strong>${pieza.nombre}:</strong> ${pieza.cantidad} piezas</li>`;
+    });
+    html += '</ul>';
+
+    contenido.innerHTML = html;
+}
+
+// Actualizar lista de piezas para finalizar
+function actualizarListaPiezasFinalizar() {
+    const lista = document.getElementById('listaPiezasAgregadasFinalizar');
+    const tabla = document.getElementById('tablaPiezasAgregadasFinalizar');
+
+    if (piezasFinalizarReparacion.length === 0) {
+        lista.style.display = 'none';
+        return;
+    }
+
+    lista.style.display = 'block';
+
+    let html = '';
+    piezasFinalizarReparacion.forEach((pieza, index) => {
+        html += `
+            <tr>
+                <td>${pieza.nombre}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" 
+                           value="${pieza.cantidad}" min="1" max="${pieza.maxCantidad}"
+                           onchange="actualizarCantidadPiezaFinalizar(${index}, this.value)">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" 
+                            onclick="eliminarPiezaFinalizar(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tabla.innerHTML = html;
+}
+
+// Actualizar cantidad de una pieza para finalizar
+function actualizarCantidadPiezaFinalizar(index, nuevaCantidad) {
+    const cantidad = parseInt(nuevaCantidad);
+    const pieza = piezasFinalizarReparacion[index];
+
+    if (cantidad < 1 || cantidad > pieza.maxCantidad) {
+        Swal.fire('Error', `La cantidad debe estar entre 1 y ${pieza.maxCantidad}`, 'error');
+        actualizarListaPiezasFinalizar(); // Reset
+        return;
+    }
+
+    piezasFinalizarReparacion[index].cantidad = cantidad;
+    actualizarResumenFinalizar();
+}
+
+// Eliminar pieza de la lista de finalizar
+function eliminarPiezaFinalizar(index) {
+    piezasFinalizarReparacion.splice(index, 1);
+    actualizarListaPiezasFinalizar();
+    actualizarResumenFinalizar();
+}
+
+// Actualizar resumen de finalizar
+function actualizarResumenFinalizar() {
+    const resumenDiv = document.getElementById('resumenFinalizarReparaciones');
+    const contenido = document.getElementById('resumenContenidoFinalizar');
+    const btnConfirmar = document.getElementById('btnConfirmarFinalizarReparaciones');
+
+    if (piezasFinalizarReparacion.length === 0) {
+        resumenDiv.style.display = 'none';
+        btnConfirmar.disabled = true;
+        return;
+    }
+
+    resumenDiv.style.display = 'block';
+    btnConfirmar.disabled = false;
+
+    let html = '<ul class="list-unstyled mb-0">';
+    piezasFinalizarReparacion.forEach(pieza => {
+        html += `<li><strong>${pieza.nombre}:</strong> ${pieza.cantidad} piezas</li>`;
+    });
+    html += '</ul>';
+
+    contenido.innerHTML = html;
+}
 
 // Actualizar lista de piezas agregadas
 function actualizarListaPiezas() {
@@ -569,210 +1211,174 @@ function descargarPDFAltaEquipo(folio) {
 }
 
 // ========================================
-// MODAL DE ALTA DE EQUIPO NUEVO
+// FUNCIONES AUXILIARES DE REPARACIÓN
 // ========================================
 
-let piezasAltaEquipo = [];
+// Actualizar lista de piezas para reparación
+function actualizarListaPiezasReparacion() {
+    const lista = document.getElementById('listaPiezasAgregadasReparacion');
+    const tabla = document.getElementById('tablaPiezasAgregadasReparacion');
 
-// Inicializar funcionalidad del modal de alta de equipo
-document.addEventListener('DOMContentLoaded', function () {
-    const selectorPiezaAlta = document.getElementById('selectorPiezaAlta');
-    const btnAgregarAlta = document.getElementById('btnAgregarPiezaAlta');
-    const infoDivAlta = document.getElementById('infoPiezaSeleccionadaAlta');
-
-    // Event listener para el selector de piezas
-    if (selectorPiezaAlta) {
-        selectorPiezaAlta.addEventListener('change', function () {
-            const option = this.options[this.selectedIndex];
-
-            if (this.value) {
-                const nombre = option.dataset.nombre;
-                const categoria = option.dataset.categoria || 'Sin categoría';
-
-                btnAgregarAlta.disabled = false;
-
-                // Mostrar información
-                document.getElementById('nombrePiezaInfoAlta').textContent = nombre;
-                document.getElementById('categoriaPiezaInfoAlta').textContent = categoria;
-                infoDivAlta.style.display = 'block';
-            } else {
-                btnAgregarAlta.disabled = true;
-                infoDivAlta.style.display = 'none';
-            }
-        });
+    if (piezasReparacion.length === 0) {
+        lista.style.display = 'none';
+        return;
     }
 
-    // Event listener para agregar pieza
-    if (btnAgregarAlta) {
-        btnAgregarAlta.addEventListener('click', function () {
-            const selector = document.getElementById('selectorPiezaAlta');
-            const option = selector.options[selector.selectedIndex];
+    lista.style.display = 'block';
 
-            if (!selector.value) {
-                Swal.fire('Error', 'Debes seleccionar una pieza', 'error');
-                return;
-            }
+    let html = '';
+    piezasReparacion.forEach((pieza, index) => {
+        html += `
+            <tr>
+                <td>${pieza.nombre}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" 
+                           value="${pieza.cantidad}" min="1" max="${pieza.maxCantidad}"
+                           onchange="actualizarCantidadPiezaReparacion(${index}, this.value)">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" 
+                            onclick="eliminarPiezaReparacion(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
 
-            const idPieza = selector.value;
-            const nombrePieza = option.dataset.nombre;
-            const categoria = option.dataset.categoria || 'Sin categoría';
+    tabla.innerHTML = html;
+}
 
-            // Verificar si ya está agregada
-            const yaExiste = piezasAltaEquipo.find(p => p.id === idPieza);
-            if (yaExiste) {
-                Swal.fire('Error', 'Esta pieza ya está en la lista', 'warning');
-                return;
-            }
+// Actualizar cantidad de una pieza en reparación
+function actualizarCantidadPiezaReparacion(index, nuevaCantidad) {
+    const cantidad = parseInt(nuevaCantidad);
+    const pieza = piezasReparacion[index];
 
-            // Agregar con cantidad por defecto de 1
-            piezasAltaEquipo.push({
-                id: idPieza,
-                nombre: nombrePieza,
-                categoria: categoria,
-                cantidad: 1
-            });
-
-            // Actualizar UI
-            actualizarListaPiezasAlta();
-            actualizarResumenAltaEquipo();
-
-            // Limpiar selector
-            selector.value = '';
-            btnAgregarAlta.disabled = true;
-            infoDivAlta.style.display = 'none';
-        });
+    if (cantidad < 1 || cantidad > pieza.maxCantidad) {
+        Swal.fire('Error', `La cantidad debe estar entre 1 y ${pieza.maxCantidad}`, 'error');
+        actualizarListaPiezasReparacion(); // Reset
+        return;
     }
 
-    // Limpiar modal cuando se cierre
-    const modalAltaEquipo = document.getElementById('modalAltaEquipoNuevo');
-    if (modalAltaEquipo) {
-        modalAltaEquipo.addEventListener('hidden.bs.modal', function () {
-            piezasAltaEquipo = [];
-            document.getElementById('selectorPiezaAlta').value = '';
-            document.getElementById('btnAgregarPiezaAlta').disabled = true;
-            document.getElementById('infoPiezaSeleccionadaAlta').style.display = 'none';
-            document.getElementById('listaPiezasAgregadasAlta').style.display = 'none';
-            document.getElementById('resumenAltaEquipo').style.display = 'none';
-            document.getElementById('btnConfirmarAltaEquipo').disabled = true;
-            document.getElementById('observacionesAlta').value = '';
-        });
+    piezasReparacion[index].cantidad = cantidad;
+    actualizarResumenReparacion();
+}
+
+// Eliminar pieza de la lista de reparación
+function eliminarPiezaReparacion(index) {
+    piezasReparacion.splice(index, 1);
+    actualizarListaPiezasReparacion();
+    actualizarResumenReparacion();
+}
+
+// Actualizar resumen de reparación
+function actualizarResumenReparacion() {
+    const resumenDiv = document.getElementById('resumenReparacionLote');
+    const contenido = document.getElementById('resumenContenidoReparacion');
+    const btnConfirmar = document.getElementById('btnConfirmarReparacionLote');
+
+    if (piezasReparacion.length === 0) {
+        resumenDiv.style.display = 'none';
+        btnConfirmar.disabled = true;
+        return;
     }
 
-    // Event listener para el formulario de alta
-    const formAltaEquipo = document.getElementById('formAltaEquipoNuevo');
-    if (formAltaEquipo) {
-        formAltaEquipo.addEventListener('submit', function (e) {
-            e.preventDefault();
+    resumenDiv.style.display = 'block';
+    btnConfirmar.disabled = false;
 
-            if (piezasAltaEquipo.length === 0) {
-                Swal.fire('Error', 'Debes agregar al menos una pieza para dar de alta', 'error');
-                return;
-            }
+    let html = '<ul class="list-unstyled mb-0">';
+    piezasReparacion.forEach(pieza => {
+        html += `<li><strong>${pieza.nombre}:</strong> ${pieza.cantidad} piezas</li>`;
+    });
+    html += '</ul>';
 
-            // Validación adicional para empleados de sucursal
-            const sucursalId = document.getElementById('id_sucursal_destino_alta').value;
-            if (window.userData && window.userData.rol_id !== 2) { // Si no es admin
-                if (parseInt(sucursalId) !== parseInt(window.userData.sucursal_id)) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Acceso Denegado',
-                        text: 'Solo puedes realizar altas de equipo en tu sucursal asignada.',
-                        confirmButtonText: 'Entendido'
-                    });
-                    return;
-                }
-            }
+    contenido.innerHTML = html;
+}
 
-            const observaciones = document.getElementById('observacionesAlta').value || '';
+// Actualizar lista de piezas para finalizar
+function actualizarListaPiezasFinalizar() {
+    const lista = document.getElementById('listaPiezasAgregadasFinalizar');
+    const tabla = document.getElementById('tablaPiezasAgregadasFinalizar');
 
-            // Preparar datos
-            const piezasData = piezasAltaEquipo.map(pieza => ({
-                id_pieza: pieza.id,
-                cantidad: pieza.cantidad
-            }));
-
-            const altaData = {
-                sucursal_id: sucursalId,
-                piezas: piezasData,
-                observaciones: observaciones
-            };
-
-            // Deshabilitar botón y mostrar loading
-            const btnConfirmar = document.getElementById('btnConfirmarAltaEquipo');
-            const originalText = btnConfirmar.innerHTML;
-            btnConfirmar.disabled = true;
-            btnConfirmar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Procesando...';
-
-            // Llamada AJAX al backend
-            console.log('Enviando datos:', altaData);
-            
-            fetch('/inventario/alta-equipo-nuevo', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(altaData)
-            })
-            .then(response => {
-                console.log('Respuesta recibida:', response);
-                console.log('Response status:', response.status);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                return response.json();
-            })
-            .then(data => {
-                console.log('Datos recibidos:', data);
-                
-                if (data.success) {
-                    // Cerrar modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalAltaEquipoNuevo'));
-                    modal.hide();
-
-                    // Mostrar éxito con el mismo diseño que transferencias
-                    const contenidoHTML = `
-                        <div class="text-start">
-                            <p><strong>${data.message}</strong></p>
-                            <hr>
-                            <p><strong>📋 Nota generada:</strong></p>
-                            <div class="bg-light p-3 rounded mb-3">
-                                <p class="mb-0"><strong>Nota de Entrada Alta:</strong> #${data.folio}</p>
-                            </div>
-                            <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-outline-success btn-sm" onclick="descargarPDFAltaEquipo('${data.folio}')">
-                                    <i class="bi bi-file-earmark-pdf"></i> Descargar PDF Nota de Alta
-                                </button>
-                            </div>
-                            <small class="text-muted mt-2 d-block">Los folios son consecutivos por sucursal</small>
-                        </div>
-                    `;
-
-                    Swal.fire({
-                        title: '¡Alta Exitosa!',
-                        html: contenidoHTML,
-                        icon: 'success',
-                        confirmButtonText: 'Entendido',
-                        width: '500px'
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else {
-                    Swal.fire('Error', data.message, 'error');
-                    btnConfirmar.disabled = false;
-                    btnConfirmar.innerHTML = originalText;
-                }
-            })
-            .catch(error => {
-                console.error('Error completo:', error);
-                Swal.fire('Error', 'Error de comunicación con el servidor: ' + error.message, 'error');
-                btnConfirmar.disabled = false;
-                btnConfirmar.innerHTML = originalText;
-            });
-        });
+    if (piezasFinalizarReparacion.length === 0) {
+        lista.style.display = 'none';
+        return;
     }
-});
+
+    lista.style.display = 'block';
+
+    let html = '';
+    piezasFinalizarReparacion.forEach((pieza, index) => {
+        html += `
+            <tr>
+                <td>${pieza.nombre}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" 
+                           value="${pieza.cantidad}" min="1" max="${pieza.maxCantidad}"
+                           onchange="actualizarCantidadPiezaFinalizar(${index}, this.value)">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" 
+                            onclick="eliminarPiezaFinalizar(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tabla.innerHTML = html;
+}
+
+// Actualizar cantidad de una pieza para finalizar
+function actualizarCantidadPiezaFinalizar(index, nuevaCantidad) {
+    const cantidad = parseInt(nuevaCantidad);
+    const pieza = piezasFinalizarReparacion[index];
+
+    if (cantidad < 1 || cantidad > pieza.maxCantidad) {
+        Swal.fire('Error', `La cantidad debe estar entre 1 y ${pieza.maxCantidad}`, 'error');
+        actualizarListaPiezasFinalizar(); // Reset
+        return;
+    }
+
+    piezasFinalizarReparacion[index].cantidad = cantidad;
+    actualizarResumenFinalizar();
+}
+
+// Eliminar pieza de la lista de finalizar
+function eliminarPiezaFinalizar(index) {
+    piezasFinalizarReparacion.splice(index, 1);
+    actualizarListaPiezasFinalizar();
+    actualizarResumenFinalizar();
+}
+
+// Actualizar resumen de finalizar
+function actualizarResumenFinalizar() {
+    const resumenDiv = document.getElementById('resumenFinalizarReparaciones');
+    const contenido = document.getElementById('resumenContenidoFinalizar');
+    const btnConfirmar = document.getElementById('btnConfirmarFinalizarReparaciones');
+
+    if (piezasFinalizarReparacion.length === 0) {
+        resumenDiv.style.display = 'none';
+        btnConfirmar.disabled = true;
+        return;
+    }
+
+    resumenDiv.style.display = 'block';
+    btnConfirmar.disabled = false;
+
+    let html = '<ul class="list-unstyled mb-0">';
+    piezasFinalizarReparacion.forEach(pieza => {
+        html += `<li><strong>${pieza.nombre}:</strong> ${pieza.cantidad} piezas</li>`;
+    });
+    html += '</ul>';
+
+    contenido.innerHTML = html;
+}
+
+// ========================================
+// FUNCIONES AUXILIARES DE ALTA DE EQUIPO
+// ========================================
 
 // Actualizar lista de piezas para alta
 function actualizarListaPiezasAlta() {
@@ -866,6 +1472,91 @@ function actualizarResumenAltaEquipo() {
         html += `<li><i class="bi bi-check-circle text-success me-1"></i><strong>${pieza.nombre}:</strong> ${pieza.cantidad} unidades</li>`;
     });
     
+    html += '</ul>';
+
+    contenido.innerHTML = html;
+}
+
+// ========================================
+// FUNCIONES AUXILIARES DE MARCAR COMO DAÑADAS
+// ========================================
+
+// Actualizar lista de piezas para marcar como dañadas
+function actualizarListaPiezasDaniadas() {
+    const lista = document.getElementById('listaPiezasAgregadasDaniadas');
+    const tabla = document.getElementById('tablaPiezasAgregadasDaniadas');
+
+    if (piezasMarcarDaniadas.length === 0) {
+        lista.style.display = 'none';
+        return;
+    }
+
+    lista.style.display = 'block';
+
+    let html = '';
+    piezasMarcarDaniadas.forEach((pieza, index) => {
+        html += `
+            <tr>
+                <td>${pieza.nombre}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm" 
+                           value="${pieza.cantidad}" min="1" max="${pieza.maxCantidad}"
+                           onchange="actualizarCantidadPiezaDaniada(${index}, this.value)" 
+                           style="width: 70px;">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger" 
+                            onclick="eliminarPiezaDaniada(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tabla.innerHTML = html;
+}
+
+// Actualizar cantidad de una pieza a dañar
+function actualizarCantidadPiezaDaniada(index, nuevaCantidad) {
+    const cantidad = parseInt(nuevaCantidad);
+    const pieza = piezasMarcarDaniadas[index];
+
+    if (cantidad < 1 || cantidad > pieza.maxCantidad) {
+        Swal.fire('Error', `La cantidad debe estar entre 1 y ${pieza.maxCantidad}`, 'error');
+        return;
+    }
+
+    piezasMarcarDaniadas[index].cantidad = cantidad;
+    actualizarResumenMarcarDaniadas();
+}
+
+// Eliminar pieza de la lista a dañar
+function eliminarPiezaDaniada(index) {
+    piezasMarcarDaniadas.splice(index, 1);
+    actualizarListaPiezasDaniadas();
+    actualizarResumenMarcarDaniadas();
+}
+
+// Actualizar resumen de marcar como dañadas
+function actualizarResumenMarcarDaniadas() {
+    const resumenDiv = document.getElementById('resumenMarcarDaniadas');
+    const contenido = document.getElementById('resumenContenidoDaniadas');
+    const btnConfirmar = document.getElementById('btnConfirmarMarcarDaniadas');
+
+    if (piezasMarcarDaniadas.length === 0) {
+        resumenDiv.style.display = 'none';
+        btnConfirmar.disabled = true;
+        return;
+    }
+
+    resumenDiv.style.display = 'block';
+    btnConfirmar.disabled = false;
+
+    let html = '<ul class="list-unstyled mb-0">';
+    piezasMarcarDaniadas.forEach(pieza => {
+        html += `<li><strong>${pieza.nombre}:</strong> ${pieza.cantidad} unidad${pieza.cantidad > 1 ? 'es' : ''}</li>`;
+    });
     html += '</ul>';
 
     contenido.innerHTML = html;

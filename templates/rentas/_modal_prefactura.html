@@ -20,9 +20,7 @@
                 <label for="tipo_prefactura_pago" class="form-label">Tipo de Prefactura</label>
                 <select id="tipo_prefactura_pago" name="tipo_prefactura" class="form-select">
                   <option value="inicial">Inicial</option>
-                  <option value="servicio">Servicio</option>
-                  <option value="recargo">Recargo</option>
-                  <option value="renovacion">Renovación</option>
+                  <option value="abono">Abono</option>
                 </select>
               </div>
             </div>
@@ -45,6 +43,10 @@
               <div class="card-body">
                 <div class="mb-2">
                   <strong>Total a Cobrar: $<span id="pago-total-pago">0.00</span></strong>
+                </div>
+                <div id="info-saldo" class="mb-2" style="display:none;">
+                  <small class="text-muted">Saldo pendiente: $<span id="saldo-pendiente-display">0.00</span></small>
+                  <small class="text-info d-block">Para abonos, ingrese cualquier monto hasta el saldo pendiente</small>
                 </div>
                 <div class="mb-2">
                   <label for="facturable" class="form-label">¿Requiere facturación?</label>
@@ -74,7 +76,13 @@
                   <input type="text" id="numero-seguimiento-pago" name="numero_seguimiento" class="form-control"
                     placeholder="Número de seguimiento del banco">
                   <div class="mt-2">
-                    <small class="text-muted">Monto exacto: $<span id="monto-exacto-display">0.00</span></small>
+                    <label for="monto-exacto-display" class="form-label">Monto exacto:</label>
+                    <div class="input-group">
+                      <span class="input-group-text">$</span>
+                      <input type="number" id="monto-exacto-input" class="form-control" min="0" step="0.01" style="display:none;">
+                      <span id="monto-exacto-display" class="form-control-plaintext">0.00</span>
+                    </div>
+                    <small class="text-muted" id="monto-exacto-help" style="display:none;">Ingrese el monto del abono</small>
                   </div>
                 </div>
               </div>

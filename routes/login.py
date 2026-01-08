@@ -118,9 +118,23 @@ def recover():
                 recipients=[email],
                 html=html_body
             )
-            mail = current_app.extensions['mail']
-            mail.send(msg)
-        flash('Si el correo está registrado, recibirás un mensaje con instrucciones para restablecer tu contraseña.', 'info')
+            
+            try:
+                mail = current_app.extensions['mail']
+                mail.send(msg)
+                flash('Si el correo está registrado, recibirás un mensaje con instrucciones para restablecer tu contraseña.', 'info')
+            except Exception as e:
+                # Log del error para el administrador
+                current_app.logger.error(f"Error al enviar correo de recuperación: {str(e)}")
+                
+                # Solo mostrar enlace si está permitido en la configuración (desarrollo)
+                if current_app.config.get('SHOW_RESET_LINKS_ON_ERROR', False):
+                    flash(f'⚠️ MODO DESARROLLO: Error al enviar correo. <br><strong>Enlace temporal:</strong> <a href="{reset_url}" target="_blank" class="alert-link">Restablecer contraseña</a>', 'warning')
+                else:
+                    # En producción o cuando esté deshabilitado: nunca mostrar el enlace
+                    flash('Error temporal en el servicio de correo electrónico. Inténtalo más tarde o contacta al administrador.', 'danger')
+        else:
+            flash('Si el correo está registrado, recibirás un mensaje con instrucciones para restablecer tu contraseña.', 'info')
         return redirect(url_for('login.login'))
     return render_template('login/recover.html')
 

@@ -23,9 +23,9 @@ bp_inventario = Blueprint('inventario', __name__, url_prefix='/inventario')
 def obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id):
     """
     Obtiene el siguiente folio consecutivo para notas (entrada y salida) de una sucursal específica
-    Incluye tanto notas de rentas como notas de transferencias
+    Incluye: notas de rentas, transferencias, altas de equipos, reparaciones y salidas internas
     """
-    # Considerar notas vinculadas a rentas Y folios de transferencias para determinar el siguiente folio
+    # Considerar TODAS las notas para determinar el siguiente folio consecutivo
     cursor.execute("""
         SELECT IFNULL(MAX(folio), 0) + 1 AS siguiente_folio
         FROM (
@@ -44,16 +44,20 @@ def obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id):
             WHERE mi.id_sucursal = %s 
             AND mi.folio_nota_salida IS NOT NULL
             AND mi.folio_nota_salida != ''
-            AND mi.tipo_movimiento = 'transferencia_salida'
+            AND mi.tipo_movimiento IN ('transferencia_salida', 'reparacion_lote')
             UNION ALL
             SELECT CAST(mi.folio_nota_entrada AS UNSIGNED) as folio
             FROM movimientos_inventario mi
             WHERE mi.id_sucursal = %s 
             AND mi.folio_nota_entrada IS NOT NULL
             AND mi.folio_nota_entrada != ''
-            AND mi.tipo_movimiento = 'transferencia_entrada'
+            AND mi.tipo_movimiento IN ('alta_equipo', 'transferencia_entrada')
+            UNION ALL
+            SELECT si.folio_sucursal as folio
+            FROM salidas_internas si
+            WHERE si.id_sucursal = %s
         ) AS todos_folios_sucursal
-    """, (sucursal_id, sucursal_id, sucursal_id, sucursal_id))
+    """, (sucursal_id, sucursal_id, sucursal_id, sucursal_id, sucursal_id))
 
     resultado = cursor.fetchone()
     return resultado['siguiente_folio'] if resultado and resultado.get('siguiente_folio') else 1
@@ -338,7 +342,6 @@ def inventario_sucursal(sucursal_id):
 
 
 @bp_inventario.route('/enviar-equipos', methods=['POST'])
-# @requiere_permiso('transferir_piezas_inventario')  # Temporalmente deshabilitado para prueba
 def enviar_equipos():
     """
     Maneja el ENVÍO de equipos - Solo genera nota de salida y resta inventario origen
@@ -692,37 +695,259 @@ def transferir_piezas_multiple():
 
 
 
-@bp_inventario.route('/mandar_a_reparacion', methods=['POST'])
+@bp_inventario.route('/alta-equipo-nuevo', methods=['POST'])
+@requiere_permiso('modificar_existencias_inventario_general')
+def alta_equipo_nuevo():
+    """
+    Maneja el alta de equipos nuevos a una sucursal específica
+    """
+    try:
+        data = request.get_json()
+        id_sucursal = data.get('id_sucursal')
+        piezas = data.get('piezas', [])
+        observaciones = data.get('observaciones', '')
+        usuario_id = session.get('user_id')
+
+        if not id_sucursal or not piezas:
+            return jsonify({'success': False, 'error': 'Datos incompletos'})
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            # Obtener el siguiente folio para la sucursal
+            folio = obtener_siguiente_folio_nota_sucursal(cursor, id_sucursal)
+
+            # Procesar cada pieza
+            for pieza_data in piezas:
+                id_pieza = pieza_data.get('id_pieza')
+                cantidad = int(pieza_data.get('cantidad', 0))
+                
+                if cantidad <= 0:
+                    continue
+                
+                # Verificar si ya existe registro de inventario para esta pieza y sucursal
+                cursor.execute("""
+                    SELECT total, disponibles FROM inventario_sucursal 
+                    WHERE id_pieza=%s AND id_sucursal=%s
+                """, (id_pieza, id_sucursal))
+                row = cursor.fetchone()
+                
+                if row:
+                    # Actualizar inventario existente
+                    cursor.execute("""
+                        UPDATE inventario_sucursal 
+                        SET total = total + %s, disponibles = disponibles + %s
+                        WHERE id_pieza = %s AND id_sucursal = %s
+                    """, (cantidad, cantidad, id_pieza, id_sucursal))
+                else:
+                    # Crear nuevo registro de inventario
+                    cursor.execute("""
+                        INSERT INTO inventario_sucursal (id_pieza, id_sucursal, total, disponibles, rentadas, daniadas, en_reparacion)
+                        VALUES (%s, %s, %s, %s, 0, 0, 0)
+                    """, (id_pieza, id_sucursal, cantidad, cantidad))
+                
+                # Registrar movimiento en el historial
+                cursor.execute("""
+                    INSERT INTO movimientos_inventario (
+                        id_pieza, id_sucursal, tipo_movimiento, cantidad, 
+                        descripcion, usuario, folio_nota_entrada
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    id_pieza, id_sucursal, 'alta_equipo', cantidad,
+                    f'Alta de equipo nuevo. {observaciones}', usuario_id, str(folio)
+                ))
+
+            conn.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': f'Alta de {len(piezas)} tipo(s) de equipo realizada exitosamente',
+                'folio': folio
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': f'Error en la base de datos: {str(e)}'})
+        finally:
+            cursor.close()
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error en el procesamiento: {str(e)}'})
+
+
+@bp_inventario.route('/marcar-daniadas', methods=['POST'])
+@requiere_permiso('modificar_existencias_inventario_general')
+def marcar_piezas_daniadas():
+    """
+    Marca piezas disponibles como dañadas - Movimiento interno sin generar notas
+    """
+    try:
+        data = request.get_json()
+        sucursal_id = data.get('sucursal_id')
+        piezas = data.get('piezas', [])
+        observaciones = data.get('observaciones', '')
+        usuario_id = session.get('user_id')
+
+        if not sucursal_id or not piezas:
+            return jsonify({'success': False, 'error': 'Datos incompletos'})
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            total_piezas_procesadas = 0
+            
+            # Procesar cada pieza
+            for pieza_data in piezas:
+                id_pieza = pieza_data.get('id_pieza')
+                cantidad = pieza_data.get('cantidad')
+                
+                if not id_pieza or not cantidad or cantidad <= 0:
+                    continue
+                
+                # Verificar inventario disponible actual
+                cursor.execute("""
+                    SELECT disponibles, daniadas, total 
+                    FROM inventario_sucursal 
+                    WHERE id_pieza = %s AND id_sucursal = %s
+                """, (id_pieza, sucursal_id))
+                
+                inventario = cursor.fetchone()
+                if not inventario:
+                    return jsonify({
+                        'success': False, 
+                        'error': f'No existe inventario para la pieza ID {id_pieza} en esta sucursal'
+                    })
+                
+                if inventario['disponibles'] < cantidad:
+                    cursor.execute("SELECT nombre_pieza FROM piezas WHERE id_pieza = %s", (id_pieza,))
+                    pieza_info = cursor.fetchone()
+                    nombre_pieza = pieza_info['nombre_pieza'] if pieza_info else f'ID {id_pieza}'
+                    return jsonify({
+                        'success': False,
+                        'error': f'No hay suficientes piezas disponibles de {nombre_pieza}. Disponibles: {inventario["disponibles"]}, Solicitadas: {cantidad}'
+                    })
+                
+                # Actualizar inventario: restar de disponibles, sumar a dañadas
+                nuevos_disponibles = inventario['disponibles'] - cantidad
+                nuevas_daniadas = inventario['daniadas'] + cantidad
+                
+                cursor.execute("""
+                    UPDATE inventario_sucursal 
+                    SET disponibles = %s, daniadas = %s 
+                    WHERE id_pieza = %s AND id_sucursal = %s
+                """, (nuevos_disponibles, nuevas_daniadas, id_pieza, sucursal_id))
+                
+                # Registrar movimiento en el historial
+                cursor.execute("""
+                    INSERT INTO movimientos_inventario 
+                    (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    id_pieza, 
+                    sucursal_id, 
+                    'marcar_daniada',
+                    cantidad,
+                    f'Marcado como dañada - {observaciones}' if observaciones else 'Marcado como dañada',
+                    usuario_id
+                ))
+                
+                total_piezas_procesadas += cantidad
+            
+            # Confirmar cambios
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Se marcaron como dañadas {total_piezas_procesadas} piezas correctamente'
+            })
+            
+        except Exception as e:
+            conn.rollback()
+            current_app.logger.error(f"Error al marcar piezas como dañadas: {str(e)}")
+            return jsonify({'success': False, 'error': f'Error al procesar: {str(e)}'})
+        finally:
+            cursor.close()
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error en el procesamiento: {str(e)}'})
+
+
+@bp_inventario.route('/reparacion-lote', methods=['POST'])
 @requiere_permiso('mandar_pieza_reparacion')
-def mandar_a_reparacion():
-    id_pieza = request.form['id_pieza']
-    id_sucursal = request.form['id_sucursal']
-    cantidad = int(request.form['cantidad'])
+def enviar_lote_reparacion():
+    """
+    Maneja el ENVÍO de equipos a reparación por lotes - Genera nota de salida y resta del inventario total
+    """
+    try:
+        data = request.get_json()
+        sucursal_id = data.get('sucursal_id')
+        piezas = data.get('piezas', [])
+        observaciones = data.get('observaciones', '')
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Restar de dañadas, sumar a en_reparacion
-    cursor.execute("""
-        UPDATE inventario_sucursal
-        SET daniadas = GREATEST(daniadas - %s, 0),
-            en_reparacion = en_reparacion + %s
-        WHERE id_pieza = %s AND id_sucursal = %s
-    """, (cantidad, cantidad, id_pieza, id_sucursal))
-    
-    usuario_id = session.get('user_id')
-    cursor.execute("""
-    INSERT INTO movimientos_inventario (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario)
-    VALUES (%s, %s, %s, %s, %s, %s)
-    """, (id_pieza, id_sucursal, 'a_reparacion', cantidad, 'Enviado a reparación', usuario_id))
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    flash(f'Se enviaron {cantidad} piezas a reparación exitosamente', 'success')
-    
-    
-    return redirect(url_for('inventario.inventario_sucursal', sucursal_id=id_sucursal))
+        if not sucursal_id or not piezas:
+            return jsonify({'success': False, 'error': 'Datos incompletos'})
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            # Obtener siguiente folio
+            folio = obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id)
+            usuario_id = session.get('user_id')
+
+            # Procesar cada pieza del lote
+            for pieza_data in piezas:
+                id_pieza = pieza_data['id_pieza']
+                cantidad = pieza_data['cantidad']
+
+                # Verificar que hay suficientes piezas dañadas
+                cursor.execute("""
+                    SELECT daniadas, total FROM inventario_sucursal 
+                    WHERE id_pieza = %s AND id_sucursal = %s
+                """, (id_pieza, sucursal_id))
+                
+                inventario = cursor.fetchone()
+                if not inventario or inventario['daniadas'] < cantidad:
+                    raise Exception(f'No hay suficientes piezas dañadas para enviar a reparación (ID: {id_pieza})')
+
+                # Actualizar inventario: restar del total y de dañadas, sumar a en_reparacion
+                cursor.execute("""
+                    UPDATE inventario_sucursal
+                    SET total = total - %s,
+                        daniadas = daniadas - %s,
+                        en_reparacion = en_reparacion + %s
+                    WHERE id_pieza = %s AND id_sucursal = %s
+                """, (cantidad, cantidad, cantidad, id_pieza, sucursal_id))
+
+                # Registrar movimiento
+                cursor.execute("""
+                    INSERT INTO movimientos_inventario 
+                    (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario, folio_nota_salida)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (id_pieza, sucursal_id, 'reparacion_lote', cantidad, 
+                     f'Lote reparación - {observaciones}', usuario_id, str(folio)))
+
+            conn.commit()
+            
+            return jsonify({
+                'success': True, 
+                'folio': folio,
+                'message': f'Lote enviado a reparación exitosamente. Folio: {folio}'
+            })
+
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)})
+        finally:
+            cursor.close()
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error en el procesamiento: {str(e)}'})
 
 
 
@@ -730,37 +955,78 @@ def mandar_a_reparacion():
 
 
 
-@bp_inventario.route('/regresar_a_disponible', methods=['POST'])
+
+
+
+@bp_inventario.route('/finalizar-reparaciones', methods=['POST'])
 @requiere_permiso('regresar_pieza_disponible')
-def regresar_a_disponible():
-    id_pieza = request.form['id_pieza']
-    id_sucursal = request.form['id_sucursal']
-    cantidad = int(request.form['cantidad'])
+def finalizar_reparaciones():
+    """
+    Limpia el tracking de reparaciones sin afectar el inventario total
+    """
+    try:
+        data = request.get_json()
+        sucursal_id = data.get('sucursal_id')
+        piezas = data.get('piezas', [])
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # Restar de en_reparacion, sumar a disponibles
-    cursor.execute("""
-        UPDATE inventario_sucursal
-        SET en_reparacion = GREATEST(en_reparacion - %s, 0),
-            disponibles = disponibles + %s
-        WHERE id_pieza = %s AND id_sucursal = %s
-    """, (cantidad, cantidad, id_pieza, id_sucursal))
-    
-    usuario_id = session.get('user_id')
-    cursor.execute("""
-    INSERT INTO movimientos_inventario (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario)
-    VALUES (%s, %s, %s, %s, %s, %s)
-    """, (id_pieza, id_sucursal, 'a_disponible', cantidad, 'Regresado a disponibles', usuario_id))
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    flash(f'Se regresaron {cantidad} piezas a disponibles exitosamente', 'success')
-    
+        if not sucursal_id or not piezas:
+            return jsonify({'success': False, 'error': 'Datos incompletos'})
 
-    return redirect(url_for('inventario.inventario_sucursal', sucursal_id=id_sucursal))
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        try:
+            usuario_id = session.get('user_id')
+
+            # Procesar cada pieza
+            for pieza_data in piezas:
+                id_pieza = pieza_data['id_pieza']
+                cantidad = pieza_data['cantidad']
+
+                # Verificar que hay suficientes piezas en reparación
+                cursor.execute("""
+                    SELECT en_reparacion FROM inventario_sucursal 
+                    WHERE id_pieza = %s AND id_sucursal = %s
+                """, (id_pieza, sucursal_id))
+                
+                inventario = cursor.fetchone()
+                if not inventario or inventario['en_reparacion'] < cantidad:
+                    raise Exception(f'No hay suficientes piezas en reparación (ID: {id_pieza})')
+
+                # Solo quitar de en_reparacion (no suma a disponibles porque el equipo ya no existe)
+                cursor.execute("""
+                    UPDATE inventario_sucursal
+                    SET en_reparacion = en_reparacion - %s
+                    WHERE id_pieza = %s AND id_sucursal = %s
+                """, (cantidad, id_pieza, sucursal_id))
+
+                # Registrar movimiento
+                cursor.execute("""
+                    INSERT INTO movimientos_inventario 
+                    (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (id_pieza, sucursal_id, 'reparacion_finalizada', cantidad, 
+                     'Reparación finalizada - tracking limpiado', usuario_id))
+
+            conn.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Tracking de reparaciones limpiado exitosamente'
+            })
+
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)})
+        finally:
+            cursor.close()
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Error en el procesamiento: {str(e)}'})
+
+
+
 
 
 
@@ -1521,6 +1787,130 @@ def generar_pdf_nota_entrada_transferencia(nota_entrada_id):
         return f"Error al generar PDF: {str(e)}", 500
 
 
+@bp_inventario.route('/pdf-alta-equipo/<folio>')
+@requiere_permiso('ver_inventario_sucursal')
+def generar_pdf_alta_equipo(folio):
+    """
+    Genera PDF para alta de equipo nuevo
+    """
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from io import BytesIO
+    from flask import send_file
+    from PyPDF2 import PdfReader, PdfWriter
+    import os
+    from datetime import datetime
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Obtener datos del movimiento de alta de equipo
+        cursor.execute("""
+            SELECT mi.*, p.nombre_pieza, p.categoria, s.nombre as sucursal_nombre,
+                   u.nombre as usuario_nombre
+            FROM movimientos_inventario mi
+            JOIN piezas p ON mi.id_pieza = p.id_pieza
+            JOIN sucursales s ON mi.id_sucursal = s.id
+            LEFT JOIN usuarios u ON mi.usuario = u.id
+            WHERE mi.folio_nota_entrada = %s 
+            AND mi.tipo_movimiento = 'alta_equipo'
+            ORDER BY mi.fecha_movimiento ASC, p.nombre_pieza ASC
+        """, (folio,))
+        movimientos = cursor.fetchall()
+        
+        if not movimientos:
+            return f"No se encontraron datos para el folio {folio}", 404
+            
+        # Datos básicos
+        primer_movimiento = movimientos[0]
+        sucursal_nombre = primer_movimiento['sucursal_nombre']
+        usuario_nombre = primer_movimiento['usuario_nombre'] or 'No disponible'
+        fecha_movimiento = primer_movimiento['fecha_movimiento']
+        observaciones = primer_movimiento['descripcion'] or ''
+        
+        cursor.close()
+        conn.close()
+
+        # Crear PDF
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=letter)
+        pdfmetrics.registerFont(TTFont('Carlito', os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')))
+
+        # Encabezado
+        can.setFont("Helvetica-Bold", 18)
+        can.drawString(50, 750, "NOTA DE ALTA DE EQUIPO")
+        
+        # Información básica
+        can.setFont("Carlito", 12)
+        can.drawString(50, 720, f"Folio: #{folio}")
+        can.drawString(300, 720, f"Fecha: {fecha_movimiento.strftime('%d/%m/%Y %H:%M')}")
+        can.drawString(50, 700, f"Sucursal: {sucursal_nombre}")
+        can.drawString(300, 700, f"Registrado por: {usuario_nombre}")
+
+        # Tabla de equipos
+        y = 650
+        can.setFont("Helvetica-Bold", 11)
+        can.drawString(50, y, "Equipo")
+        can.drawString(250, y, "Categoría")
+        can.drawString(400, y, "Cantidad")
+        
+        # Línea separadora
+        y -= 10
+        can.line(50, y, 550, y)
+        
+        # Datos de equipos
+        can.setFont("Carlito", 10)
+        total_cantidad = 0
+        for mov in movimientos:
+            y -= 20
+            can.drawString(50, y, mov['nombre_pieza'][:35])
+            can.drawString(250, y, mov['categoria'] or 'Sin categoría')
+            can.drawString(400, y, str(mov['cantidad']))
+            total_cantidad += mov['cantidad']
+
+        # Total
+        y -= 30
+        can.setFont("Helvetica-Bold", 11)
+        can.drawString(300, y, f"Total de equipos dados de alta: {total_cantidad}")
+
+        # Observaciones
+        if observaciones:
+            y -= 40
+            can.setFont("Helvetica-Bold", 11)
+            can.drawString(50, y, "Observaciones:")
+            y -= 20
+            can.setFont("Carlito", 10)
+            # Dividir observaciones en líneas si es muy largo
+            obs_lines = [observaciones[i:i+80] for i in range(0, len(observaciones), 80)]
+            for line in obs_lines:
+                can.drawString(50, y, line)
+                y -= 15
+
+        can.save()
+        packet.seek(0)
+
+        # Crear archivo final
+        output = PdfWriter()
+        overlay_pdf = PdfReader(packet)
+        output.add_page(overlay_pdf.pages[0])
+
+        output_stream = BytesIO()
+        output.write(output_stream)
+        output_stream.seek(0)
+        
+        return send_file(
+            output_stream, 
+            download_name=f"nota_alta_equipo_{folio}.pdf", 
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        return f"Error al generar PDF: {str(e)}", 500
+
+
 # Funciones del historial de transferencias
 @bp_inventario.route('/historial-transferencias/<int:sucursal_id>')
 @requiere_permiso('ver_inventario_sucursal')
@@ -1584,7 +1974,7 @@ def historial_transferencias_sucursal(sucursal_id):
                 SUM(mi.cantidad) as total_cantidad
             FROM movimientos_inventario mi
             WHERE mi.id_sucursal = %s 
-            AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo')
+            AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo', 'alta_equipo')
             AND mi.folio_nota_entrada IS NOT NULL
             GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion
             
@@ -1678,7 +2068,7 @@ def historial_transferencias_page(sucursal_id):
                 NULL as sucursal_origen
             FROM movimientos_inventario mi
             WHERE mi.id_sucursal = %s 
-            AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo')
+            AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo', 'alta_equipo')
             AND mi.folio_nota_entrada IS NOT NULL
             GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion
             
