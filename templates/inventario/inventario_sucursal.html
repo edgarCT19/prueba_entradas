@@ -183,7 +183,7 @@
 
 <div class="modal fade" id="modalReparacionLote" tabindex="-1">
     <div class="modal-dialog modal-xl">
-        <form method="POST" action="#" id="formReparacionLote" class="modal-content">
+        <form method="POST" action="#" id="formReparacionLote" class="modal-content" data-sucursal-id="{{ sucursal.id_sucursal }}">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-tools"></i> Envío a Reparación por Lotes - {{ sucursal.nombre }}
@@ -300,7 +300,7 @@
 
 <div class="modal fade" id="modalFinalizarReparaciones" tabindex="-1">
     <div class="modal-dialog modal-xl">
-        <form method="POST" action="#" id="formFinalizarReparaciones" class="modal-content">
+        <form method="POST" action="#" id="formFinalizarReparaciones" class="modal-content" data-sucursal-id="{{ sucursal.id_sucursal }}">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-check2-circle"></i> Finalizar Reparaciones - {{ sucursal.nombre }}
@@ -411,7 +411,7 @@
 
 <div class="modal fade" id="modalTransferencia" tabindex="-1">
     <div class="modal-dialog modal-xl">
-        <form method="POST" action="#" id="formTransferencia" class="modal-content">
+        <form method="POST" action="#" id="formTransferencia" class="modal-content" data-sucursal-id="{{ sucursal.id_sucursal }}">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-arrow-left-right"></i> Transferir Piezas
@@ -612,7 +612,7 @@
 
 <div class="modal fade" id="modalAltaEquipoNuevo" tabindex="-1">
     <div class="modal-dialog modal-xl">
-        <form method="POST" action="#" id="formAltaEquipoNuevo" class="modal-content">
+        <form method="POST" action="#" id="formAltaEquipoNuevo" class="modal-content" data-sucursal-id="{{ sucursal.id_sucursal }}">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-plus-circle"></i> Alta de Equipo - {{ sucursal.nombre }}
@@ -709,7 +709,7 @@
 
 <div class="modal fade" id="modalMarcarDaniadas" tabindex="-1">
     <div class="modal-dialog modal-xl">
-        <form method="POST" action="#" id="formMarcarDaniadas" class="modal-content">
+        <form method="POST" action="#" id="formMarcarDaniadas" class="modal-content" data-sucursal-id="{{ sucursal.id_sucursal }}">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-exclamation-triangle"></i> Marcar Equipos como Dañados - {{ sucursal.nombre }}
@@ -767,7 +767,7 @@
                                 <h6 class="mb-0"><i class="bi bi-chat-text"></i> Observaciones</h6>
                             </div>
                             <div class="card-body">
-                                <textarea id="observacionesDaniada" name="observaciones" class="form-control" rows="2" placeholder="Motivo del daño, descripción del problema, etc."></textarea>
+                                <textarea id="observacionesDaniadas" name="observaciones" class="form-control" rows="2" placeholder="Motivo del daño, descripción del problema, etc."></textarea>
                                 <small class="text-muted">Ejemplo: Daño en funcionamiento, desgaste detectado, etc.</small>
                             </div>
                         </div>

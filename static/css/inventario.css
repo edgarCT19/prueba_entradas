@@ -783,6 +783,21 @@
     color: #fff !important;
 }
 
+.badge-reparacion {
+    background: #ff9800 !important;
+    color: #fff !important;
+}
+
+.badge-daniadas {
+    background: #f44336 !important;
+    color: #fff !important;
+}
+
+.badge-finalizar {
+    background: #4caf50 !important;
+    color: #fff !important;
+}
+
 .action-btn-transferencias {
     margin-right: 0.3rem;
     border-radius: 6px;

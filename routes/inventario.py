@@ -3,6 +3,16 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app
 from utils.db import get_db_connection
 from functools import wraps
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from io import BytesIO
+from flask import send_file
+from PyPDF2 import PdfReader, PdfWriter
+import os
+from datetime import datetime
+    
 
 def requiere_permiso(nombre_permiso):
     def decorator(f):
@@ -494,7 +504,7 @@ def recibir_equipos():
                     ) VALUES (%s, %s, 'transferencia_entrada', %s, NOW(),
                              %s, %s, %s, %s, %s)
                 """, (sucursal_destino_id, id_pieza, cantidad, 
-                      usuario_id, sucursal_destino_id, observaciones,
+                      usuario_id, sucursal_origen_id, observaciones,  # CORREGIDO: guardamos origen en sucursal_destino
                       f'Recepción de {nombre_origen}', folio_entrada))
 
                 piezas_recibidas += 1
@@ -716,7 +726,8 @@ def alta_equipo_nuevo():
         
         try:
             # Obtener el siguiente folio para la sucursal
-            folio = obtener_siguiente_folio_nota_sucursal(cursor, id_sucursal)
+            folio_num = obtener_siguiente_folio_nota_sucursal(cursor, id_sucursal)
+            folio = str(folio_num).zfill(5)
 
             # Procesar cada pieza
             for pieza_data in piezas:
@@ -755,7 +766,7 @@ def alta_equipo_nuevo():
                     ) VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (
                     id_pieza, id_sucursal, 'alta_equipo', cantidad,
-                    f'Alta de equipo nuevo. {observaciones}', usuario_id, str(folio)
+                    f'Alta de equipo. {observaciones}', usuario_id, str(folio)
                 ))
 
             conn.commit()
@@ -763,7 +774,8 @@ def alta_equipo_nuevo():
             return jsonify({
                 'success': True, 
                 'message': f'Alta de {len(piezas)} tipo(s) de equipo realizada exitosamente',
-                'folio': folio
+                'folio': folio,
+                'folio_nota_entrada': folio  # Agregamos esta línea para compatibilidad con JS
             })
             
         except Exception as e:
@@ -848,7 +860,7 @@ def marcar_piezas_daniadas():
                 """, (
                     id_pieza, 
                     sucursal_id, 
-                    'marcar_daniada',
+                    'marcar_daniadas',
                     cantidad,
                     f'Marcado como dañada - {observaciones}' if observaciones else 'Marcado como dañada',
                     usuario_id
@@ -896,7 +908,8 @@ def enviar_lote_reparacion():
         
         try:
             # Obtener siguiente folio
-            folio = obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id)
+            folio_num = obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id)
+            folio = str(folio_num).zfill(5)  # Formato de 5 dígitos
             usuario_id = session.get('user_id')
 
             # Procesar cada pieza del lote
@@ -914,14 +927,13 @@ def enviar_lote_reparacion():
                 if not inventario or inventario['daniadas'] < cantidad:
                     raise Exception(f'No hay suficientes piezas dañadas para enviar a reparación (ID: {id_pieza})')
 
-                # Actualizar inventario: restar del total y de dañadas, sumar a en_reparacion
+                # Actualizar inventario: restar del total y de dañadas (el equipo sale de la bodega)
                 cursor.execute("""
                     UPDATE inventario_sucursal
                     SET total = total - %s,
-                        daniadas = daniadas - %s,
-                        en_reparacion = en_reparacion + %s
+                        daniadas = daniadas - %s
                     WHERE id_pieza = %s AND id_sucursal = %s
-                """, (cantidad, cantidad, cantidad, id_pieza, sucursal_id))
+                """, (cantidad, cantidad, id_pieza, sucursal_id))
 
                 # Registrar movimiento
                 cursor.execute("""
@@ -929,7 +941,7 @@ def enviar_lote_reparacion():
                     (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario, folio_nota_salida)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (id_pieza, sucursal_id, 'reparacion_lote', cantidad, 
-                     f'Lote reparación - {observaciones}', usuario_id, str(folio)))
+                     f'Lote reparación - {observaciones}', usuario_id, folio))
 
             conn.commit()
             
@@ -948,8 +960,6 @@ def enviar_lote_reparacion():
             
     except Exception as e:
         return jsonify({'success': False, 'error': f'Error en el procesamiento: {str(e)}'})
-
-
 
 
 
@@ -1028,889 +1038,6 @@ def finalizar_reparaciones():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Agregar esta nueva función al final del archivo inventario.py, antes de la última función
-
-@bp_inventario.route('/pdf-transferencia-salida/<folio>')
-@requiere_permiso('ver_inventario_sucursal')
-def generar_pdf_transferencia_salida(folio):
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from io import BytesIO
-    from flask import send_file
-    from PyPDF2 import PdfReader, PdfWriter
-    import os
-    from datetime import datetime
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
-        # Obtener datos de la transferencia de salida desde movimientos_inventario
-        cursor.execute("""
-            SELECT mi.*, p.nombre_pieza, p.categoria,
-                   so.nombre AS sucursal_origen, sd.nombre AS sucursal_destino
-            FROM movimientos_inventario mi
-            JOIN piezas p ON mi.id_pieza = p.id_pieza
-            JOIN sucursales so ON mi.id_sucursal = so.id
-            LEFT JOIN sucursales sd ON mi.sucursal_destino = sd.id
-            WHERE mi.folio_nota_salida = %s 
-            AND mi.tipo_movimiento = 'transferencia_salida'
-            ORDER BY p.nombre_pieza
-        """, (folio,))
-        
-        movimientos = cursor.fetchall()
-        
-        if not movimientos:
-            cursor.close()
-            conn.close()
-            return "Transferencia de salida no encontrada", 404
-        
-        # Datos generales de la transferencia
-        primer_movimiento = movimientos[0]
-        
-        cursor.close()
-        conn.close()
-        
-        # --- GENERAR PDF CON EL MISMO DISEÑO QUE NOTAS DE SALIDA ---
-        packet = BytesIO()
-        can = canvas.Canvas(packet, pagesize=letter)
-        
-        # Registrar fuente
-        try:
-            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('Carlito', font_path))
-        except:
-            pass
-        
-        # CONFIGURACIÓN INICIAL (igual que notas_salida)
-        page_width, page_height = letter
-        y_position = page_height - 100
-        
-        # Folio (esquina superior derecha)
-        can.setFont("Carlito", 16)
-        can.drawRightString(502, 670, f"#{folio}")
-        
-        # Fecha y hora de emisión
-        can.setFont("Carlito", 10)
-        fecha_emision = primer_movimiento['fecha'].strftime('%d/%m/%Y - %H:%M:%S')
-        can.drawRightString(573, 708, f"{fecha_emision}")
-        
-        # === DATOS DE TRANSFERENCIA (en lugar de cliente) ===
-        can.setFont("Carlito", 12)
-        can.drawString(62, 703, "TRANSFERENCIA DE EQUIPOS")
-        
-        # Sucursal origen
-        can.setFont("Carlito", 10)
-        can.drawString(62, 687, f"DESDE: {primer_movimiento['sucursal_origen'].upper()}")
-        
-        # Sucursal destino
-        can.drawString(62, 671, f"HACIA: {primer_movimiento['sucursal_destino'].upper()}")
-        
-        # Número de referencia (descripción)
-        can.drawString(231, 671, f"REF: TRANSFERENCIA-{folio}")
-        
-        # DATOS DE PIEZAS (igual que notas_salida)
-        y_position -= 85
-        can.setFont("Carlito", 10)
-        for movimiento in movimientos:
-            # Verificar si necesitamos nueva página
-            if y_position < 150:
-                can.showPage()
-                can.setFont("Carlito", 10)
-                y_position = page_height - 60
-            
-            can.drawString(70, y_position + 5, str(movimiento['cantidad']))
-            can.drawString(140, y_position + 5, movimiento['nombre_pieza'].upper())
-            y_position -= 13
-        
-        y_position -= 5
-        
-        # Descripción de la transferencia
-        can.setFont("Carlito", 10)
-        can.drawString(60, y_position, f"MOTIVO: {primer_movimiento['descripcion']}")
-        y_position -= 15
-        
-        # Observaciones si existen
-        if primer_movimiento['observaciones']:
-            can.drawString(60, y_position, f"OBSERVACIONES: {primer_movimiento['observaciones']}")
-            y_position -= 15
-        
-        y_position -= 30
-        
-        # Línea separadora
-        can.line(30, y_position + 24, page_width - 30, y_position + 24)
-        y_position -= 35
-        
-        # === FIRMAS ===
-        can.setFont("Carlito", 10)
-        # Líneas para firmas
-        can.line(60, y_position, 250, y_position)  # Línea origen
-        can.line(350, y_position, 540, y_position)  # Línea destino
-        y_position -= 15
-        
-        # Etiquetas de firmas
-        can.drawString(60, y_position, f"ENTREGA: {primer_movimiento['sucursal_origen'].upper()}")
-        can.drawString(350, y_position, f"RECIBE: {primer_movimiento['sucursal_destino'].upper()}")
-        y_position -= 20
-        
-        can.drawString(60, y_position, "NOMBRE: ________________________")
-        can.drawString(350, y_position, "NOMBRE: ________________________")
-        y_position -= 15
-        
-        can.drawString(60, y_position, "FIRMA: __________________________")
-        can.drawString(350, y_position, "FIRMA: __________________________")
-        
-        can.save()
-        packet.seek(0)
-        
-        # --- COMBINAR CON LA PLANTILLA (igual que notas_salida) ---
-        try:
-            plantilla_path = os.path.join(current_app.root_path, 'static/notas/salida_plantilla.pdf')
-            overlay_pdf = PdfReader(packet)
-            output = PdfWriter()
-
-            if os.path.exists(plantilla_path):
-                plantilla_pdf = PdfReader(plantilla_path)
-                # Primera página: plantilla + overlay
-                page = plantilla_pdf.pages[0]
-                page.merge_page(overlay_pdf.pages[0])
-                output.add_page(page)
-            else:
-                # Si no hay plantilla, solo overlay
-                for page in overlay_pdf.pages:
-                    output.add_page(page)
-        except Exception as e:
-            print(f"Error con plantilla: {e}")
-            overlay_pdf = PdfReader(packet)
-            output = PdfWriter()
-            for page in overlay_pdf.pages:
-                output.add_page(page)
-
-        output_stream = BytesIO()
-        output.write(output_stream)
-        output_stream.seek(0)
-        
-        return send_file(
-            output_stream,
-            download_name=f"nota_salida_transferencia_{folio}.pdf",
-            mimetype='application/pdf'
-        )
-    
-    except Exception as e:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-        return f"Error al generar PDF: {str(e)}", 500
-
-
-@bp_inventario.route('/pdf-transferencia-entrada/<folio>')
-@requiere_permiso('ver_inventario_sucursal')
-def generar_pdf_transferencia_entrada(folio):
-    """
-    Genera PDF para transferencia de entrada desde movimientos_inventario
-    Usa el mismo diseño que las notas de entrada de rentas
-    """
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from io import BytesIO
-    from flask import send_file
-    from PyPDF2 import PdfReader, PdfWriter
-    import os
-    from datetime import datetime
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
-        # Obtener datos de la transferencia de entrada desde movimientos_inventario
-        cursor.execute("""
-            SELECT mi.*, p.nombre_pieza, p.categoria,
-                   so.nombre AS sucursal_origen, sd.nombre AS sucursal_destino
-            FROM movimientos_inventario mi
-            JOIN piezas p ON mi.id_pieza = p.id_pieza
-            JOIN sucursales so ON mi.id_sucursal = so.id
-            LEFT JOIN sucursales sd ON mi.sucursal_destino = sd.id
-            WHERE mi.folio_nota_entrada = %s 
-            AND mi.tipo_movimiento = 'transferencia_entrada'
-            ORDER BY p.nombre_pieza
-        """, (folio,))
-        
-        movimientos = cursor.fetchall()
-        
-        if not movimientos:
-            cursor.close()
-            conn.close()
-            return "Transferencia de entrada no encontrada", 404
-        
-        # Datos generales de la transferencia
-        primer_movimiento = movimientos[0]
-        
-        cursor.close()
-        conn.close()
-        
-        # --- GENERAR PDF CON EL MISMO DISEÑO QUE NOTAS DE ENTRADA ---
-        packet = BytesIO()
-        can = canvas.Canvas(packet, pagesize=letter)
-        
-        # Registrar fuente
-        try:
-            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('Carlito', font_path))
-        except:
-            pass
-        
-        # Folio de Nota de Entrada
-        can.setFont("Carlito", 9)
-        texto = "FOLIO DE ENTRADA:"
-        x = 450
-        y = 670
-        can.drawString(x, y, texto)
-        
-        # Dibuja el folio en tamaño 12, justo después del texto
-        folio_str = f"#{folio}"
-        can.setFont("Helvetica-Bold", 12)
-        x_folio = x + can.stringWidth(texto, "Helvetica-Bold", 10) - 25
-        can.drawString(x_folio, y, folio_str)
-        
-        # === DATOS DE TRANSFERENCIA (en lugar de cliente) ===
-        can.setFont("Carlito", 12)
-        can.drawString(63, 703, "RECEPCIÓN DE TRANSFERENCIA")
-        
-        # Fecha
-        can.setFont("Helvetica", 10)
-        fecha_formato = primer_movimiento['fecha'].strftime('%d/%m/%Y %H:%M')
-        can.drawString(479, 708, f" {fecha_formato}")
-        
-        # Sucursal origen
-        can.setFont("Helvetica", 10)
-        can.drawString(67, 671, f"PROCEDENTE DE: {primer_movimiento['sucursal_origen'] or 'No especificado'}")
-        
-        # Sucursal destino
-        can.setFont("Helvetica-Bold", 10)
-        can.drawString(67, 657, f"RECIBIDO EN: {primer_movimiento['sucursal_destino']}")
-        
-        # === TABLA DE PIEZAS (igual que notas_entrada) ===
-        y = 630
-        can.setFont("Helvetica-Bold", 10)
-        
-        y -= 15
-        can.setFont("Helvetica-Bold", 9)
-        can.drawString(60, y, "Pieza")
-        can.drawString(250, y, "Cantidad")
-        can.drawString(300, y, "Recibidas")
-        can.drawString(375, y, "Buenas")
-        can.drawString(420, y, "Categoría")
-        
-        y -= 13
-        can.setFont("Helvetica", 9)
-        for movimiento in movimientos:
-            if y < 100:
-                can.showPage()
-                y = 750
-            
-            can.drawString(60, y, f"{movimiento['nombre_pieza']}")
-            can.drawString(250, y, str(movimiento['cantidad']))
-            can.drawString(300, y, str(movimiento['cantidad']))  # Para transferencias, recibidas = cantidad
-            can.drawString(375, y, str(movimiento['cantidad']))  # Para transferencias, buenas = cantidad
-            can.drawString(420, y, movimiento['categoria'] or '-')
-            y -= 13
-        
-        y -= 10
-        can.setFont("Helvetica", 10)
-        can.drawString(60, y, f"PROCEDENTE DE: {primer_movimiento['sucursal_origen'] or 'No especificado'}")
-        y -= 13
-        
-        # Motivo de transferencia
-        can.drawString(60, y, f"MOTIVO: {primer_movimiento['descripcion']}")
-        y -= 13
-        
-        # === FIRMAS ===
-        y -= 30
-        can.setFont("Carlito", 10)
-        # Línea para firma de recepción
-        can.line(60, y, 250, y)
-        # Línea para firma de entrega
-        can.line(350, y, 540, y)
-        
-        y -= 15
-        # Etiquetas de firmas
-        can.drawString(60, y, f"RECIBE: {primer_movimiento['sucursal_destino'].upper()}")
-        can.drawString(350, y, f"ENTREGA: {primer_movimiento['sucursal_origen'].upper()}")
-        
-        y -= 10
-        can.setFont("Helvetica-Bold", 10)
-        can.drawString(60, y, "Observaciones:")
-        y -= 13
-        can.setFont("Helvetica", 10)
-        observaciones_texto = primer_movimiento['observaciones'] or "Transferencia de equipos entre sucursales"
-        can.drawString(60, y, observaciones_texto)
-        
-        can.save()
-        packet.seek(0)
-        
-        # --- COMBINAR CON LA PLANTILLA (igual que notas_entrada) ---
-        try:
-            plantilla_path = os.path.join(current_app.root_path, 'static/notas/Plantilla_entrada.pdf')
-            if os.path.exists(plantilla_path):
-                plantilla_pdf = PdfReader(plantilla_path)
-                overlay_pdf = PdfReader(packet)
-                output = PdfWriter()
-                page = plantilla_pdf.pages[0]
-                page.merge_page(overlay_pdf.pages[0])
-                output.add_page(page)
-            else:
-                overlay_pdf = PdfReader(packet)
-                output = PdfWriter()
-                output.add_page(overlay_pdf.pages[0])
-        except Exception as e:
-            print(f"Error con plantilla: {e}")
-            overlay_pdf = PdfReader(packet)
-            output = PdfWriter()
-            output.add_page(overlay_pdf.pages[0])
-        
-        output_stream = BytesIO()
-        output.write(output_stream)
-        output_stream.seek(0)
-        
-        return send_file(
-            output_stream,
-            download_name=f"nota_entrada_transferencia_{folio}.pdf",
-            mimetype='application/pdf'
-        )
-    
-    except Exception as e:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-        return f"Error al generar PDF: {str(e)}", 500
-
-
-@bp_inventario.route('/pdf-nota-salida-transferencia/<int:nota_salida_id>')
-@requiere_permiso('ver_inventario_sucursal')
-def generar_pdf_nota_salida_transferencia(nota_salida_id):
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from io import BytesIO
-    from flask import send_file
-    import os
-    from datetime import datetime
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
-        # Obtener datos de la nota de salida (transferencia)
-        cursor.execute("""
-            SELECT ns.folio, ns.fecha, ns.numero_referencia, ns.observaciones,
-                   so.nombre AS sucursal_origen, sd.nombre AS sucursal_destino
-            FROM notas_salida ns
-            LEFT JOIN sucursales so ON SUBSTRING_INDEX(ns.numero_referencia, ' ', -1) = so.id
-            LEFT JOIN sucursales sd ON SUBSTRING_INDEX(SUBSTRING_INDEX(ns.numero_referencia, ' A ', -1), ' ', 1) = sd.id
-            WHERE ns.id = %s AND ns.renta_id IS NULL
-        """, (nota_salida_id,))
-        nota = cursor.fetchone()
-        
-        if not nota:
-            cursor.close()
-            conn.close()
-            return "Nota de transferencia no encontrada", 404
-        
-        # Extraer sucursales del numero_referencia de forma más robusta
-        cursor.execute("""
-            SELECT ns.folio, ns.fecha, ns.numero_referencia, ns.observaciones,
-                   ne.sucursal_origen_id, ne.sucursal_destino_id,
-                   so.nombre AS sucursal_origen, sd.nombre AS sucursal_destino
-            FROM notas_salida ns
-            LEFT JOIN notas_entrada ne ON ne.nota_salida_id = ns.id
-            LEFT JOIN sucursales so ON ne.sucursal_origen_id = so.id
-            LEFT JOIN sucursales sd ON ne.sucursal_destino_id = sd.id
-            WHERE ns.id = %s AND ns.renta_id IS NULL
-        """, (nota_salida_id,))
-        nota = cursor.fetchone()
-        
-        # Si no hay datos de entrada, usar la información del query anterior
-        if not nota or not nota['sucursal_origen']:
-            cursor.execute("""
-                SELECT ns.folio, ns.fecha, ns.numero_referencia, ns.observaciones
-                FROM notas_salida ns
-                WHERE ns.id = %s AND ns.renta_id IS NULL
-            """, (nota_salida_id,))
-            nota = cursor.fetchone()
-            
-            # Extraer info de sucursales del numero_referencia manualmente
-            if nota and 'TRANSFERENCIA' in nota['numero_referencia']:
-                # Buscar en movimientos_inventario para obtener las sucursales
-                cursor.execute("""
-                    SELECT DISTINCT mi.id_sucursal, mi.sucursal_destino, s1.nombre as origen, s2.nombre as destino
-                    FROM movimientos_inventario mi
-                    LEFT JOIN sucursales s1 ON mi.id_sucursal = s1.id
-                    LEFT JOIN sucursales s2 ON mi.sucursal_destino = s2.id
-                    WHERE mi.folio_nota_salida = %s
-                    AND mi.tipo_movimiento = 'transferencia_salida'
-                    LIMIT 1
-                """, (nota['folio'],))
-                sucursales_info = cursor.fetchone()
-                
-                if sucursales_info:
-                    nota['sucursal_origen'] = sucursales_info['origen']
-                    nota['sucursal_destino'] = sucursales_info['destino']
-                else:
-                    nota['sucursal_origen'] = 'No identificada'
-                    nota['sucursal_destino'] = 'No identificada'
-        
-        # Obtener piezas de la nota de salida
-        cursor.execute("""
-            SELECT nsd.cantidad, p.nombre_pieza, p.categoria
-            FROM notas_salida_detalle nsd
-            JOIN piezas p ON nsd.id_pieza = p.id_pieza
-            WHERE nsd.nota_salida_id = %s
-            ORDER BY p.nombre_pieza
-        """, (nota_salida_id,))
-        piezas = cursor.fetchall()
-        
-        cursor.close()
-        conn.close()
-        
-        # Generar PDF
-        packet = BytesIO()
-        can = canvas.Canvas(packet, pagesize=letter)
-        
-        # Registrar fuente si existe
-        try:
-            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('Carlito', font_path))
-                font_name = 'Carlito'
-            else:
-                font_name = 'Helvetica'
-        except:
-            font_name = 'Helvetica'
-        
-        # Configuración inicial
-        page_width, page_height = letter
-        y_position = page_height - 60
-        
-        # Encabezado
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 18)
-        can.drawCentredText(page_width/2, y_position, "NOTA DE SALIDA - TRANSFERENCIA")
-        y_position -= 40
-        
-        # Folio
-        can.setFont(font_name, 14)
-        can.drawRightString(page_width - 50, y_position, f"Folio: #{str(nota['folio']).zfill(5)}")
-        y_position -= 30
-        
-        # Fecha
-        can.setFont(font_name, 11)
-        fecha_formato = nota['fecha'].strftime('%d/%m/%Y %H:%M') if nota['fecha'] else 'No disponible'
-        can.drawString(50, y_position, f"Fecha: {fecha_formato}")
-        y_position -= 25
-        
-        # Información de transferencia
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 12)
-        can.drawString(50, y_position, "DETALLES DE TRANSFERENCIA:")
-        y_position -= 20
-        
-        can.setFont(font_name, 11)
-        can.drawString(70, y_position, f"Desde: {nota['sucursal_origen']}")
-        y_position -= 15
-        can.drawString(70, y_position, f"Hacia: {nota['sucursal_destino']}")
-        y_position -= 15
-        can.drawString(70, y_position, f"Referencia: {nota['numero_referencia']}")
-        y_position -= 30
-        
-        # Tabla de piezas
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 12)
-        can.drawString(50, y_position, "PIEZAS TRANSFERIDAS:")
-        y_position -= 20
-        
-        # Encabezados de tabla
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 10)
-        can.drawString(70, y_position, "CANTIDAD")
-        can.drawString(150, y_position, "PIEZA")
-        can.drawString(400, y_position, "CATEGORÍA")
-        y_position -= 15
-        
-        # Línea separadora
-        can.line(50, y_position, page_width - 50, y_position)
-        y_position -= 10
-        
-        # Datos de piezas
-        can.setFont(font_name, 10)
-        total_piezas = 0
-        for pieza in piezas:
-            # Verificar si necesitamos nueva página
-            if y_position < 100:
-                can.showPage()
-                can.setFont(font_name, 10)
-                y_position = page_height - 60
-            
-            can.drawString(70, y_position, str(pieza['cantidad']))
-            can.drawString(150, y_position, pieza['nombre_pieza'])
-            can.drawString(400, y_position, pieza['categoria'] or '-')
-            total_piezas += pieza['cantidad']
-            y_position -= 15
-        
-        # Total
-        y_position -= 10
-        can.line(50, y_position, page_width - 50, y_position)
-        y_position -= 15
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 11)
-        can.drawString(70, y_position, f"TOTAL PIEZAS: {total_piezas}")
-        y_position -= 30
-        
-        # Observaciones
-        if nota['observaciones']:
-            can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 11)
-            can.drawString(50, y_position, "OBSERVACIONES:")
-            y_position -= 15
-            can.setFont(font_name, 10)
-            can.drawString(50, y_position, nota['observaciones'])
-            y_position -= 30
-        
-        # Firmas
-        y_position -= 20
-        can.setFont(font_name, 10)
-        can.line(50, y_position, 250, y_position)  # Línea origen
-        can.line(350, y_position, 550, y_position)  # Línea destino
-        y_position -= 15
-        can.drawString(50, y_position, f"ENTREGA: {nota['sucursal_origen']}")
-        can.drawString(350, y_position, f"RECIBE: {nota['sucursal_destino']}")
-        y_position -= 20
-        can.drawString(50, y_position, "Nombre: _________________________")
-        can.drawString(350, y_position, "Nombre: _________________________")
-        y_position -= 15
-        can.drawString(50, y_position, "Firma: __________________________")
-        can.drawString(350, y_position, "Firma: __________________________")
-        
-        can.save()
-        packet.seek(0)
-        
-        return send_file(
-            packet,
-            download_name=f"nota_salida_transferencia_{str(nota['folio']).zfill(5)}.pdf",
-            mimetype='application/pdf'
-        )
-    
-    except Exception as e:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-        return f"Error al generar PDF: {str(e)}", 500
-
-
-@bp_inventario.route('/pdf-nota-entrada-transferencia/<int:nota_entrada_id>')
-@requiere_permiso('ver_inventario_sucursal')
-def generar_pdf_nota_entrada_transferencia(nota_entrada_id):
-    """
-    Genera PDF para nota de entrada de transferencia (recepción)
-    """
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from io import BytesIO
-    from flask import send_file
-    import os
-    from datetime import datetime
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
-        # Obtener datos de la nota de entrada (recepción)
-        cursor.execute("""
-            SELECT ne.folio, ne.fecha_entrada_real, ne.observaciones
-            FROM notas_entrada ne
-            WHERE ne.id = %s AND ne.renta_id IS NULL
-        """, (nota_entrada_id,))
-        nota = cursor.fetchone()
-        
-        if not nota:
-            cursor.close()
-            conn.close()
-            return "Nota de entrada no encontrada", 404
-        
-        # Obtener piezas de la nota de entrada
-        cursor.execute("""
-            SELECT ned.cantidad_recibida, p.nombre_pieza, p.categoria
-            FROM notas_entrada_detalle ned
-            JOIN piezas p ON ned.id_pieza = p.id_pieza
-            WHERE ned.nota_entrada_id = %s
-            ORDER BY p.nombre_pieza
-        """, (nota_entrada_id,))
-        piezas = cursor.fetchall()
-        
-        cursor.close()
-        conn.close()
-        
-        # Generar PDF
-        packet = BytesIO()
-        can = canvas.Canvas(packet, pagesize=letter)
-        
-        # Registrar fuente si existe
-        try:
-            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
-            if os.path.exists(font_path):
-                pdfmetrics.registerFont(TTFont('Carlito', font_path))
-                font_name = 'Carlito'
-            else:
-                font_name = 'Helvetica'
-        except:
-            font_name = 'Helvetica'
-        
-        # Configuración inicial
-        page_width, page_height = letter
-        y_position = page_height - 60
-        
-        # Encabezado
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 18)
-        can.drawCentredText(page_width/2, y_position, "NOTA DE ENTRADA - RECEPCIÓN")
-        y_position -= 40
-        
-        # Folio
-        can.setFont(font_name, 14)
-        can.drawRightString(page_width - 50, y_position, f"Folio: #{str(nota['folio']).zfill(5)}")
-        y_position -= 30
-        
-        # Fecha
-        can.setFont(font_name, 11)
-        fecha_formato = nota['fecha_entrada_real'].strftime('%d/%m/%Y %H:%M') if nota['fecha_entrada_real'] else 'No disponible'
-        can.drawString(50, y_position, f"Fecha de Recepción: {fecha_formato}")
-        y_position -= 40
-        
-        # Tabla de piezas
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 12)
-        can.drawString(50, y_position, "PIEZAS RECIBIDAS:")
-        y_position -= 20
-        
-        # Encabezados de tabla
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 10)
-        can.drawString(70, y_position, "CANTIDAD")
-        can.drawString(150, y_position, "PIEZA")
-        can.drawString(400, y_position, "CATEGORÍA")
-        y_position -= 15
-        
-        # Línea separadora
-        can.line(50, y_position, page_width - 50, y_position)
-        y_position -= 10
-        
-        # Datos de piezas
-        can.setFont(font_name, 10)
-        total_piezas = 0
-        for pieza in piezas:
-            # Verificar si necesitamos nueva página
-            if y_position < 100:
-                can.showPage()
-                y_position = page_height - 60
-            
-            can.drawString(70, y_position, str(pieza['cantidad_recibida']))
-            can.drawString(150, y_position, pieza['nombre_pieza'])
-            can.drawString(400, y_position, pieza['categoria'] or '-')
-            total_piezas += pieza['cantidad_recibida']
-            y_position -= 15
-        
-        # Total
-        y_position -= 10
-        can.line(50, y_position, page_width - 50, y_position)
-        y_position -= 15
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 11)
-        can.drawString(70, y_position, f"TOTAL PIEZAS RECIBIDAS: {total_piezas}")
-        y_position -= 30
-        
-        # Observaciones
-        if nota['observaciones']:
-            can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 11)
-            can.drawString(50, y_position, "OBSERVACIONES:")
-            y_position -= 15
-            can.setFont(font_name, 10)
-            can.drawString(50, y_position, nota['observaciones'])
-            y_position -= 30
-        
-        # Firma
-        y_position -= 20
-        can.setFont(font_name, 10)
-        can.line(50, y_position, 300, y_position)
-        y_position -= 15
-        can.drawString(50, y_position, "RECIBIDO POR:")
-        y_position -= 20
-        can.drawString(50, y_position, "Nombre: _________________________")
-        y_position -= 15
-        can.drawString(50, y_position, "Firma: __________________________")
-        y_position -= 15
-        can.drawString(50, y_position, "Fecha: __________________________")
-        
-        can.save()
-        packet.seek(0)
-        
-        return send_file(
-            packet,
-            download_name=f"nota_entrada_recepcion_{str(nota['folio']).zfill(5)}.pdf",
-            mimetype='application/pdf'
-        )
-    
-    except Exception as e:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-        return f"Error al generar PDF: {str(e)}", 500
-
-
-@bp_inventario.route('/pdf-alta-equipo/<folio>')
-@requiere_permiso('ver_inventario_sucursal')
-def generar_pdf_alta_equipo(folio):
-    """
-    Genera PDF para alta de equipo nuevo
-    """
-    from reportlab.lib.pagesizes import letter
-    from reportlab.pdfgen import canvas
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from io import BytesIO
-    from flask import send_file
-    from PyPDF2 import PdfReader, PdfWriter
-    import os
-    from datetime import datetime
-    
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    try:
-        # Obtener datos del movimiento de alta de equipo
-        cursor.execute("""
-            SELECT mi.*, p.nombre_pieza, p.categoria, s.nombre as sucursal_nombre,
-                   u.nombre as usuario_nombre
-            FROM movimientos_inventario mi
-            JOIN piezas p ON mi.id_pieza = p.id_pieza
-            JOIN sucursales s ON mi.id_sucursal = s.id
-            LEFT JOIN usuarios u ON mi.usuario = u.id
-            WHERE mi.folio_nota_entrada = %s 
-            AND mi.tipo_movimiento = 'alta_equipo'
-            ORDER BY mi.fecha_movimiento ASC, p.nombre_pieza ASC
-        """, (folio,))
-        movimientos = cursor.fetchall()
-        
-        if not movimientos:
-            return f"No se encontraron datos para el folio {folio}", 404
-            
-        # Datos básicos
-        primer_movimiento = movimientos[0]
-        sucursal_nombre = primer_movimiento['sucursal_nombre']
-        usuario_nombre = primer_movimiento['usuario_nombre'] or 'No disponible'
-        fecha_movimiento = primer_movimiento['fecha_movimiento']
-        observaciones = primer_movimiento['descripcion'] or ''
-        
-        cursor.close()
-        conn.close()
-
-        # Crear PDF
-        packet = BytesIO()
-        can = canvas.Canvas(packet, pagesize=letter)
-        pdfmetrics.registerFont(TTFont('Carlito', os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')))
-
-        # Encabezado
-        can.setFont("Helvetica-Bold", 18)
-        can.drawString(50, 750, "NOTA DE ALTA DE EQUIPO")
-        
-        # Información básica
-        can.setFont("Carlito", 12)
-        can.drawString(50, 720, f"Folio: #{folio}")
-        can.drawString(300, 720, f"Fecha: {fecha_movimiento.strftime('%d/%m/%Y %H:%M')}")
-        can.drawString(50, 700, f"Sucursal: {sucursal_nombre}")
-        can.drawString(300, 700, f"Registrado por: {usuario_nombre}")
-
-        # Tabla de equipos
-        y = 650
-        can.setFont("Helvetica-Bold", 11)
-        can.drawString(50, y, "Equipo")
-        can.drawString(250, y, "Categoría")
-        can.drawString(400, y, "Cantidad")
-        
-        # Línea separadora
-        y -= 10
-        can.line(50, y, 550, y)
-        
-        # Datos de equipos
-        can.setFont("Carlito", 10)
-        total_cantidad = 0
-        for mov in movimientos:
-            y -= 20
-            can.drawString(50, y, mov['nombre_pieza'][:35])
-            can.drawString(250, y, mov['categoria'] or 'Sin categoría')
-            can.drawString(400, y, str(mov['cantidad']))
-            total_cantidad += mov['cantidad']
-
-        # Total
-        y -= 30
-        can.setFont("Helvetica-Bold", 11)
-        can.drawString(300, y, f"Total de equipos dados de alta: {total_cantidad}")
-
-        # Observaciones
-        if observaciones:
-            y -= 40
-            can.setFont("Helvetica-Bold", 11)
-            can.drawString(50, y, "Observaciones:")
-            y -= 20
-            can.setFont("Carlito", 10)
-            # Dividir observaciones en líneas si es muy largo
-            obs_lines = [observaciones[i:i+80] for i in range(0, len(observaciones), 80)]
-            for line in obs_lines:
-                can.drawString(50, y, line)
-                y -= 15
-
-        can.save()
-        packet.seek(0)
-
-        # Crear archivo final
-        output = PdfWriter()
-        overlay_pdf = PdfReader(packet)
-        output.add_page(overlay_pdf.pages[0])
-
-        output_stream = BytesIO()
-        output.write(output_stream)
-        output_stream.seek(0)
-        
-        return send_file(
-            output_stream, 
-            download_name=f"nota_alta_equipo_{folio}.pdf", 
-            mimetype='application/pdf'
-        )
-        
-    except Exception as e:
-        return f"Error al generar PDF: {str(e)}", 500
-
-
 # Funciones del historial de transferencias
 @bp_inventario.route('/historial-transferencias/<int:sucursal_id>')
 @requiere_permiso('ver_inventario_sucursal')
@@ -1927,7 +1054,7 @@ def historial_transferencias_sucursal(sucursal_id):
             SELECT 
                 'enviada' as tipo_transferencia,
                 mi.folio_nota_salida as folio,
-                mi.fecha,
+                DATE(mi.fecha) as fecha,
                 mi.observaciones,
                 mi.descripcion,
                 sd.nombre as sucursal_destino,
@@ -1939,14 +1066,14 @@ def historial_transferencias_sucursal(sucursal_id):
             WHERE mi.id_sucursal = %s 
             AND mi.tipo_movimiento = 'transferencia_salida'
             AND mi.folio_nota_salida IS NOT NULL
-            GROUP BY mi.folio_nota_salida, mi.fecha, mi.observaciones, mi.descripcion, sd.nombre
+            GROUP BY mi.folio_nota_salida, DATE(mi.fecha), mi.observaciones, mi.descripcion, sd.nombre
             
             UNION ALL
             
             SELECT 
                 'recibida' as tipo_transferencia,
                 mi.folio_nota_entrada as folio,
-                mi.fecha,
+                DATE(mi.fecha) as fecha,
                 mi.observaciones,
                 mi.descripcion,
                 NULL as sucursal_destino,
@@ -1958,14 +1085,14 @@ def historial_transferencias_sucursal(sucursal_id):
             WHERE mi.id_sucursal = %s 
             AND mi.tipo_movimiento = 'transferencia_entrada'
             AND mi.folio_nota_entrada IS NOT NULL
-            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion, so.nombre
+            GROUP BY mi.folio_nota_entrada, DATE(mi.fecha), mi.observaciones, mi.descripcion, so.nombre
             
             UNION ALL
             
             SELECT 
                 'alta_equipo' as tipo_transferencia,
                 mi.folio_nota_entrada as folio,
-                mi.fecha,
+                DATE(mi.fecha) as fecha,
                 mi.observaciones,
                 mi.descripcion,
                 NULL as sucursal_destino,
@@ -1976,7 +1103,7 @@ def historial_transferencias_sucursal(sucursal_id):
             WHERE mi.id_sucursal = %s 
             AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo', 'alta_equipo')
             AND mi.folio_nota_entrada IS NOT NULL
-            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion
+            GROUP BY mi.folio_nota_entrada, DATE(mi.fecha), mi.observaciones, mi.descripcion
             
             ORDER BY 
                 CASE 
@@ -2022,63 +1149,116 @@ def historial_transferencias_page(sucursal_id):
             flash('Sucursal no encontrada', 'error')
             return redirect(url_for('inventario.inventario_general'))
         
-        # Obtener transferencias ENVIADAS, RECIBIDAS y ALTAS DE EQUIPO
+        # Obtener TODOS los movimientos de inventario de la sucursal
         cursor.execute("""
             SELECT 
                 'Enviado' as tipo,
                 mi.folio_nota_salida as folio,
-                DATE_FORMAT(mi.fecha, '%d/%m/%Y %H:%i') as fecha,
+                DATE_FORMAT(MIN(mi.fecha), '%d/%m/%Y %H:%i') as fecha,
                 mi.observaciones,
                 mi.descripcion,
                 sd.nombre as sucursal_destino,
-                NULL as sucursal_origen
+                NULL as sucursal_origen,
+                'transferencia_salida' as tipo_movimiento
             FROM movimientos_inventario mi
             LEFT JOIN sucursales sd ON mi.sucursal_destino = sd.id
             WHERE mi.id_sucursal = %s 
             AND mi.tipo_movimiento = 'transferencia_salida'
             AND mi.folio_nota_salida IS NOT NULL
-            GROUP BY mi.folio_nota_salida, mi.fecha, mi.observaciones, mi.descripcion, sd.nombre
+            GROUP BY mi.folio_nota_salida, DATE(mi.fecha), mi.observaciones, mi.descripcion, sd.nombre
             
             UNION ALL
             
             SELECT 
                 'Recibido' as tipo,
                 mi.folio_nota_entrada as folio,
-                DATE_FORMAT(mi.fecha, '%d/%m/%Y %H:%i') as fecha,
+                DATE_FORMAT(MIN(mi.fecha), '%d/%m/%Y %H:%i') as fecha,
                 mi.observaciones,
                 mi.descripcion,
                 NULL as sucursal_destino,
-                so.nombre as sucursal_origen
+                so.nombre as sucursal_origen,
+                'transferencia_entrada' as tipo_movimiento
             FROM movimientos_inventario mi
             LEFT JOIN sucursales so ON mi.sucursal_destino = so.id
             WHERE mi.id_sucursal = %s 
             AND mi.tipo_movimiento = 'transferencia_entrada'
             AND mi.folio_nota_entrada IS NOT NULL
-            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion, so.nombre
+            GROUP BY mi.folio_nota_entrada, DATE(mi.fecha), mi.observaciones, mi.descripcion, so.nombre
             
             UNION ALL
             
             SELECT 
                 'Alta Equipo' as tipo,
                 mi.folio_nota_entrada as folio,
-                DATE_FORMAT(mi.fecha, '%d/%m/%Y %H:%i') as fecha,
+                DATE_FORMAT(MIN(mi.fecha), '%d/%m/%Y %H:%i') as fecha,
                 mi.observaciones,
                 mi.descripcion,
                 NULL as sucursal_destino,
-                NULL as sucursal_origen
+                NULL as sucursal_origen,
+                'alta_equipo' as tipo_movimiento
             FROM movimientos_inventario mi
             WHERE mi.id_sucursal = %s 
             AND mi.tipo_movimiento IN ('alta_equipo_nuevo', 'alta_equipo_general', 'alta_admin_nuevo', 'alta_equipo')
             AND mi.folio_nota_entrada IS NOT NULL
-            GROUP BY mi.folio_nota_entrada, mi.fecha, mi.observaciones, mi.descripcion
+            GROUP BY mi.folio_nota_entrada, DATE(mi.fecha), mi.observaciones, mi.descripcion
+            
+            UNION ALL
+            
+            SELECT 
+                'Envío a Reparación' as tipo,
+                mi.folio_nota_salida as folio,
+                DATE_FORMAT(MIN(mi.fecha), '%d/%m/%Y %H:%i') as fecha,
+                mi.observaciones,
+                mi.descripcion,
+                NULL as sucursal_destino,
+                NULL as sucursal_origen,
+                'reparacion_lote' as tipo_movimiento
+            FROM movimientos_inventario mi
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento = 'reparacion_lote'
+            AND mi.folio_nota_salida IS NOT NULL
+            GROUP BY mi.folio_nota_salida, DATE(mi.fecha), mi.observaciones, mi.descripcion
+            
+            UNION ALL
+            
+            SELECT 
+                'Equipos Dañados' as tipo,
+                NULL as folio,
+                DATE_FORMAT(MIN(mi.fecha), '%d/%m/%Y %H:%i') as fecha,
+                mi.observaciones,
+                mi.descripcion,
+                NULL as sucursal_destino,
+                NULL as sucursal_origen,
+                'marcar_daniadas' as tipo_movimiento
+            FROM movimientos_inventario mi
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento = 'marcar_daniadas'
+            GROUP BY DATE(mi.fecha), mi.observaciones, mi.descripcion
+            
+            UNION ALL
+            
+            SELECT 
+                'Finalizar Reparaciones' as tipo,
+                NULL as folio,
+                DATE_FORMAT(MIN(mi.fecha), '%d/%m/%Y %H:%i') as fecha,
+                mi.observaciones,
+                mi.descripcion,
+                NULL as sucursal_destino,
+                NULL as sucursal_origen,
+                'finalizar_reparacion' as tipo_movimiento
+            FROM movimientos_inventario mi
+            WHERE mi.id_sucursal = %s 
+            AND mi.tipo_movimiento = 'finalizar_reparacion'
+            GROUP BY DATE(mi.fecha), mi.observaciones, mi.descripcion
             
             ORDER BY 
                 CASE 
                     WHEN folio REGEXP '^[0-9]+$' THEN CAST(folio AS UNSIGNED)
                     ELSE 0
                 END DESC,
-                folio DESC
-        """, (sucursal_id, sucursal_id, sucursal_id))
+                folio DESC,
+                fecha DESC
+        """, (sucursal_id, sucursal_id, sucursal_id, sucursal_id, sucursal_id, sucursal_id))
         
         transferencias = cursor.fetchall()
         
@@ -2102,6 +1282,732 @@ def historial_transferencias_page(sucursal_id):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+#######################################
+#######################################
+#######################################
+############################ ENPONIDS DE PDFS DEL INVENTARIO 
+
+
+########## PDF DE TRANSFERENCIAS DE SALIDAS  ########## 
+
+@bp_inventario.route('/pdf-transferencia-salida/<folio>')
+@requiere_permiso('ver_inventario_sucursal')
+def generar_pdf_transferencia_salida(folio):
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Obtener datos de la transferencia de salida desde movimientos_inventario
+        cursor.execute("""
+            SELECT mi.*, p.nombre_pieza, p.categoria,
+                   so.nombre AS sucursal_origen, sd.nombre AS sucursal_destino
+            FROM movimientos_inventario mi
+            JOIN piezas p ON mi.id_pieza = p.id_pieza
+            JOIN sucursales so ON mi.id_sucursal = so.id
+            LEFT JOIN sucursales sd ON mi.sucursal_destino = sd.id
+            WHERE mi.folio_nota_salida = %s 
+            AND mi.tipo_movimiento = 'transferencia_salida'
+            ORDER BY p.nombre_pieza
+        """, (folio,))
+        
+        movimientos = cursor.fetchall()
+        
+        if not movimientos:
+            cursor.close()
+            conn.close()
+            return "Transferencia de salida no encontrada", 404
+        
+        # Datos generales de la transferencia
+        primer_movimiento = movimientos[0]
+        
+        cursor.close()
+        conn.close()
+        
+        # --- GENERAR PDF CON EL MISMO DISEÑO QUE NOTAS DE SALIDA ---
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=letter)
+        
+        # Registrar fuente
+        try:
+            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('Carlito', font_path))
+        except:
+            pass
+        
+        # CONFIGURACIÓN INICIAL 
+        page_width, page_height = letter
+        y_position = page_height - 100
+        
+        # Folio
+        can.setFont("Courier-Bold", 20)
+        can.drawRightString(575, 690, f"#{folio}")
+        
+        # Fecha y hora de emisión
+        can.setFont("Carlito", 12)
+        fecha_emision = primer_movimiento['fecha'].strftime('%d/%m/%Y - %H:%M:%S')
+        can.drawRightString(575, 715, f"{fecha_emision}")
+        
+
+        # === DATOS DE TRANSFERENCIA ===
+        can.setFont("Courier-Bold", 23)
+        can.drawString(496, 732, "SALIDA")
+        
+        can.setFont("Courier-Bold", 15)
+        can.drawString(36, 715, "TRANSFERENCIA DE EQUIPO")
+
+        # Sucursal origen
+        can.setFont("Carlito", 10)
+        can.drawString(36, 695, f"DESDE: {primer_movimiento['sucursal_origen'].upper()}")
+        
+        # Sucursal destino
+        can.drawString(36, 680, f"HACIA: {primer_movimiento['sucursal_destino'].upper()}")
+        
+        # DATOS DE PIEZAS 
+        y_position -= 40
+        # Encabezado de tabla
+        can.setFont("Helvetica-Bold", 10)
+        can.drawString(36, y_position + 5, "CANT. (PIEZAS)")
+        can.drawString(150, y_position + 5, "DESCRIPCIÓN")
+        y_position -= 15
+        
+        can.setFont("Carlito", 10)
+        for movimiento in movimientos:
+            # Verificar si necesitamos nueva página
+            if y_position < 150:
+                can.showPage()
+                can.setFont("Carlito", 10)
+                y_position = page_height - 60
+            can.drawString(70, y_position + 5, str(movimiento['cantidad']))
+            can.drawString(150, y_position + 5, movimiento['nombre_pieza'].upper())
+            y_position -= 13
+        y_position -= 5
+        
+        
+        # Observaciones 
+        can.setFont("Carlito", 13)
+        observaciones_texto = primer_movimiento['observaciones'] if primer_movimiento['observaciones'] else "Sin observaciones."
+        max_width = 550  # ancho máximo para el texto
+        from reportlab.lib.utils import simpleSplit
+        obs_lines = simpleSplit(f"OBSERVACIONES: {observaciones_texto}", "Carlito", 13, max_width)
+        for line in obs_lines:
+            can.drawString(36, y_position, line)
+            y_position -= 18  # espacio entre líneas de observaciones
+
+        # Mantener espacio entre observaciones y firmas
+        y_position -= max(0, 90 - (len(obs_lines) * 18))
+        
+        # === FIRMAS ===
+        can.setFont("Carlito", 10)
+        # Líneas para firmas
+        can.line(60, y_position, 250, y_position)  # Línea origen
+        can.line(350, y_position, 540, y_position)  # Línea destino
+        y_position -= 15
+        
+        # Etiquetas de firmas
+        can.drawString(60, y_position, f"ENTREGA: {primer_movimiento['sucursal_origen'].upper()}")
+        can.drawString(350, y_position, f"RECIBE: {primer_movimiento['sucursal_destino'].upper()}")
+        y_position -= 20
+        
+        can.drawString(60, y_position, "NOMBRE: ________________________")
+        can.drawString(350, y_position, "NOMBRE: ________________________")
+        y_position -= 15
+        
+        can.save()
+        packet.seek(0)
+        
+        # --- COMBINAR CON LA PLANTILLA 
+        try:
+            plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+
+            if os.path.exists(plantilla_path):
+                plantilla_pdf = PdfReader(plantilla_path)
+                # Primera página: plantilla + overlay
+                page = plantilla_pdf.pages[0]
+                page.merge_page(overlay_pdf.pages[0])
+                output.add_page(page)
+            else:
+                # Si no hay plantilla, solo overlay
+                for page in overlay_pdf.pages:
+                    output.add_page(page)
+        except Exception as e:
+            print(f"Error con plantilla: {e}")
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+            for page in overlay_pdf.pages:
+                output.add_page(page)
+
+        output_stream = BytesIO()
+        output.write(output_stream)
+        output_stream.seek(0)
+        
+        return send_file(
+            output_stream,
+            download_name=f"nota_salida_transferencia_{folio}.pdf",
+            mimetype='application/pdf'
+        )
+    
+    except Exception as e:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return f"Error al generar PDF: {str(e)}", 500
+
+
+
+########################################################
+########################################################
+########################################################
+
+########## PDF DE TRANSFERENCIAS DE ENTRADAS ########## 
+
+@bp_inventario.route('/pdf-transferencia-entrada/<folio>')
+@requiere_permiso('ver_inventario_sucursal')
+def generar_pdf_transferencia_entrada(folio):
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Obtener datos de la transferencia de entrada desde movimientos_inventario
+        cursor.execute("""
+            SELECT mi.*, p.nombre_pieza, p.categoria,
+                   so.nombre AS sucursal_origen, sd.nombre AS sucursal_destino
+            FROM movimientos_inventario mi
+            JOIN piezas p ON mi.id_pieza = p.id_pieza
+            JOIN sucursales sd ON mi.id_sucursal = sd.id  -- sd = sucursal destino (quien recibe)
+            LEFT JOIN sucursales so ON mi.sucursal_destino = so.id  -- so = sucursal origen (quien envía) 
+            WHERE mi.folio_nota_entrada = %s 
+            AND mi.tipo_movimiento = 'transferencia_entrada'
+            ORDER BY p.nombre_pieza
+        """, (folio,))
+        
+        movimientos = cursor.fetchall()
+        
+        if not movimientos:
+            cursor.close()
+            conn.close()
+            return "Transferencia de entrada no encontrada", 404
+        
+        # Datos generales de la transferencia
+        primer_movimiento = movimientos[0]
+        
+        cursor.close()
+        conn.close()
+        
+        # --- GENERAR PDF CON EL MISMO DISEÑO QUE NOTAS DE SALIDA ---
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=letter)
+        
+        # Registrar fuente
+        try:
+            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('Carlito', font_path))
+        except:
+            pass
+        
+        # CONFIGURACIÓN INICIAL 
+        page_width, page_height = letter
+        y_position = page_height - 100
+        
+        # Folio
+        can.setFont("Courier-Bold", 20)
+        can.drawRightString(575, 690, f"#{folio}")
+        
+        # Fecha y hora de emisión
+        can.setFont("Carlito", 12)
+        fecha_emision = primer_movimiento['fecha'].strftime('%d/%m/%Y - %H:%M:%S')
+        can.drawRightString(575, 715, f"{fecha_emision}")
+        
+
+        # === DATOS DE TRANSFERENCIA ===
+        can.setFont("Courier-Bold", 23)
+        can.drawString(482, 732, "ENTRADA")
+        
+        can.setFont("Courier-Bold", 15)
+        can.drawString(36, 715, "TRANSFERENCIA DE EQUIPO")
+
+        # Sucursal origen
+        can.setFont("Carlito", 10)
+        can.drawString(36, 695, f"DESDE: {primer_movimiento['sucursal_origen'].upper()}")
+        
+        # Sucursal destino
+        can.drawString(36, 680, f"HACIA: {primer_movimiento['sucursal_destino'].upper()}")
+        
+        # DATOS DE PIEZAS 
+        y_position -= 40
+        # Encabezado de tabla
+        can.setFont("Helvetica-Bold", 10)
+        can.drawString(36, y_position + 5, "CANT. (PIEZAS)")
+        can.drawString(150, y_position + 5, "DESCRIPCIÓN")
+        y_position -= 15
+        
+        can.setFont("Carlito", 10)
+        for movimiento in movimientos:
+            # Verificar si necesitamos nueva página
+            if y_position < 150:
+                can.showPage()
+                can.setFont("Carlito", 10)
+                y_position = page_height - 60
+            can.drawString(70, y_position + 5, str(movimiento['cantidad']))
+            can.drawString(150, y_position + 5, movimiento['nombre_pieza'].upper())
+            y_position -= 13
+        y_position -= 5
+        
+        
+        # Observaciones (ajustar a varias líneas si es necesario)
+        can.setFont("Carlito", 13)
+        observaciones_texto = primer_movimiento['observaciones'] if primer_movimiento['observaciones'] else "Sin observaciones."
+        max_width = 550  # ancho máximo para el texto
+        from reportlab.lib.utils import simpleSplit
+        obs_lines = simpleSplit(f"OBSERVACIONES: {observaciones_texto}", "Carlito", 13, max_width)
+        for line in obs_lines:
+            can.drawString(36, y_position, line)
+            y_position -= 18  # espacio entre líneas de observaciones
+
+        # Mantener espacio entre observaciones y firmas
+        y_position -= max(0, 90 - (len(obs_lines) * 18))
+        
+        # === FIRMAS ===
+        can.setFont("Carlito", 10)
+        # Líneas para firmas
+        can.line(60, y_position, 250, y_position)  # Línea origen
+        can.line(350, y_position, 540, y_position)  # Línea destino
+        y_position -= 15
+        
+        # Etiquetas de firmas
+        can.drawString(60, y_position, f"ENTREGA: {primer_movimiento['sucursal_origen'].upper()}")
+        can.drawString(350, y_position, f"RECIBE: {primer_movimiento['sucursal_destino'].upper()}")
+        y_position -= 20
+        
+        can.drawString(60, y_position, "NOMBRE: ________________________")
+        can.drawString(350, y_position, "NOMBRE: ________________________")
+        y_position -= 15
+        
+        can.save()
+        packet.seek(0)
+        
+        # --- COMBINAR CON LA PLANTILLA 
+        try:
+            plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+
+            if os.path.exists(plantilla_path):
+                plantilla_pdf = PdfReader(plantilla_path)
+                # Primera página: plantilla + overlay
+                page = plantilla_pdf.pages[0]
+                page.merge_page(overlay_pdf.pages[0])
+                output.add_page(page)
+            else:
+                # Si no hay plantilla, solo overlay
+                for page in overlay_pdf.pages:
+                    output.add_page(page)
+        except Exception as e:
+            print(f"Error con plantilla: {e}")
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+            for page in overlay_pdf.pages:
+                output.add_page(page)
+
+        output_stream = BytesIO()
+        output.write(output_stream)
+        output_stream.seek(0)
+        
+        return send_file(
+            output_stream,
+            download_name=f"nota_entrada_transferencia_{folio}.pdf",
+            mimetype='application/pdf'
+        )
+    
+    except Exception as e:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return f"Error al generar PDF: {str(e)}", 500
+
+
+
+
+
+########################################################
+########################################################
+########################################################
+
+########## PDF DE ALTA DE EQUIPO NUEVO O RENTAS DEL ANTIGUO SISTEMA
+
+
+@bp_inventario.route('/pdf-alta-equipo/<folio>')
+@requiere_permiso('ver_inventario_sucursal')
+def generar_pdf_alta_equipo(folio):
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Obtener datos del movimiento de alta de equipo
+        cursor.execute("""
+            SELECT mi.*, p.nombre_pieza, p.categoria, s.nombre as sucursal_nombre,
+                   u.nombre as usuario_nombre
+            FROM movimientos_inventario mi
+            JOIN piezas p ON mi.id_pieza = p.id_pieza
+            JOIN sucursales s ON mi.id_sucursal = s.id
+            LEFT JOIN usuarios u ON mi.usuario = u.id
+            WHERE mi.folio_nota_entrada = %s 
+            AND mi.tipo_movimiento = 'alta_equipo'
+            ORDER BY mi.fecha ASC, p.nombre_pieza ASC
+        """, (folio,))
+        movimientos = cursor.fetchall()
+        
+        if not movimientos:
+            cursor.close()
+            conn.close()
+            return "Folio de alta no encontrado", 404
+            
+        # Datos básicos
+        primer_movimiento = movimientos[0]
+        sucursal_nombre = primer_movimiento['sucursal_nombre']
+        usuario_nombre = primer_movimiento['usuario_nombre'] or 'No disponible'
+        fecha_movimiento = primer_movimiento['fecha']
+        observaciones = primer_movimiento['descripcion'] or ''
+        
+        cursor.close()
+        conn.close()
+
+        # --- GENERAR PDF CON EL MISMO DISEÑO QUE TRANSFERENCIAS ---
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=letter)
+        
+        # Registrar fuente
+        try:
+            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('Carlito', font_path))
+        except:
+            pass
+        
+        # CONFIGURACIÓN INICIAL 
+        page_width, page_height = letter
+        y_position = page_height - 100
+        
+        # Folio
+        can.setFont("Courier-Bold", 20)
+        can.drawRightString(575, 690, f"#{folio}")
+        
+        # Fecha y hora de emisión
+        can.setFont("Carlito", 12)
+        fecha_emision = fecha_movimiento.strftime('%d/%m/%Y - %H:%M:%S')
+        can.drawRightString(575, 715, f"{fecha_emision}")
+        
+
+        # === DATOS DE ALTA DE EQUIPO ===
+        can.setFont("Courier-Bold", 23)
+        can.drawString(482, 732, "ENTRADA")
+        
+        can.setFont("Courier-Bold", 15)
+        can.drawString(36, 715, "ALTA DE EQUIPO")
+
+        # Sucursal
+        can.setFont("Carlito", 10)
+        can.drawString(36, 695, f"SUCURSAL: {sucursal_nombre.upper()}")
+        
+        # Usuario
+        can.drawString(36, 680, f"REGISTRADO POR: {usuario_nombre.upper()}")
+        
+        # DATOS DE PIEZAS 
+        y_position -= 40
+        # Encabezado de tabla
+        can.setFont("Helvetica-Bold", 10)
+        can.drawString(36, y_position + 5, "CANT. (PIEZAS)")
+        can.drawString(150, y_position + 5, "DESCRIPCIÓN")
+        y_position -= 15
+        
+        can.setFont("Carlito", 10)
+        for movimiento in movimientos:
+            # Verificar si necesitamos nueva página
+            if y_position < 150:
+                can.showPage()
+                y_position = page_height - 100
+            can.drawString(70, y_position + 5, str(movimiento['cantidad']))
+            can.drawString(150, y_position + 5, movimiento['nombre_pieza'].upper())
+            y_position -= 13
+        y_position -= 5
+        
+        
+        # Observaciones (ajustar a varias líneas si es necesario)
+        can.setFont("Carlito", 13)
+        observaciones_texto = observaciones if observaciones else "Sin observaciones."
+        max_width = 550  # ancho máximo para el texto
+        from reportlab.lib.utils import simpleSplit
+        obs_lines = simpleSplit(f"OBSERVACIONES: {observaciones_texto}", "Carlito", 13, max_width)
+        for line in obs_lines:
+            can.drawString(36, y_position, line)
+            y_position -= 18  # espacio entre líneas de observaciones
+
+        # Mantener espacio entre observaciones y firmas
+        y_position -= max(0, 90 - (len(obs_lines) * 18))
+        
+        # === FIRMAS ===
+        can.setFont("Carlito", 10)
+        # Líneas para firmas
+        can.line(60, y_position, 250, y_position)  # Línea sucursal
+        can.line(350, y_position, 540, y_position)  # Línea almacén
+        y_position -= 15
+        
+        # Etiquetas de firmas
+        can.drawString(60, y_position, f"REGISTRA: {sucursal_nombre.upper()}")
+        can.drawString(350, y_position, "RECIBE: ALMACÉN")
+        y_position -= 20
+        
+        can.drawString(60, y_position, "NOMBRE: ________________________")
+        can.drawString(350, y_position, "NOMBRE: ________________________")
+        y_position -= 15
+        
+        can.save()
+        packet.seek(0)
+        
+        # --- COMBINAR CON LA PLANTILLA 
+        try:
+            plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+
+            if os.path.exists(plantilla_path):
+                plantilla_pdf = PdfReader(plantilla_path)
+                for i, page in enumerate(overlay_pdf.pages):
+                    base_page = plantilla_pdf.pages[0]
+                    base_page.merge_page(page)
+                    output.add_page(base_page)
+            else:
+                for page in overlay_pdf.pages:
+                    output.add_page(page)
+                
+        except Exception as e:
+            print(f"Error con plantilla: {e}")
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+            for page in overlay_pdf.pages:
+                output.add_page(page)
+
+        output_stream = BytesIO()
+        output.write(output_stream)
+        output_stream.seek(0)
+        
+        return send_file(
+            output_stream, 
+            download_name=f"nota_alta_equipo_{folio}.pdf", 
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return f"Error al generar PDF: {str(e)}", 500
+
+
+
+
+########################################################
+########################################################
+########################################################
+
+#################### PDF DE REPARACION 
+
+@bp_inventario.route('/pdf-reparacion-lote/<folio>')
+@requiere_permiso('ver_inventario_sucursal')
+def generar_pdf_reparacion_lote(folio):
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    try:
+        # Obtener datos del envío a reparación
+        cursor.execute("""
+            SELECT mi.*, p.nombre_pieza, p.categoria, s.nombre as sucursal_nombre,
+                   u.nombre as usuario_nombre
+            FROM movimientos_inventario mi
+            JOIN piezas p ON mi.id_pieza = p.id_pieza
+            JOIN sucursales s ON mi.id_sucursal = s.id
+            LEFT JOIN usuarios u ON mi.usuario = u.id
+            WHERE mi.folio_nota_salida = %s 
+            AND mi.tipo_movimiento = 'reparacion_lote'
+            ORDER BY mi.fecha ASC, p.nombre_pieza ASC
+        """, (folio,))
+        movimientos = cursor.fetchall()
+        
+        if not movimientos:
+            return "Folio de reparación no encontrado", 404
+            
+        # Datos básicos
+        primer_movimiento = movimientos[0]
+        sucursal_nombre = primer_movimiento['sucursal_nombre']
+        usuario_nombre = primer_movimiento['usuario_nombre'] or 'No disponible'
+        fecha_movimiento = primer_movimiento['fecha']
+        observaciones = primer_movimiento['observaciones'] or primer_movimiento['descripcion'] or ''
+        
+        cursor.close()
+        conn.close()
+
+        # Crear PDF
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=letter)
+        
+        # Registrar fuente
+        try:
+            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('Carlito', font_path))
+                font_name = 'Carlito'
+            else:
+                font_name = 'Helvetica'
+        except:
+            font_name = 'Helvetica'
+
+        # CONFIGURACIÓN INICIAL
+        page_width, page_height = letter
+        y_position = page_height - 100
+        
+        # Folio (esquina superior derecha)
+        can.setFont(font_name, 16)
+        can.drawRightString(502, 670, f"#{folio}")
+        
+        # Fecha y hora de emisión
+        can.setFont(font_name, 10)
+        fecha_emision = fecha_movimiento.strftime('%d/%m/%Y - %H:%M:%S')
+        can.drawRightString(573, 708, f"{fecha_emision}")
+        
+        # === DATOS DE REPARACIÓN ===
+        can.setFont(font_name, 12)
+        can.drawString(62, 703, "ENVÍO A REPARACIÓN")
+        
+        # Sucursal
+        can.setFont(font_name, 10)
+        can.drawString(62, 687, f"SUCURSAL: {sucursal_nombre.upper()}")
+        
+        # Usuario
+        can.drawString(62, 671, f"ENVIADO POR: {usuario_nombre.upper()}")
+        
+        # Número de referencia
+        can.drawString(231, 671, f"REF: REPARACION-{folio}")
+        
+        # DATOS DE PIEZAS
+        y_position -= 85
+        can.setFont(font_name, 10)
+        total_piezas = 0
+        for movimiento in movimientos:
+            # Verificar si necesitamos nueva página
+            if y_position < 150:
+                can.showPage()
+                y_position = page_height - 100
+            
+            can.drawString(70, y_position + 5, str(movimiento['cantidad']))
+            can.drawString(140, y_position + 5, movimiento['nombre_pieza'].upper())
+            total_piezas += movimiento['cantidad']
+            y_position -= 13
+        
+        y_position -= 15
+        
+        # Total de piezas
+        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 10)
+        can.drawString(60, y_position, f"TOTAL DE PIEZAS ENVIADAS: {total_piezas}")
+        y_position -= 15
+        
+        # Motivo
+        can.setFont(font_name, 10)
+        can.drawString(60, y_position, f"MOTIVO: Envío a reparación por lotes")
+        y_position -= 15
+        
+        # Observaciones si existen
+        if observaciones:
+            can.drawString(60, y_position, f"OBSERVACIONES: {observaciones}")
+            y_position -= 15
+        
+        y_position -= 30
+        
+        # Línea separadora
+        can.line(30, y_position + 24, page_width - 30, y_position + 24)
+        y_position -= 35
+        
+        # === FIRMAS ===
+        can.setFont(font_name, 10)
+        # Líneas para firmas
+        can.line(60, y_position, 250, y_position)  # Línea sucursal
+        can.line(350, y_position, 540, y_position)  # Línea taller
+        y_position -= 15
+        
+        # Etiquetas de firmas
+        can.drawString(60, y_position, f"ENTREGA: {sucursal_nombre.upper()}")
+        can.drawString(350, y_position, "RECIBE: TALLER DE REPARACIÓN")
+        y_position -= 20
+        
+        can.drawString(60, y_position, "NOMBRE: ________________________")
+        can.drawString(350, y_position, "NOMBRE: ________________________")
+        y_position -= 15
+        
+        can.drawString(60, y_position, "FIRMA: __________________________")
+        can.drawString(350, y_position, "FIRMA: __________________________")
+        
+        can.save()
+        packet.seek(0)
+        
+        # --- COMBINAR CON LA PLANTILLA SI EXISTE ---
+        try:
+            plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+
+            if os.path.exists(plantilla_path):
+                template_pdf = PdfReader(plantilla_path)
+                for page in overlay_pdf.pages:
+                    template_page = template_pdf.pages[0]
+                    template_page.merge_page(page)
+                    output.add_page(template_page)
+            else:
+                for page in overlay_pdf.pages:
+                    output.add_page(page)
+                
+        except Exception as e:
+            print(f"Error con plantilla: {e}")
+            overlay_pdf = PdfReader(packet)
+            output = PdfWriter()
+            for page in overlay_pdf.pages:
+                output.add_page(page)
+
+        output_stream = BytesIO()
+        output.write(output_stream)
+        output_stream.seek(0)
+        
+        return send_file(
+            output_stream,
+            download_name=f"nota_salida_reparacion_{folio}.pdf",
+            mimetype='application/pdf'
+        )
+    
+    except Exception as e:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+        return f"Error al generar PDF: {str(e)}", 500
 
 
 

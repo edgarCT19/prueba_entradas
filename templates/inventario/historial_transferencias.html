@@ -50,11 +50,14 @@
     </div>
 
     <div class="d-flex flex-wrap align-items-center mb-3 gap-2">
-        <select id="filtroTipo" class="form-select" style="max-width: 200px;">
+        <select id="filtroTipo" class="form-select" style="max-width: 250px;">
             <option value="">Todos los tipos</option>
             <option value="Enviado">Solo Enviados</option>
             <option value="Recibido">Solo Recibidos</option>
             <option value="Alta Equipo">Solo Altas de Equipo</option>
+            <option value="Envío a Reparación">Solo Envíos a Reparación</option>
+            <option value="Equipos Dañados">Solo Equipos Dañados</option>
+            <option value="Finalizar Reparaciones">Solo Finalizar Reparaciones</option>
         </select>
         <button class="btn btn-inventario-filter" onclick="filtrarTransferencias()">
             <i class="bi bi-search me-2"></i>Buscar
@@ -94,10 +97,29 @@
                             <i class="bi bi-plus-circle"></i>
                             {{ transferencia.tipo }}
                         </span>
+                        {% elif transferencia.tipo == 'Envío a Reparación' %}
+                        <span class="badge-transferencia badge-reparacion">
+                            <i class="bi bi-tools"></i>
+                            {{ transferencia.tipo }}
+                        </span>
+                        {% elif transferencia.tipo == 'Equipos Dañados' %}
+                        <span class="badge-transferencia badge-daniadas">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            {{ transferencia.tipo }}
+                        </span>
+                        {% elif transferencia.tipo == 'Finalizar Reparaciones' %}
+                        <span class="badge-transferencia badge-finalizar">
+                            <i class="bi bi-check2-circle"></i>
+                            {{ transferencia.tipo }}
+                        </span>
                         {% endif %}
                     </td>
                     <td>
-                        <strong class="text-primary">#{{ transferencia.folio }}</strong>
+                        {% if transferencia.folio %}
+                            <strong class="text-primary">#{{ transferencia.folio }}</strong>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
                     </td>
                     <td>
                         <span class="text-nowrap">{{ transferencia.fecha }}</span>
@@ -118,6 +140,21 @@
                                 <i class="bi bi-building text-primary me-1"></i>
                                 <span>{{ sucursal.nombre }}</span>
                             </div>
+                        {% elif transferencia.tipo == 'Envío a Reparación' %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-tools text-warning me-1"></i>
+                                <span>Taller/Reparación</span>
+                            </div>
+                        {% elif transferencia.tipo == 'Equipos Dañados' %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-exclamation-triangle text-warning me-1"></i>
+                                <span>{{ sucursal.nombre }}</span>
+                            </div>
+                        {% elif transferencia.tipo == 'Finalizar Reparaciones' %}
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check2-circle text-success me-1"></i>
+                                <span>{{ sucursal.nombre }}</span>
+                            </div>
                         {% endif %}
                     </td>
                     <td>
@@ -130,11 +167,15 @@
                         {% endif %}
                     </td>
                     <td>
-                        <button class="btn btn-outline-danger action-btn-transferencias" 
-                                onclick="verPDFTransferencia('{{ transferencia.tipo }}', '{{ transferencia.folio }}')"
-                                title="Ver PDF">
-                            <i class="bi bi-file-earmark-pdf"></i>
-                        </button>
+                        {% if transferencia.folio and transferencia.tipo in ['Enviado', 'Recibido', 'Alta Equipo', 'Envío a Reparación'] %}
+                            <button class="btn btn-outline-danger action-btn-transferencias" 
+                                    onclick="verPDFTransferencia('{{ transferencia.tipo }}', '{{ transferencia.folio }}')"
+                                    title="Ver PDF">
+                                <i class="bi bi-file-earmark-pdf"></i>
+                            </button>
+                        {% else %}
+                            <span class="text-muted small"><i class="bi bi-dash"></i></span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -227,6 +268,8 @@ function verPDFTransferencia(tipo, folio) {
         endpoint = 'pdf-transferencia-entrada';
     } else if (tipo === 'Alta Equipo') {
         endpoint = 'pdf-alta-equipo';
+    } else if (tipo === 'Envío a Reparación') {
+        endpoint = 'pdf-transferencia-salida'; // Usa el mismo endpoint que transferencia salida
     } else {
         Swal.fire('Error', 'Tipo de documento no reconocido', 'error');
         return;

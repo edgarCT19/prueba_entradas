@@ -125,31 +125,36 @@ def crear_salida_interna():
         try:
             # Obtener siguiente folio consecutivo del sistema
             folio_sucursal = obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id)
-            
+            # Validar que el folio sea un entero
+            try:
+                folio_int = int(folio_sucursal)
+            except Exception:
+                return jsonify({'success': False, 'error': 'Error: El folio generado no es válido.'})
+
             # Crear salida interna
             cursor.execute("""
                 INSERT INTO salidas_internas 
                 (id_sucursal, folio_sucursal, fecha_salida, responsable_entrega, observaciones, estado, usuario_creacion)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (sucursal_id, folio_sucursal, datetime.now(), responsable_entrega, observaciones, 'activa', usuario_id))
-            
+            """, (sucursal_id, folio_int, datetime.now(), responsable_entrega, observaciones, 'activa', usuario_id))
+
             salida_id = cursor.lastrowid
-            
+
             # Procesar cada producto
             for producto in productos:
                 id_pieza = producto.get('id_pieza')
                 cantidad = producto.get('cantidad')
-                
+
                 if not id_pieza or not cantidad or cantidad <= 0:
                     continue
-                
+
                 # Verificar inventario disponible
                 cursor.execute("""
                     SELECT disponibles, rentadas 
                     FROM inventario_sucursal 
                     WHERE id_pieza = %s AND id_sucursal = %s
                 """, (id_pieza, sucursal_id))
-                
+
                 inventario = cursor.fetchone()
                 if not inventario or inventario['disponibles'] < cantidad:
                     conn.rollback()
@@ -160,24 +165,24 @@ def crear_salida_interna():
                         'success': False,
                         'error': f'No hay suficiente inventario disponible de {nombre_pieza}'
                     })
-                
+
                 # Insertar detalle de salida
                 cursor.execute("""
                     INSERT INTO salidas_internas_detalle 
                     (salida_interna_id, id_pieza, cantidad)
                     VALUES (%s, %s, %s)
                 """, (salida_id, id_pieza, cantidad))
-                
+
                 # Actualizar inventario: mover de disponibles a rentadas
                 nuevos_disponibles = inventario['disponibles'] - cantidad
                 nuevas_rentadas = inventario['rentadas'] + cantidad
-                
+
                 cursor.execute("""
                     UPDATE inventario_sucursal 
                     SET disponibles = %s, rentadas = %s 
                     WHERE id_pieza = %s AND id_sucursal = %s
                 """, (nuevos_disponibles, nuevas_rentadas, id_pieza, sucursal_id))
-                
+
                 # Registrar movimiento en historial
                 cursor.execute("""
                     INSERT INTO movimientos_inventario 
@@ -185,16 +190,16 @@ def crear_salida_interna():
                     VALUES (%s, %s, %s, %s, %s, %s)
                 """, (
                     id_pieza, sucursal_id, 'salida_interna', cantidad,
-                    f'Salida interna - Folio: SUC{sucursal_id}-{folio_sucursal:04d} - Responsable: {responsable_entrega}',
+                    f'Salida interna - Folio: SUC{sucursal_id}-{folio_int:04d} - Responsable: {responsable_entrega}',
                     usuario_id
                 ))
-            
+
             conn.commit()
-            
+
             return jsonify({
                 'success': True,
-                'message': f'Salida interna creada correctamente - Folio: SUC{sucursal_id}-{folio_sucursal:04d}',
-                'folio': f'SUC{sucursal_id}-{folio_sucursal:04d}',
+                'message': f'Salida interna creada correctamente - Folio: SUC{sucursal_id}-{folio_int:04d}',
+                'folio': f'SUC{sucursal_id}-{folio_int:04d}',
                 'salida_id': salida_id
             })
             
