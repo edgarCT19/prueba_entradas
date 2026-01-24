@@ -3,6 +3,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/rentas.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/rentas2.css') }}">
 {% endblock %}
 
 
@@ -321,6 +322,13 @@
                     <li>
                       <a class="dropdown-item" href="/cobros_extra/pdf/{{ renta[19] }}" target="_blank">
                         <i class="bi bi-file-earmark-pdf me-2 text-warning"></i>Cobro Extra
+                      </a>
+                    </li>
+                    {% endif %}
+                    {% if renta[27] %}
+                    <li>
+                      <a class="dropdown-item" href="/cobros_retraso/pdf/{{ renta[27] }}" target="_blank">
+                        <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>Cobro Retraso
                       </a>
                     </li>
                     {% endif %}

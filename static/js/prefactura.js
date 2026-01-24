@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Función para redondear según las reglas de efectivo
     function redondearEfectivo(monto) {
+        if (!monto || isNaN(monto)) return 0;
         const entero = Math.floor(monto);
         const centavos = Math.round((monto - entero) * 100);
         if (centavos <= 49) return entero;
@@ -30,7 +31,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         document.getElementById('prefactura-detalle-pago').innerHTML = '<div class="text-center text-muted">Cargando...</div>';
-        document.getElementById('pago-total-pago').textContent = '0.00';
+        
+        // Resetear los campos de totales con validación
+        const totalEl = document.getElementById('pago-total-pago');
+        const subtotalEl = document.getElementById('prefactura-subtotal');
+        const ivaEl = document.getElementById('prefactura-iva');
+        
+        if (totalEl) totalEl.textContent = '0.00';
+        if (subtotalEl) subtotalEl.textContent = '0.00';
+        if (ivaEl) ivaEl.textContent = '0.00';
 
         // Reiniciar campos de pago
         const metodoPago = document.getElementById('metodo-pago-pago');
@@ -88,27 +97,33 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             html += `</tbody></table>`;
 
-            let subtotal = 0;
+            // Calcular totales siguiendo la lógica exacta del backend
+            let subtotalProductos = 0;
             data.detalle.forEach(item => {
-                subtotal += parseFloat(item.subtotal) || 0;
+                subtotalProductos += Math.round((parseFloat(item.subtotal) || 0) * 100) / 100;
             });
 
+            // El costo de traslado se agrega al total antes de calcular IVA (lógica del backend)
+            const costoTraslado = Math.round((parseFloat(data.costo_traslado) || 0) * 100) / 100;
+            const totalSinIva = Math.round((subtotalProductos + costoTraslado) * 100) / 100;
+
             let trasladoHtml = '';
-            if (data.costo_traslado && data.costo_traslado > 0) {
+            if (costoTraslado > 0) {
                 trasladoHtml = `<tr>
                     <td>Traslado <span class="text-muted">(${data.traslado})</span></td>
-                    <td colspan="4" class="text-end">$${parseFloat(data.costo_traslado).toFixed(2)}</td>
+                    <td colspan="4" class="text-end">$${costoTraslado.toFixed(2)}</td>
                 </tr>`;
             }
 
-            const total = parseFloat(data.total_con_iva) || 0;
-            const iva = total - subtotal - (parseFloat(data.costo_traslado) || 0);
+            // Usar el total con IVA del backend y calcular el IVA como diferencia
+            const totalConIva = Math.round((parseFloat(data.total_con_iva) || 0) * 100) / 100;
+            const iva = Math.round((totalConIva - totalSinIva) * 100) / 100;
 
             html += `
                 <table class="table table-sm">
                     <tr>
                         <td>Subtotal</td>
-                        <td colspan="4" class="text-end">$${subtotal.toFixed(2)}</td>
+                        <td colspan="4" class="text-end">$${subtotalProductos.toFixed(2)}</td>
                     </tr>
                     ${trasladoHtml}
                     <tr>
@@ -117,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </tr>
                     <tr>
                         <td><strong>Total</strong></td>
-                        <td colspan="4" class="text-end"><strong>$${total.toFixed(2)}</strong></td>
+                        <td colspan="4" class="text-end"><strong>$${totalConIva.toFixed(2)}</strong></td>
                     </tr>
                 </table>
             `;
@@ -148,6 +163,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.getElementById('prefactura-detalle-pago').innerHTML = html;
 
+            // Actualizar los elementos de totales en el modal
+            const subtotalEl = document.getElementById('prefactura-subtotal');
+            const ivaEl = document.getElementById('prefactura-iva');
+            const totalEl = document.getElementById('pago-total-pago');
+            
+            // El subtotal del modal muestra solo productos (sin traslado)
+            // El IVA se calcula sobre productos + traslado
+            // El total es el total con IVA completo
+            if (subtotalEl) subtotalEl.textContent = subtotalProductos.toFixed(2);
+            if (ivaEl) ivaEl.textContent = iva.toFixed(2);
+            if (totalEl) totalEl.textContent = totalConIva.toFixed(2);
+
             // Lógica para mostrar el monto correcto según tipo de prefactura
             function actualizarMontoPagar() {
                 const tipo = tipoSelect.value;
@@ -177,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     // Pago inicial: mostrar total completo de la renta
                     infoSaldo.style.display = 'none';
-                    document.getElementById('pago-total-pago').textContent = total.toFixed(2);
+                    document.getElementById('pago-total-pago').textContent = totalConIva.toFixed(2);
                     
                     // Asegurar que el campo editable esté oculto
                     montoExactoInput.style.display = 'none';
@@ -185,20 +212,29 @@ document.addEventListener('DOMContentLoaded', function () {
                     montoExactoHelp.style.display = 'none';
                 }
                 
-                // Aplicar redondeo según el tipo y método
+                // Aplicar redondeo según el tipo y método (coincidiendo con lógica Python)
                 if (metodoPago.value === 'EFECTIVO') {
                     if (tipo === 'inicial') {
                         // Pago inicial en efectivo: siempre redondear
                         const montoRedondeado = redondearEfectivo(parseFloat(document.getElementById('pago-total-pago').textContent));
                         document.getElementById('pago-total-pago').textContent = montoRedondeado.toFixed(2);
-                    } else if (tipo === 'abono' && infoRedondeo.aplicar_redondeo) {
-                        // Abono en efectivo: redondear solo si aplica (primer abono efectivo o ya se estableció efectivo)
+                    } else if (tipo === 'abono' && infoRedondeo.aplicar_redondeo_efectivo) {
+                        // Abono en efectivo: redondear si es primer abono O si el primero fue efectivo
+                        // Nota: el redondeo específico (saldo vs monto) se maneja en el backend según sea liquidación o parcial
                         const montoRedondeado = redondearEfectivo(saldoPendiente);
                         document.getElementById('pago-total-pago').textContent = montoRedondeado.toFixed(2);
                     }
                 }
                 
                 document.getElementById('monto-exacto-display').textContent = document.getElementById('pago-total-pago').textContent;
+
+                // Mantener los valores de subtotal e IVA actualizados
+                const subtotalEl = document.getElementById('prefactura-subtotal');
+                const ivaEl = document.getElementById('prefactura-iva');
+                
+                // El subtotal del modal muestra solo productos (sin traslado)
+                if (subtotalEl) subtotalEl.textContent = subtotalProductos.toFixed(2);
+                if (ivaEl) ivaEl.textContent = iva.toFixed(2);
             }
 
             tipoSelect.onchange = actualizarMontoPagar;
@@ -262,11 +298,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         return;
                     }
                     
-                    // Determinar el monto real a cobrar y el cambio
+                    // Determinar el monto real a cobrar y el cambio (coincidiendo con lógica Python)
                     let montoCobrar, cambioCalculado;
                     if (recibido >= saldoPendiente) {
-                        // Liquidación: cobrar según redondeo si aplica
-                        if (metodoPago.value === 'EFECTIVO' && infoRedondeo.aplicar_redondeo) {
+                        // Liquidación: cobrar según redondeo si aplica (primer abono efectivo O si primero fue efectivo)
+                        if (metodoPago.value === 'EFECTIVO' && infoRedondeo.aplicar_redondeo_efectivo) {
                             montoCobrar = redondearEfectivo(saldoPendiente);
                         } else {
                             montoCobrar = saldoPendiente;
@@ -279,8 +315,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             ayudaTexto.className = 'text-success d-block';
                         }
                     } else {
-                        // Abono parcial: cobrar exactamente lo recibido
-                        montoCobrar = recibido;
+                        // Abono parcial: en efectivo redondear si aplica, en otros métodos cobrar exacto
+                        if (metodoPago.value === 'EFECTIVO' && infoRedondeo.aplicar_redondeo_efectivo) {
+                            montoCobrar = redondearEfectivo(recibido);
+                        } else {
+                            montoCobrar = recibido;
+                        }
                         cambioCalculado = 0;
                         
                         const ayudaTexto = document.querySelector('#info-saldo .text-success, #info-saldo .text-info');

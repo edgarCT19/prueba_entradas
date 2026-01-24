@@ -1,54 +1,69 @@
 <div class="modal fade" id="modalPrefacturaPago" tabindex="-1" aria-labelledby="modalPrefacturaPagoLabel"
   aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-lg"><!-- Cambiado a modal-lg -->
-    <form id="form-pago-prefactura-pago" method="post" autocomplete="off" class="modal-content card-borde-azul">
-      <div class="modal-header modal-header-azul">
+  <div class="modal-dialog modal-xl">
+    <form id="form-pago-prefactura-pago" method="post" autocomplete="off" class="modal-content">
+      <div class="modal-header">
         <h5 class="modal-title" id="modalPrefacturaPagoLabel">
-          <i class="bi bi-receipt"></i> Prefactura y Pago
+          <i class="bi bi-receipt me-2"></i>Prefactura y Pago
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
-        <div class="row g-3">
-          <!-- Columna izquierda: Detalles de prefactura -->
-          <div class="col-md-8 d-flex flex-column">
-            <div class="card card-borde-azul mb-3 h-100">
-              <div class="card-header card-header-azul">
-                <h6 class="mb-0"><i class="bi bi-file-earmark-text"></i> Tipo de Prefactura</h6>
+        <div class="row g-3 align-items-stretch">
+          <!-- Columna Izquierda - Detalle de Prefactura -->
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-header text-center">
+                <h6 class="mb-0">
+                  <i class="bi bi-file-earmark-text me-2"></i>Detalle de Prefactura
+                </h6>
               </div>
               <div class="card-body">
-                <label for="tipo_prefactura_pago" class="form-label">Tipo de Prefactura</label>
-                <select id="tipo_prefactura_pago" name="tipo_prefactura" class="form-select">
-                  <option value="inicial">Inicial</option>
-                  <option value="abono">Abono</option>
-                </select>
-              </div>
-            </div>
-            <div class="card card-borde-azul mb-3 h-100">
-              <div class="card-header card-header-azul">
-                <h6 class="mb-0"><i class="bi bi-list-ul"></i> Detalle de la Prefactura</h6>
-              </div>
-              <div class="card-body">
-                <div id="prefactura-detalle-pago">Aquí va el detalle de la prefactura</div>
-
+                <div class="mb-3">
+                  <label for="tipo_prefactura_pago" class="form-label">Tipo de Prefactura</label>
+                  <select id="tipo_prefactura_pago" name="tipo_prefactura" class="form-select">
+                    <option value="inicial">Inicial</option>
+                    <option value="abono">Abono</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <div id="prefactura-detalle-pago">Aquí va el detalle de la prefactura</div>
+                </div>
               </div>
             </div>
           </div>
-          <!-- Columna derecha: Pago -->
-          <div class="col-md-4 d-flex flex-column">
-            <div class="card card-borde-azul mb-3 h-100">
-              <div class="card-header card-header-gris">
-                <h6 class="mb-0"><i class="bi bi-cash-coin"></i> Pago</h6>
+          <!-- Columna Derecha - Información de Pago -->
+          <div class="col-md-6">
+            <div class="card h-100">
+              <div class="card-header text-center">
+                <h6 class="mb-0">
+                  <i class="bi bi-cash-coin me-2"></i>Información de Pago
+                </h6>
               </div>
               <div class="card-body">
-                <div class="mb-2">
-                  <strong>Total a Cobrar: $<span id="pago-total-pago">0.00</span></strong>
+                <div class="mb-3">
+                  <div class="alert alert-info">
+                    <div class="row text-center">
+                      <div class="col-4">
+                        <small>Subtotal</small><br>
+                        <strong>$<span id="prefactura-subtotal">0.00</span></strong>
+                      </div>
+                      <div class="col-4">
+                        <small>IVA (16%)</small><br>
+                        <strong>$<span id="prefactura-iva">0.00</span></strong>
+                      </div>
+                      <div class="col-4">
+                        <small class="text-primary">TOTAL</small><br>
+                        <strong class="text-primary">$<span id="pago-total-pago">0.00</span></strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="info-saldo" class="mb-3" style="display:none;">
+                    <small class="text-muted">Saldo pendiente: $<span id="saldo-pendiente-display">0.00</span></small>
+                    <small class="text-info d-block">Para abonos, ingrese cualquier monto hasta el saldo pendiente</small>
+                  </div>
                 </div>
-                <div id="info-saldo" class="mb-2" style="display:none;">
-                  <small class="text-muted">Saldo pendiente: $<span id="saldo-pendiente-display">0.00</span></small>
-                  <small class="text-info d-block">Para abonos, ingrese cualquier monto hasta el saldo pendiente</small>
-                </div>
-                <div class="mb-2">
+                <div class="mb-3">
                   <label for="facturable" class="form-label">¿Requiere facturación?</label>
                   <select id="facturable" name="facturable" class="form-select" required>
                     <option value="">Selecciona una respuesta</option>
@@ -56,8 +71,8 @@
                     <option value="0">No</option>
                   </select>
                 </div>
-                <div class="mb-2">
-                  <label for="metodo-pago-pago" class="form-label">Método de pago:</label>
+                <div class="mb-3">
+                  <label for="metodo-pago-pago" class="form-label">Método de pago</label>
                   <select id="metodo-pago-pago" name="metodo_pago" class="form-select" required>
                     <option value="EFECTIVO">Efectivo</option>
                     <option value="T.DÉBITO">Tarjeta Débito</option>
@@ -65,18 +80,16 @@
                     <option value="TRANSFERENCIA">Transferencia</option>
                   </select>
                 </div>
-                <div id="pago-efectivo-pago" class="mb-2" style="display:none;">
-                  <label for="monto-recibido-pago" class="form-label">Monto recibido:</label>
-                  <input type="number" id="monto-recibido-pago" name="monto_recibido" class="form-control" min="0"
-                    step="0.01">
-                  <div>Cambio: $<span id="cambio-pago">0.00</span></div>
+                <div id="pago-efectivo-pago" class="mb-3" style="display:none;">
+                  <label for="monto-recibido-pago" class="form-label">Monto recibido</label>
+                  <input type="number" id="monto-recibido-pago" name="monto_recibido" class="form-control" min="0" step="0.01">
+                  <div class="mt-2"><strong>Cambio: $<span id="cambio-pago">0.00</span></strong></div>
                 </div>
-                <div id="pago-seguimiento-pago" class="mb-2" style="display:none;">
-                  <label for="numero-seguimiento-pago" class="form-label">Número de seguimiento:</label>
-                  <input type="text" id="numero-seguimiento-pago" name="numero_seguimiento" class="form-control"
-                    placeholder="Número de seguimiento del banco">
+                <div id="pago-seguimiento-pago" class="mb-3" style="display:none;">
+                  <label for="numero-seguimiento-pago" class="form-label">Número de seguimiento</label>
+                  <input type="text" id="numero-seguimiento-pago" name="numero_seguimiento" class="form-control" placeholder="Número de seguimiento del banco">
                   <div class="mt-2">
-                    <label for="monto-exacto-display" class="form-label">Monto exacto:</label>
+                    <label for="monto-exacto-display" class="form-label">Monto exacto</label>
                     <div class="input-group">
                       <span class="input-group-text">$</span>
                       <input type="number" id="monto-exacto-input" class="form-control" min="0" step="0.01" style="display:none;">
@@ -85,22 +98,18 @@
                     <small class="text-muted" id="monto-exacto-help" style="display:none;">Ingrese el monto del abono</small>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div class="card card-borde-azul h-100">
-              <div class="card-header card-header-azul">
-                <i class="bi bi-chat-dots"></i> Observaciones
-              </div>
-              <div class="card-body">
-                <textarea id="observaciones-prefactura" name="observaciones" class="form-control" rows="3"></textarea>
+                <div class="mb-3">
+                  <label for="observaciones-prefactura" class="form-label">Observaciones</label>
+                  <textarea id="observaciones-prefactura" name="observaciones" class="form-control" rows="3" placeholder="Observaciones adicionales..."></textarea>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
       <div class="modal-footer modal-footer-azul">
-        <button class="btn btn-success" id="btn-generar-pago-pago" type="submit" style="display: none;">
-          Generar pago
+        <button class="btn btn-primary" id="btn-generar-pago-pago" type="submit" style="display: none;">
+          <i class="bi bi-check2-circle me-2"></i>Generar Pago
         </button>
       </div>
     </form>

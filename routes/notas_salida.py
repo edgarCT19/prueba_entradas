@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, redirect, request, send_file, current_app, url_for
+from flask import Blueprint, jsonify, redirect, request, send_file, current_app, url_for, session
 from datetime import datetime, timedelta
 from utils.db import get_db_connection
 # Importar función de folio centralizada desde inventario
@@ -217,209 +217,198 @@ def generar_pdf_nota_salida(nota_salida_id):
         """, (nota_salida_id,))
         piezas = cursor.fetchall()
         
+        # Obtener datos del usuario actual
+        usuario_id = session.get('user_id')
+        usuario_nombre = "USUARIO NO IDENTIFICADO"
+        if usuario_id:
+            cursor.execute("""
+                SELECT CONCAT(nombre, ' ', apellido1, ' ', apellido2) as nombre_completo
+                FROM usuarios 
+                WHERE id = %s
+            """, (usuario_id,))
+            usuario_row = cursor.fetchone()
+            if usuario_row:
+                usuario_nombre = usuario_row['nombre_completo'].upper()
+        
         cursor.close()
         conn.close()
         
         # --- GENERAR PDF COMPLETO ---
         packet = BytesIO()
         can = canvas.Canvas(packet, pagesize=letter)
-        pdfmetrics.registerFont(TTFont('Carlito', os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')))
         
-        # CONFIGURACIÓN INICIAL
+        # Registrar fuente
+        try:
+            font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('Carlito', font_path))
+        except:
+            pass
+        
+        # CONFIGURACIÓN INICIAL 
         page_width, page_height = letter
-        y_position = page_height - 100  # Empezar desde arriba
+        y_position = page_height - 100
         
-        
-        # Folio (esquina superior derecha)
-        can.setFont("Carlito", 16)
-        can.drawRightString(502,670, f"#{str(nota['folio']).zfill(5)}")
+        # Folio
+        can.setFont("Courier-Bold", 20)
+        can.drawRightString(575, 690, f"#{str(nota['folio']).zfill(5)}")
         
         # Fecha y hora de emisión
-        can.setFont("Carlito", 10)
+        can.setFont("Carlito", 12)
         fecha_emision = nota['fecha'].strftime('%d/%m/%Y - %H:%M:%S')
-        can.drawRightString(573, 708, f"{fecha_emision}")
+        can.drawRightString(575, 715, f"{fecha_emision}")
         
+
+        # === DATOS PRINCIPALES ===
+        can.setFont("Courier-Bold", 23)
+        can.drawString(496, 732, "SALIDA")
         
-        # === DATOS DEL CLIENTE ===
-        
-        # Cliente con código
+        can.setFont("Courier-Bold", 15)
+        can.drawString(36, 715, "RENTA DE EQUIPO")
+
+        # Datos del cliente
         can.setFont("Carlito", 10)
         cliente_completo = f"{nota['codigo_cliente']} - {nota['cliente_nombre'].upper()}"
-        can.drawString(62, 703, f"{cliente_completo}")
-       
+        can.drawString(36, 695, f"CLIENTE: {cliente_completo}")
         
-        # Teléfono
-        can.drawString(69, 671, f"{nota['telefono'] or 'No registrado'}")
+        # Teléfono y Referencia en la misma línea
+        can.drawString(36, 680, f"TELÉFONO: {nota['telefono'] or 'NO REGISTRADO'}")
+        referencia = nota['numero_referencia'] or 'SIN NÚMERO DE REFERENCIA'
+        can.drawString(170, 680, f"REFERENCIA: {referencia.upper()}")
         
-        
-        # Número de referencia
-        referencia = nota['numero_referencia'] or 'Sin número de referencia'
-        can.drawString(231, 671, f"{referencia}")
-        
-        
-        # Dirección completa
+        # Dirección del cliente (con ajuste multilínea)
         direccion_completa = nota['calle'] or ''
         if nota['numero_exterior']:
             direccion_completa += f" #{nota['numero_exterior']}"
         if nota['numero_interior']:
-            direccion_completa += f", Int. {nota['numero_interior']}"
+            direccion_completa += f", INT. {nota['numero_interior']}"
         if nota['entre_calles']:
-            direccion_completa += f" (entre {nota['entre_calles']})"
+            direccion_completa += f" (ENTRE {nota['entre_calles']})"
         if nota['colonia']:
             direccion_completa += f", COL. {nota['colonia']}"
         if nota['codigo_postal']:
             direccion_completa += f" - C.P. {nota['codigo_postal']}"
         
-        can.drawString(73, 687, f"{direccion_completa.upper()}")
+        direccion_texto = f"DIRECCIÓN: {direccion_completa.upper()}"
+        from reportlab.lib.utils import simpleSplit
+        direccion_lines = simpleSplit(direccion_texto, "Carlito", 10, 530)
+        y_direccion = 665
+        for line in direccion_lines:
+            can.drawString(36, y_direccion, line)
+            y_direccion -= 12
         
+        # DATOS DE PIEZAS 
+        y_position -= 50
+        # Texto descriptivo antes de la tabla
+        can.setFont("Carlito", 10)
+        can.drawString(36, y_position, "RECIBO DE ANDAMIOS COLOSIO")
+        y_position -= 15
+        can.drawString(36, y_position, "EL SIGUIENTE EQUIPO:")
+        y_position -= 25
         
-        # DATOS DE LA RENTA
-        y_position -= 85
-        # Datos de piezas
+        # Encabezado de tabla
+        can.setFont("Helvetica-Bold", 9)
+        can.drawString(36, y_position + 5, "CANT. (PIEZAS)")
+        can.drawString(150, y_position + 5, "DESCRIPCIÓN")
+        y_position -= 15
+        
         can.setFont("Carlito", 10)
         for pieza in piezas:
             # Verificar si necesitamos nueva página
-            if y_position < 150:
+            if y_position < 200:
                 can.showPage()
                 can.setFont("Carlito", 10)
                 y_position = page_height - 60
-            
-            can.drawString(70, y_position+5, str(pieza['cantidad']))
-            can.drawString(140, y_position+5, pieza['nombre_pieza'].upper())
+            can.drawString(70, y_position + 5, str(pieza['cantidad']))
+            can.drawString(150, y_position + 5, pieza['nombre_pieza'].upper())
             y_position -= 13
-        
         y_position -= 5
-
-        # Período de renta
-        can.setFont("Carlito", 10)
-        fecha_salida = nota['fecha_salida'].strftime('%d/%m/%Y') if nota['fecha_salida'] else 'No definida'
+        
+        # Período de renta (en negritas)
+        can.setFont("Helvetica-Bold", 9)
+        fecha_salida = nota['fecha_salida'].strftime('%d/%m/%Y') if nota['fecha_salida'] else 'NO DEFINIDA'
         if nota['fecha_entrada']:
             fecha_entrada = nota['fecha_entrada'].strftime('%d/%m/%Y')
-            periodo = f"{fecha_salida} al {fecha_entrada}"
+            periodo = f"{fecha_salida} AL {fecha_entrada}"
         else:
-            periodo = f"{fecha_salida} a FECHA INDEFINIDA"
+            periodo = f"{fecha_salida} A FECHA INDEFINIDA"
         
-        can.drawString(60, y_position, f"PERIODO DE RENTA: {periodo}")
+        can.drawString(36, y_position, f"PERÍODO DE RENTA: {periodo}")
         y_position -= 15
 
-        # Dirección de obra
-                # Dirección de obra con saltos de línea automáticos
-        can.setFont("Carlito", 10)
-        direccion_obra_text = f"DIRECCIÓN DE OBRA: {nota['direccion_obra'].upper()}"
-
-        # Función para dividir texto en líneas
-        def dividir_texto_direccion(texto, max_chars=100):
-            if len(texto) <= max_chars:
-                return [texto]
-            
-            lineas = []
-            palabras = texto.split(' ')
-            linea_actual = ''
-            
-            for palabra in palabras:
-                if len(linea_actual + ' ' + palabra) <= max_chars:
-                    linea_actual = linea_actual + ' ' + palabra if linea_actual else palabra
-                else:
-                    if linea_actual:
-                        lineas.append(linea_actual)
-                    linea_actual = palabra
-            
-            if linea_actual:
-                lineas.append(linea_actual)
-            
-            return lineas
-
-        # Dividir la dirección de obra en líneas
-        lineas_direccion = dividir_texto_direccion(direccion_obra_text, 100)
-
-        # Dibujar cada línea
-        for i, linea in enumerate(lineas_direccion):
-            can.drawString(60, y_position, linea)
-            y_position -= 12  # Espacio entre líneas
-
-        y_position -= 3  # Espacio adicional después de la dirección
-
-        # === FECHA LÍMITE DE ENTREGA ===
+        # Fecha límite de entrega (en negritas)
         can.setFont("Helvetica-Bold", 9)
         if nota['fecha_entrada']:
             fecha_limite_obj = nota['fecha_entrada'] + timedelta(days=1)
             fecha_limite = f"{fecha_limite_obj.strftime('%d/%m/%Y')} ANTES DE LAS 9:00 A.M."
-            can.drawString(60, y_position, f"FECHA LÍMITE DE ENTREGA: {fecha_limite}")
+            can.drawString(36, y_position, f"FECHA LÍMITE DE ENTREGA: {fecha_limite}")
         else:
-            can.drawString(60, y_position, "FECHA LÍMITE DE ENTREGA: INDEFINIDA")
-
-        y_position -= 30
-
-        # Línea separadora
-        can.line(30, y_position+24 , page_width - 30, y_position+24)
-        
+            can.drawString(36, y_position, "FECHA LÍMITE DE ENTREGA: INDEFINIDA")
         y_position -= 15
 
-
-        # ... después de la línea: can.line(30, y_position+24 , page_width - 30, y_position+24)
-        # y_position -= 15
-
-        # Segunda página: Términos y condiciones y firmas
-        can.showPage()
-        y_position = page_height - 60  # Reinicia la posición para la nueva página
-
-        # Título
-        can.setFont("Carlito", 11)
-        can.drawString(60, y_position, "TÉRMINOS Y CONDICIONES")
-        y_position -= 20
-
-        # Párrafo de términos y condiciones
-        styles = getSampleStyleSheet()
-        style_normal = ParagraphStyle(
-            'CustomNormal',
-            parent=styles['Normal'],
-            fontName='Carlito',
-            fontSize=9,
-            leading=11,
-            leftIndent=0,
-            rightIndent=0,
-            spaceAfter=6,
-        )
-
-        texto_completo = """
-        POR MEDIO DE LA PRESENTE, RECONOZCO HABER RECIBIDO EN PERFECTO ESTADO Y FUNCIONANDO EL EQUIPO DESCRITO ANTERIORMENTE.<br/>
-        ME COMPROMETO A:<br/>
-        • HACER USO RESPONSABLE DEL EQUIPO RENTADO.<br/>
-        • MANTENER EL EQUIPO EN LAS MISMAS CONDICIONES EN QUE FUE ENTREGADO.<br/>
-        • DEVOLVER EL EQUIPO COMPLETO EN LA FECHA ACORDADA.<br/>
-        • RESPONDER POR CUALQUIER DAÑO, PÉRDIDA O ROBO DEL EQUIPO DURANTE EL PERÍODO DE RENTA.<br/>
-        • CUMPLIR CON TODAS LAS CONDICIONES ESTABLECIDAS EN EL CONTRATO DE RENTA.<br/><br/>
-        <b>IMPORTANTE:</b> EN CASO DE NO DEVOLVER EL EQUIPO EN LA FECHA Y HORA LÍMITE ESTABLECIDA, ACEPTO QUE SE ME REALIZARÁ EL CARGO DE COBRO CORRESPONDIENTE POR DÍA DE RETRASO;
-        EL COBRO SE CALCULARÁ CON BASE EN LA TARIFA DIARIA ORIGINAL DE LA RENTA.<br/><br/>
-        LA EMPRESA SE DESLINDA DE CUALQUIER RESPONSABILIDAD POR ACCIDENTES O DAÑOS CAUSADOS POR EL MAL USO DEL EQUIPO. EL CLIENTE ASUME TODA RESPONSABILIDAD DURANTE EL PERÍODO DE RENTA.
-        """
-
-        p = Paragraph(texto_completo, style_normal)
-        ancho_disponible = page_width - 120
-        alto_disponible = y_position - 150
-        w, h = p.wrap(ancho_disponible, alto_disponible)
-        p.drawOn(can, 60, y_position - h)
-        y_position -= h + 20
-
-        # Firmas
+        # Dirección de obra
         can.setFont("Carlito", 10)
-        can.line(60, y_position, 250, y_position)  # Línea cliente
-        can.line(350, y_position, 540, y_position)  # Línea empresa
-        y_position -= 15
-        can.drawString(60, y_position, "FIRMA DEL LA EMPRESA")
-        can.drawString(350, y_position, "FIRMA DEL CLIENTE")
+        direccion_obra_texto = f"DIRECCIÓN DE OBRA: {nota['direccion_obra'].upper()}"
+        max_width = 550
+        from reportlab.lib.utils import simpleSplit
+        obra_lines = simpleSplit(direccion_obra_texto, "Carlito", 13, max_width)
+        for line in obra_lines:
+            can.drawString(36, y_position, line)
+            y_position -= 10
+
+        # Mantener espacio antes de términos
+        y_position -= max(0, 30 - (len(obra_lines) * 18))
+        
+        # === TÉRMINOS Y CONDICIONES ===
+        can.setFont("Carlito", 11)
+        can.drawString(36, y_position, "TÉRMINOS Y CONDICIONES:")
         y_position -= 20
-        can.drawString(60, y_position, "ENTREGA: ________________________")
-        can.drawString(350, y_position, "RECIBE: ________________________")
+
+        # Texto de términos (más compacto)
+        can.setFont("Carlito", 9)
+        terminos_texto = """POR MEDIO DE LA PRESENTE, RECONOZCO HABER RECIBIDO EN PERFECTO ESTADO Y FUNCIONANDO EL EQUIPO DESCRITO ANTERIORMENTE. 
+        ME COMPROMETO A: • HACER USO RESPONSABLE DEL EQUIPO • MANTENER EL EQUIPO EN LAS MISMAS CONDICIONES • DEVOLVER EL
+        EQUIPO COMPLETO EN LA FECHA ACORDADA • RESPONDER POR DAÑOS, PÉRDIDA O ROBO • CUMPLIR CON TODAS LAS CONDICIONES DEL CONTRATO.
+
+        IMPORTANTE: EN CASO DE NO DEVOLVER EL EQUIPO EN LA FECHA LÍMITE, SE REALIZARÁ EL COBRO POR CADA DÍA DE RETRASO."""
+
+        terminos_lines = simpleSplit(terminos_texto, "Carlito", 9, 520)
+        for line in terminos_lines:
+            if y_position < 100:
+                can.showPage()
+                y_position = page_height - 60
+            can.drawString(36, y_position, line)
+            y_position -= 12
+        
+        y_position -= 50
+        
+        # === FIRMAS ===
+        can.setFont("Carlito", 10)
+        # Líneas para firmas
+        can.line(60, y_position, 250, y_position)  # Línea empresa
+        can.line(350, y_position, 540, y_position)  # Línea cliente
+        y_position -= 15
+        
+        # Etiquetas de firmas
+        can.drawString(60, y_position, "ENTREGA: ANDAMIOS COLOSIO")
+        can.drawString(350, y_position, "RECIBE: _______________________")
+        y_position -= 10
+        
+        can.drawString(60, y_position, f"NOMBRE: {usuario_nombre}")
+        y_position -= 15
 
         # Observaciones si existen
         if nota['observaciones']:
-            y_position -= 40
-            can.setFont("Carlito", 10)
-            can.drawString(60, y_position, "OBSERVACIONES:")
-            y_position -= 12
-            can.setFont("Carlito", 9)
-            can.drawString(60, y_position, nota['observaciones'])
+            y_position -= 20
+            can.setFont("Carlito", 13)
+            obs_texto = f"OBSERVACIONES: {nota['observaciones'].upper()}"
+            obs_lines = simpleSplit(obs_texto, "Carlito", 13, 550)
+            for line in obs_lines:
+                if y_position < 50:
+                    can.showPage()
+                    y_position = page_height - 60
+                can.drawString(36, y_position, line)
+                y_position -= 18
 
         
         # Guardar el canvas
@@ -429,7 +418,7 @@ def generar_pdf_nota_salida(nota_salida_id):
         # --- COMBINAR CON LA PLANTILLA ---
         try:
 
-            plantilla_path = os.path.join(current_app.root_path, 'static/notas/salida_plantilla.pdf')
+            plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
             overlay_pdf = PdfReader(packet)
             output = PdfWriter()
 

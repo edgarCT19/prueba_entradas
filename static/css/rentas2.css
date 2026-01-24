@@ -1,0 +1,530 @@
+/* ===== MODAL COBRO EXTRA ===== */
+#modalCobroExtra .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalCobroExtra .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalCobroExtra .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalCobroExtra .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalCobroExtra .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalCobroExtra .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalCobroExtra .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.15);
+    overflow: hidden;
+}
+
+#modalCobroExtra .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalCobroExtra .table thead th {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%) !important;
+    border-color: #1a2d4a !important;
+    color: #fff !important;
+    font-weight: 600;
+    padding: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-size: 0.9rem;
+}
+
+#modalCobroExtra .table td {
+    padding: 0.5rem;
+    background: #fff;
+    border-color: #dee2e6;
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+
+#modalCobroExtra .form-label {
+    color: #23395d;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#modalCobroExtra .form-control,
+#modalCobroExtra .form-select {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 1rem;
+    background: #fff;
+    transition: all 0.2s ease;
+}
+
+#modalCobroExtra .form-control:focus,
+#modalCobroExtra .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.2rem rgba(35, 57, 93, 0.25);
+}
+
+#modalCobroExtra .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.2s ease;
+}
+
+#modalCobroExtra .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalCobroExtra .btn-primary:hover {
+    background: #1a2d4a;
+    border-color: #1a2d4a;
+    transform: translateY(-1px);
+}
+
+#modalCobroExtra .btn-success {
+    background: #28a745;
+    border-color: #28a745;
+    color: #fff;
+}
+
+#modalCobroExtra .btn-success:hover {
+    background: #218838;
+    border-color: #1e7e34;
+    transform: translateY(-1px);
+}
+
+#modalCobroExtra .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+#modalCobroExtra .btn-secondary:hover {
+    background: #545b62;
+    border-color: #545b62;
+    transform: translateY(-1px);
+}
+
+#modalCobroExtra .alert-info {
+    background: rgba(23, 162, 184, 0.1);
+    border: 2px solid #17a2b8;
+    border-radius: 8px;
+    color: #0c5460;
+    font-weight: 500;
+}
+
+#modalCobroExtra .alert-info .text-primary {
+    color: #23395d !important;
+    font-weight: 700;
+}
+
+#modalCobroExtra .modal-body {
+    padding: 2rem;
+    background: #f8f9fa;
+}
+
+#modalCobroExtra .table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+    max-height: 300px;
+}
+
+/* Animaciones suaves */
+#modalCobroExtra .card {
+    transition: all 0.3s ease;
+}
+
+#modalCobroExtra .card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(35, 57, 93, 0.2);
+}
+
+/* Responsive adjustments para modal cobro extra */
+@media (max-width: 768px) {
+    #modalCobroExtra .col-md-7,
+    #modalCobroExtra .col-md-5 {
+        margin-bottom: 1rem;
+    }
+    
+    #modalCobroExtra .card-body {
+        padding: 1rem;
+    }
+    
+    #modalCobroExtra .modal-body {
+        padding: 1rem;
+    }
+}
+
+
+/* #########################################*/
+/* #########################################*/
+/* #########################################*/
+
+/* ===== MODAL DETALLE DE RENTA ===== */
+#modalDetalleRenta .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalDetalleRenta .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalDetalleRenta .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalDetalleRenta .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalDetalleRenta .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalDetalleRenta .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalDetalleRenta .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.15);
+    overflow: hidden;
+}
+
+#modalDetalleRenta .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalDetalleRenta .table thead th {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%) !important;
+    border-color: #1a2d4a !important;
+    color: #fff !important;
+    font-weight: 600;
+    padding: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-size: 0.9rem;
+}
+
+#modalDetalleRenta .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(35, 57, 93, 0.05);
+}
+
+#modalDetalleRenta .table td {
+    padding: 0.75rem;
+    background: #fff;
+    border-color: #dee2e6;
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+#modalDetalleRenta .badge {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.8rem;
+    font-weight: 600;
+}
+
+#modalDetalleRenta .alert {
+    border-radius: 8px;
+    border: 2px solid;
+    font-weight: 500;
+}
+
+#modalDetalleRenta .alert-success {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: #28a745;
+    color: #1e6332;
+}
+
+#modalDetalleRenta .alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: #ffc107;
+    color: #856404;
+}
+
+#modalDetalleRenta .alert-danger {
+    background: rgba(220, 53, 69, 0.1);
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+#modalDetalleRenta .alert-info {
+    background: rgba(23, 162, 184, 0.1);
+    border-color: #17a2b8;
+    color: #0c5460;
+}
+
+#modalDetalleRenta .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 1.2rem;
+    transition: all 0.2s ease;
+}
+
+#modalDetalleRenta .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalDetalleRenta .btn-primary:hover {
+    background: #1a2d4a;
+    border-color: #1a2d4a;
+    transform: translateY(-1px);
+}
+
+#modalDetalleRenta .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+#modalDetalleRenta .btn-secondary:hover {
+    background: #545b62;
+    border-color: #545b62;
+    transform: translateY(-1px);
+}
+
+#modalDetalleRenta .btn-outline-primary {
+    border-color: #23395d;
+    color: #23395d;
+}
+
+#modalDetalleRenta .btn-outline-primary:hover {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalDetalleRenta .btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+#modalDetalleRenta .row.mb-2 {
+    margin-bottom: 0.75rem !important;
+}
+
+#modalDetalleRenta .row.mb-2 .col-sm-4 {
+    color: #23395d;
+    font-weight: 600;
+}
+
+#modalDetalleRenta .row.mb-2 .col-sm-8 {
+    color: #495057;
+}
+
+#modalDetalleRenta .h6.text-primary {
+    color: #23395d !important;
+}
+
+#modalDetalleRenta .table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Animaciones suaves */
+#modalDetalleRenta .card {
+    transition: all 0.3s ease;
+}
+
+#modalDetalleRenta .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(35, 57, 93, 0.2);
+}
+
+#modalDetalleRenta .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(35, 57, 93, 0.05);
+}
+
+#modalDetalleRenta .table td {
+    padding: 0.75rem;
+    background: #fff;
+    border-color: #dee2e6;
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+#modalDetalleRenta .badge {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.8rem;
+    font-weight: 600;
+}
+
+#modalDetalleRenta .alert {
+    border-radius: 8px;
+    border: 2px solid;
+    font-weight: 500;
+}
+
+#modalDetalleRenta .alert-success {
+    background: rgba(40, 167, 69, 0.1);
+    border-color: #28a745;
+    color: #1e6332;
+}
+
+#modalDetalleRenta .alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: #ffc107;
+    color: #856404;
+}
+
+#modalDetalleRenta .alert-danger {
+    background: rgba(220, 53, 69, 0.1);
+    border-color: #dc3545;
+    color: #721c24;
+}
+
+#modalDetalleRenta .alert-info {
+    background: rgba(23, 162, 184, 0.1);
+    border-color: #17a2b8;
+    color: #0c5460;
+}
+
+#modalDetalleRenta .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.5rem 1.2rem;
+    transition: all 0.2s ease;
+}
+
+#modalDetalleRenta .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalDetalleRenta .btn-primary:hover {
+    background: #1a2d4a;
+    border-color: #1a2d4a;
+    transform: translateY(-1px);
+}
+
+#modalDetalleRenta .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+#modalDetalleRenta .btn-secondary:hover {
+    background: #545b62;
+    border-color: #545b62;
+    transform: translateY(-1px);
+}
+
+#modalDetalleRenta .btn-outline-primary {
+    border-color: #23395d;
+    color: #23395d;
+}
+
+#modalDetalleRenta .btn-outline-primary:hover {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalDetalleRenta .btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+#modalDetalleRenta .row.mb-2 {
+    margin-bottom: 0.75rem !important;
+}
+
+#modalDetalleRenta .row.mb-2 .col-sm-4 {
+    color: #23395d;
+    font-weight: 600;
+}
+
+#modalDetalleRenta .row.mb-2 .col-sm-8 {
+    color: #495057;
+}
+
+#modalDetalleRenta .h6.text-primary {
+    color: #23395d !important;
+}
+
+#modalDetalleRenta .table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Animaciones suaves */
+#modalDetalleRenta .card {
+    transition: all 0.3s ease;
+}
+
+#modalDetalleRenta .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(35, 57, 93, 0.2);
+}

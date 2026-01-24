@@ -47,17 +47,32 @@ let detallesCobroRetraso = [];
 let diasRetraso = 0;
 let notaEntradaId = null;
 
+// Función para redondear según las reglas de efectivo
+function redondearEfectivo(monto) {
+    const entero = Math.floor(monto);
+    const centavos = Math.round((monto - entero) * 100);
+    if (centavos <= 49) return entero;
+    if (centavos >= 60) return entero + 1;
+    return entero + 0.5;
+}
+
 
 function cargarCobroRetraso(rentaId) {
     rentaIdCobroRetrasoActual = rentaId;
     fetch(`/cobros_retraso/preview/${rentaId}`)
         .then(resp => {
             if (!resp.ok) {
-                throw new Error('No se encontró la nota de entrada o la renta');
+                return resp.json().then(errorData => {
+                    throw new Error(errorData.error || 'No se encontró la nota de entrada o la renta');
+                });
             }
             return resp.json();
         })
         .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
             notaEntradaId = data.nota_entrada_id;
             diasRetraso = data.dias_retraso;
             detallesCobroRetraso = data.detalles || [];
@@ -97,7 +112,12 @@ function cargarCobroRetraso(rentaId) {
             modal.show();
         })
         .catch(err => {
-            Swal.fire('Error', err.message, 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'No se puede cobrar retraso',
+                text: err.message,
+                confirmButtonText: 'Entendido'
+            });
             console.error(err);
         });
 }
@@ -115,7 +135,15 @@ function calcularTotalesCobroRetraso() {
 
     // IVA y total
     const iva = subtotal * 0.16;
-    const total = subtotal + iva;
+    let total = subtotal + iva;
+    
+    // Aplicar redondeo para efectivo
+    const metodoPago = document.getElementById('cobro-retraso-metodo-pago').value;
+    if (metodoPago === 'efectivo') {
+        const totalOriginal = total;
+        total = redondearEfectivo(total);
+        console.log(`Redondeo aplicado: ${totalOriginal.toFixed(2)} -> ${total.toFixed(2)}`);
+    }
 
     // Mostrar totales
     document.getElementById('subtotal-cobro-retraso').textContent = subtotal.toFixed(2);
@@ -123,16 +151,18 @@ function calcularTotalesCobroRetraso() {
     document.getElementById('total-cobro-retraso-con-iva').textContent = total.toFixed(2);
 
     // Monto recibido y cambio
-    const metodoPago = document.getElementById('cobro-retraso-metodo-pago').value;
     const montoRecibidoInput = document.getElementById('cobro-retraso-monto-recibido');
     const cambioInput = document.getElementById('cobro-retraso-cambio');
+    const grupoSeguimiento = document.getElementById('grupo-numero-seguimiento-retraso');
 
     if (['transferencia', 'tarjeta_debito', 'tarjeta_credito'].includes(metodoPago)) {
         montoRecibidoInput.value = total.toFixed(2);
         montoRecibidoInput.readOnly = true;
         cambioInput.value = '0.00';
+        grupoSeguimiento.style.display = '';
     } else {
         montoRecibidoInput.readOnly = false;
+        grupoSeguimiento.style.display = 'none';
         const montoRecibido = parseFloat(montoRecibidoInput.value) || 0;
         const cambio = montoRecibido > total ? (montoRecibido - total) : 0;
         cambioInput.value = cambio.toFixed(2);
@@ -140,19 +170,55 @@ function calcularTotalesCobroRetraso() {
 }
 
 function guardarCobroRetraso() {
+    // Validaciones del frontend
+    const metodoPago = document.getElementById('cobro-retraso-metodo-pago').value;
+    const facturable = document.getElementById('cobro-retraso-facturable').value;
+    
+    if (!metodoPago) {
+        Swal.fire('Error', 'Debe seleccionar un método de pago', 'error');
+        return;
+    }
+    
+    if (!facturable) {
+        Swal.fire('Error', 'Debe especificar si requiere facturación', 'error');
+        return;
+    }
+    
+    // Validación para efectivo
+    if (metodoPago === 'efectivo') {
+        const montoRecibido = parseFloat(document.getElementById('cobro-retraso-monto-recibido').value) || 0;
+        const total = parseFloat(document.getElementById('total-cobro-retraso-con-iva').textContent) || 0;
+        if (montoRecibido < total) {
+            Swal.fire('Error', 'El monto recibido debe ser mayor o igual al total', 'error');
+            return;
+        }
+    } else {
+        // Validación para métodos no efectivo
+        const numeroSeguimiento = document.getElementById('numero-seguimiento-retraso').value.trim();
+        if (!numeroSeguimiento) {
+            Swal.fire('Error', 'Debe ingresar el número de seguimiento', 'error');
+            return;
+        }
+    }
+
     // Recolectar datos
     const trasladoExtra = document.getElementById('cobro-retraso-traslado-extra').value;
     const costoTrasladoExtra = parseFloat(document.getElementById('cobro-retraso-costo-traslado').value) || 0;
-    const metodoPago = document.getElementById('cobro-retraso-metodo-pago').value;
     const montoRecibido = parseFloat(document.getElementById('cobro-retraso-monto-recibido').value) || 0;
     const cambio = parseFloat(document.getElementById('cobro-retraso-cambio').value) || 0;
-    const facturable = parseInt(document.getElementById('cobro-retraso-facturable').value) || 0;
     const numeroSeguimiento = document.getElementById('numero-seguimiento-retraso').value;
     const observaciones = document.getElementById('cobro-retraso-observaciones').value;
 
     const subtotal = parseFloat(document.getElementById('subtotal-cobro-retraso').textContent) || 0;
     const iva = parseFloat(document.getElementById('iva-cobro-retraso').textContent) || 0;
     const total = parseFloat(document.getElementById('total-cobro-retraso-con-iva').textContent) || 0;
+    
+    // Deshabilitar botón durante el envío
+    const btnGuardar = document.querySelector('#form-cobro-retraso button[type="submit"]');
+    if (btnGuardar) {
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
+    }
 
     // Enviar datos
     fetch(`/cobros_retraso/guardar/${rentaIdCobroRetrasoActual}`, {
@@ -168,14 +234,20 @@ function guardarCobroRetraso() {
             monto_recibido: montoRecibido,
             cambio,
             observaciones,
-            facturable,
+            facturable: parseInt(facturable),
             traslado_extra: trasladoExtra,
             costo_traslado_extra: costoTrasladoExtra,
-            estado_pago: 'Pagado',
             numero_seguimiento: numeroSeguimiento
         })
     })
-        .then(resp => resp.json())
+        .then(resp => {
+            if (!resp.ok) {
+                return resp.json().then(errorData => {
+                    throw new Error(errorData.error || 'Error desconocido');
+                });
+            }
+            return resp.json();
+        })
         .then(data => {
             if (data.success) {
                 Swal.fire({
@@ -193,11 +265,23 @@ function guardarCobroRetraso() {
                     window.location.reload();
                 });
             } else {
-                Swal.fire('Error', 'No se pudo guardar el cobro por retraso.', 'error');
+                Swal.fire('Error', data.error || 'No se pudo guardar el cobro por retraso.', 'error');
             }
         })
         .catch(err => {
-            Swal.fire('Error', 'Error inesperado al guardar.', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al guardar',
+                text: err.message,
+                confirmButtonText: 'Entendido'
+            });
             console.error(err);
+        })
+        .finally(() => {
+            // Rehabilitar botón
+            if (btnGuardar) {
+                btnGuardar.disabled = false;
+                btnGuardar.innerHTML = 'Guardar Cobro';
+            }
         });
 }

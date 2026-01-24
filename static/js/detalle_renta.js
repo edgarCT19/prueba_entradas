@@ -26,10 +26,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     cargarProductos(data.productos);
 
                     // Cargar historial de pagos/prefacturas
+                    const totalConIva = parseFloat(data.renta.total_con_iva) || parseFloat(data.renta.total) || 0;
                     fetch(`/prefactura/api/pagos/${rentaId}`)
                         .then(resp => resp.json())
                         .then(pagos => {
-                            cargarHistorialPagos(pagos, data.renta.total);
+                            cargarHistorialPagos(pagos, totalConIva);
                         })
                         .catch(err => {
                             console.error('Error al cargar pagos:', err);
@@ -96,12 +97,22 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('detalle-fecha-limite').textContent = renta.fecha_limite;
         document.getElementById('detalle-traslado').textContent = renta.traslado;
 
-        // Totales
-        const subtotal = renta.total - renta.iva - renta.costo_traslado;
-        document.getElementById('detalle-subtotal').textContent = `$${subtotal.toFixed(2)}`;
-        document.getElementById('detalle-costo-traslado').textContent = `$${renta.costo_traslado.toFixed(2)}`;
-        document.getElementById('detalle-iva').textContent = `$${renta.iva.toFixed(2)}`;
-        document.getElementById('detalle-total').textContent = `$${renta.total.toFixed(2)}`;
+        // Totales - Cálculos corregidos siguiendo la lógica del backend
+        // Backend: total_sin_iva = subtotal_productos + costo_traslado
+        // Backend: total_con_iva = total_sin_iva + iva
+        // Despejando: subtotal_productos = total_con_iva - iva - costo_traslado
+        
+        const totalConIva = parseFloat(renta.total_con_iva) || parseFloat(renta.total) || 0;
+        const iva = parseFloat(renta.iva) || 0;
+        const costoTraslado = parseFloat(renta.costo_traslado) || 0;
+        
+        // Subtotal de productos solamente (sin incluir traslado)
+        const subtotalProductos = Math.round((totalConIva - iva - costoTraslado) * 100) / 100;
+        
+        document.getElementById('detalle-subtotal').textContent = `$${subtotalProductos.toFixed(2)}`;
+        document.getElementById('detalle-costo-traslado').textContent = `$${costoTraslado.toFixed(2)}`;
+        document.getElementById('detalle-iva').textContent = `$${iva.toFixed(2)}`;
+        document.getElementById('detalle-total').textContent = `$${totalConIva.toFixed(2)}`;
 
         // Observaciones
         if (renta.observaciones) {

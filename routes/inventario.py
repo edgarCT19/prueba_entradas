@@ -941,7 +941,7 @@ def enviar_lote_reparacion():
                     (id_pieza, id_sucursal, tipo_movimiento, cantidad, descripcion, usuario, folio_nota_salida)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (id_pieza, sucursal_id, 'reparacion_lote', cantidad, 
-                     f'Lote reparación - {observaciones}', usuario_id, folio))
+                     f'Equipo dañado - {observaciones}', usuario_id, folio))
 
             conn.commit()
             
@@ -1830,7 +1830,7 @@ def generar_pdf_alta_equipo(folio):
 ########################################################
 ########################################################
 
-#################### PDF DE REPARACION 
+#################### PDF DE REPARACIÓN 
 
 @bp_inventario.route('/pdf-reparacion-lote/<folio>')
 @requiere_permiso('ver_inventario_sucursal')
@@ -1855,6 +1855,8 @@ def generar_pdf_reparacion_lote(folio):
         movimientos = cursor.fetchall()
         
         if not movimientos:
+            cursor.close()
+            conn.close()
             return "Folio de reparación no encontrado", 404
             
         # Datos básicos
@@ -1867,7 +1869,7 @@ def generar_pdf_reparacion_lote(folio):
         cursor.close()
         conn.close()
 
-        # Crear PDF
+        # --- GENERAR PDF CON EL MISMO DISEÑO QUE ALTA DE EQUIPO ---
         packet = BytesIO()
         can = canvas.Canvas(packet, pagesize=letter)
         
@@ -1876,79 +1878,72 @@ def generar_pdf_reparacion_lote(folio):
             font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
             if os.path.exists(font_path):
                 pdfmetrics.registerFont(TTFont('Carlito', font_path))
-                font_name = 'Carlito'
-            else:
-                font_name = 'Helvetica'
         except:
-            font_name = 'Helvetica'
-
-        # CONFIGURACIÓN INICIAL
+            pass
+        
+        # CONFIGURACIÓN INICIAL 
         page_width, page_height = letter
         y_position = page_height - 100
         
-        # Folio (esquina superior derecha)
-        can.setFont(font_name, 16)
-        can.drawRightString(502, 670, f"#{folio}")
+        # Folio
+        can.setFont("Courier-Bold", 20)
+        can.drawRightString(575, 690, f"#{folio}")
         
         # Fecha y hora de emisión
-        can.setFont(font_name, 10)
+        can.setFont("Carlito", 12)
         fecha_emision = fecha_movimiento.strftime('%d/%m/%Y - %H:%M:%S')
-        can.drawRightString(573, 708, f"{fecha_emision}")
+        can.drawRightString(575, 715, f"{fecha_emision}")
         
+
         # === DATOS DE REPARACIÓN ===
-        can.setFont(font_name, 12)
-        can.drawString(62, 703, "ENVÍO A REPARACIÓN")
+        can.setFont("Courier-Bold", 23)
+        can.drawString(496, 732, "SALIDA")
         
+        can.setFont("Courier-Bold", 15)
+        can.drawString(36, 715, "EQUIPO DAÑADO")
+
         # Sucursal
-        can.setFont(font_name, 10)
-        can.drawString(62, 687, f"SUCURSAL: {sucursal_nombre.upper()}")
+        can.setFont("Carlito", 10)
+        can.drawString(36, 695, f"SUCURSAL: {sucursal_nombre.upper()}")
         
         # Usuario
-        can.drawString(62, 671, f"ENVIADO POR: {usuario_nombre.upper()}")
+        can.drawString(36, 680, f"ENVIADO POR: {usuario_nombre.upper()}")
         
-        # Número de referencia
-        can.drawString(231, 671, f"REF: REPARACION-{folio}")
+        # DATOS DE PIEZAS 
+        y_position -= 40
+        # Encabezado de tabla
+        can.setFont("Helvetica-Bold", 10)
+        can.drawString(36, y_position + 5, "CANT. (PIEZAS)")
+        can.drawString(150, y_position + 5, "DESCRIPCIÓN")
+        y_position -= 15
         
-        # DATOS DE PIEZAS
-        y_position -= 85
-        can.setFont(font_name, 10)
-        total_piezas = 0
+        can.setFont("Carlito", 10)
         for movimiento in movimientos:
             # Verificar si necesitamos nueva página
             if y_position < 150:
                 can.showPage()
                 y_position = page_height - 100
-            
             can.drawString(70, y_position + 5, str(movimiento['cantidad']))
-            can.drawString(140, y_position + 5, movimiento['nombre_pieza'].upper())
-            total_piezas += movimiento['cantidad']
+            can.drawString(150, y_position + 5, movimiento['nombre_pieza'].upper())
             y_position -= 13
+        y_position -= 5
         
-        y_position -= 15
         
-        # Total de piezas
-        can.setFont(font_name + '-Bold' if font_name == 'Helvetica' else font_name, 10)
-        can.drawString(60, y_position, f"TOTAL DE PIEZAS ENVIADAS: {total_piezas}")
-        y_position -= 15
-        
-        # Motivo
-        can.setFont(font_name, 10)
-        can.drawString(60, y_position, f"MOTIVO: Envío a reparación por lotes")
-        y_position -= 15
-        
-        # Observaciones si existen
-        if observaciones:
-            can.drawString(60, y_position, f"OBSERVACIONES: {observaciones}")
-            y_position -= 15
-        
-        y_position -= 30
-        
-        # Línea separadora
-        can.line(30, y_position + 24, page_width - 30, y_position + 24)
-        y_position -= 35
+        # Observaciones (ajustar a varias líneas si es necesario)
+        can.setFont("Carlito", 13)
+        observaciones_texto = observaciones if observaciones else "Sin observaciones."
+        max_width = 550  # ancho máximo para el texto
+        from reportlab.lib.utils import simpleSplit
+        obs_lines = simpleSplit(f"OBSERVACIONES: {observaciones_texto}", "Carlito", 13, max_width)
+        for line in obs_lines:
+            can.drawString(36, y_position, line)
+            y_position -= 18  # espacio entre líneas de observaciones
+
+        # Mantener espacio entre observaciones y firmas
+        y_position -= max(0, 90 - (len(obs_lines) * 18))
         
         # === FIRMAS ===
-        can.setFont(font_name, 10)
+        can.setFont("Carlito", 10)
         # Líneas para firmas
         can.line(60, y_position, 250, y_position)  # Línea sucursal
         can.line(350, y_position, 540, y_position)  # Línea taller
@@ -1963,24 +1958,21 @@ def generar_pdf_reparacion_lote(folio):
         can.drawString(350, y_position, "NOMBRE: ________________________")
         y_position -= 15
         
-        can.drawString(60, y_position, "FIRMA: __________________________")
-        can.drawString(350, y_position, "FIRMA: __________________________")
-        
         can.save()
         packet.seek(0)
         
-        # --- COMBINAR CON LA PLANTILLA SI EXISTE ---
+        # --- COMBINAR CON LA PLANTILLA 
         try:
             plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
             overlay_pdf = PdfReader(packet)
             output = PdfWriter()
 
             if os.path.exists(plantilla_path):
-                template_pdf = PdfReader(plantilla_path)
-                for page in overlay_pdf.pages:
-                    template_page = template_pdf.pages[0]
-                    template_page.merge_page(page)
-                    output.add_page(template_page)
+                plantilla_pdf = PdfReader(plantilla_path)
+                for i, page in enumerate(overlay_pdf.pages):
+                    base_page = plantilla_pdf.pages[0]
+                    base_page.merge_page(page)
+                    output.add_page(base_page)
             else:
                 for page in overlay_pdf.pages:
                     output.add_page(page)
@@ -1998,7 +1990,7 @@ def generar_pdf_reparacion_lote(folio):
         
         return send_file(
             output_stream,
-            download_name=f"nota_salida_reparacion_{folio}.pdf",
+            download_name=f"nota_envio_reparacion_{folio}.pdf",
             mimetype='application/pdf'
         )
     

@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function actualizarAvisosRetraso(data) {
         // Oculta todos los avisos y opciones (con verificación de seguridad)
-        const avisosIds = ['aviso-retraso-ninguno', 'opcion-retraso-medio', 'aviso-retraso-medio', 'aviso-retraso-redondo'];
+        const avisosIds = ['aviso-retraso-ninguno', 'opcion-retraso-medio', 'aviso-retraso-medio', 'aviso-retraso-redondo', 'opcion-retraso-ninguno', 'aviso-retraso-ninguno-decision'];
         avisosIds.forEach(id => {
             const elemento = document.getElementById(id);
             if (elemento) elemento.classList.add('d-none');
@@ -67,14 +67,28 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (estado === 'Retrasada' && diasRetraso > 0) {
             if (traslado === 'ninguno') {
-                const aviso = document.getElementById('aviso-retraso-ninguno');
-                if (aviso) aviso.classList.remove('d-none');
+                const opcion = document.getElementById('opcion-retraso-ninguno');
+                if (opcion) opcion.classList.remove('d-none');
+                const checkbox = document.getElementById('checkbox-cobrar-retraso-ninguno');
+                if (checkbox) {
+                    checkbox.checked = false;
+                    checkbox.addEventListener('change', function () {
+                        const aviso = document.getElementById('aviso-retraso-ninguno-decision');
+                        if (aviso) {
+                            if (checkbox.checked) {
+                                aviso.classList.remove('d-none');
+                            } else {
+                                aviso.classList.add('d-none');
+                            }
+                        }
+                    });
+                }
             } else if (traslado === 'medio') {
                 const opcion = document.getElementById('opcion-retraso-medio');
                 if (opcion) opcion.classList.remove('d-none');
                 const checkbox = document.getElementById('checkbox-cobrar-retraso-medio');
                 if (checkbox) {
-                    checkbox.checked = true;
+                    checkbox.checked = false;
                     checkbox.addEventListener('change', function () {
                         const avisoMedio = document.getElementById('aviso-retraso-medio');
                         if (avisoMedio) {
@@ -86,8 +100,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     });
                 }
-                const avisoMedio = document.getElementById('aviso-retraso-medio');
-                if (avisoMedio) avisoMedio.classList.remove('d-none');
             } else if (traslado === 'redondo') {
                 const avisoRedondo = document.getElementById('aviso-retraso-redondo');
                 if (avisoRedondo) avisoRedondo.classList.remove('d-none');
@@ -408,13 +420,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const cobrarRetraso = (() => {
                 const trasladoOriginal = document.getElementById('traslado-original').textContent.trim().toLowerCase();
+                // Para traslado MEDIO y NINGUNO: preguntar al usuario si se cobra
                 if (trasladoOriginal === 'medio') {
                     return document.getElementById('checkbox-cobrar-retraso-medio')?.checked ? true : false;
                 }
-                // Si traslado es ninguno y hay retraso, se cobra siempre
                 if (trasladoOriginal === 'ninguno') {
-                    const estado = document.getElementById('estado-renta').textContent.toLowerCase();
-                    return estado.includes('retrasada');
+                    return document.getElementById('checkbox-cobrar-retraso-ninguno')?.checked ? true : false;
                 }
                 // En redondo nunca se cobra retraso
                 return false;

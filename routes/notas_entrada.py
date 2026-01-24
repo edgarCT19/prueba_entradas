@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, current_app, send_file, redirect, url_for
+from flask import Blueprint, jsonify, request, current_app, send_file, redirect, url_for, session
 from datetime import datetime, timedelta
 from utils.db import get_db_connection
 # Importar función de folio centralizada desde inventario
@@ -217,7 +217,6 @@ def crear_nota_entrada(renta_id):
             }), 403
 
         # --- Lógica para distinguir renovación total vs parcial ---
-        # Si existe una renovación activa (total), no se debe cobrar retraso
         cursor.execute("""
             SELECT COUNT(*) AS total_renovaciones
             FROM rentas
@@ -479,11 +478,13 @@ def generar_pdf_nota_entrada(nota_entrada_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
+    # Obtener datos completos de la nota de entrada
     cursor.execute("""
         SELECT ne.folio, ne.fecha_entrada_real, ne.requiere_traslado_extra, ne.costo_traslado_extra, ne.observaciones,
-               r.direccion_obra,
-               CONCAT(c.nombre, ' ', c.apellido1, ' ', c.apellido2) AS cliente_nombre, c.codigo_cliente,
-               c.telefono
+               r.fecha_salida, r.fecha_entrada, r.direccion_obra,
+               CONCAT(c.nombre, ' ', c.apellido1, ' ', c.apellido2) AS cliente_nombre,
+               c.codigo_cliente, c.telefono, c.calle, c.numero_exterior, 
+               c.numero_interior, c.entre_calles, c.colonia, c.codigo_postal
         FROM notas_entrada ne
         JOIN rentas r ON ne.renta_id = r.id
         JOIN clientes c ON r.cliente_id = c.id
@@ -491,134 +492,243 @@ def generar_pdf_nota_entrada(nota_entrada_id):
     """, (nota_entrada_id,))
     nota = cursor.fetchone()
 
+    if not nota:
+        cursor.close()
+        conn.close()
+        return "Nota de entrada no encontrada", 404
+
+    # Obtener piezas de la nota de entrada
     cursor.execute("""
-        SELECT ned.cantidad_esperada, ned.cantidad_recibida, ned.cantidad_buena, ned.cantidad_danada, ned.cantidad_sucia, ned.cantidad_perdida, p.nombre_pieza
+        SELECT ned.cantidad_esperada, ned.cantidad_recibida, ned.cantidad_buena, ned.cantidad_danada, 
+               ned.cantidad_sucia, ned.cantidad_perdida, ned.observaciones_pieza, p.nombre_pieza
         FROM notas_entrada_detalle ned
         JOIN piezas p ON ned.id_pieza = p.id_pieza
         WHERE ned.nota_entrada_id = %s
+        ORDER BY p.nombre_pieza
     """, (nota_entrada_id,))
     piezas = cursor.fetchall()
+
+    # Verificar si hay piezas con problemas (dañadas, sucias o perdidas)
+    hay_piezas_problematicas = any(
+        (pieza['cantidad_danada'] and pieza['cantidad_danada'] > 0) or
+        (pieza['cantidad_sucia'] and pieza['cantidad_sucia'] > 0) or
+        (pieza['cantidad_perdida'] and pieza['cantidad_perdida'] > 0)
+        for pieza in piezas
+    )
+
+    # Obtener datos del usuario actual
+    usuario_id = session.get('user_id')
+    usuario_nombre = "USUARIO NO IDENTIFICADO"
+    if usuario_id:
+        cursor.execute("""
+            SELECT CONCAT(nombre, ' ', apellido1, ' ', apellido2) as nombre_completo
+            FROM usuarios 
+            WHERE id = %s
+        """, (usuario_id,))
+        usuario_row = cursor.fetchone()
+        if usuario_row:
+            usuario_nombre = usuario_row['nombre_completo'].upper()
 
     cursor.close()
     conn.close()
 
-    # --- Generar PDF con plantilla ---
+    # --- GENERAR PDF COMPLETO ---
     packet = BytesIO()
     can = canvas.Canvas(packet, pagesize=letter)
-    pdfmetrics.registerFont(TTFont('Carlito', os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')))
-
-    #Folio de Nota de Entrada
-    can.setFont("Carlito", 9)
-    texto = "FOLIO DE ENTRADA:"
-    x = 450
-    y = 670
-    can.drawString(x, y, texto)
-
-    # Dibuja el folio en tamaño 16, justo después del texto
-    folio_str = f"#{str(nota['folio']).zfill(5)}"
-    can.setFont("Helvetica-Bold", 12)
-    x_folio = x + can.stringWidth(texto, "Helvetica-Bold", 10) - 25
-    can.drawString(x_folio, y, folio_str)
+    
+    # Registrar fuente
+    try:
+        font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont('Carlito', font_path))
+    except:
+        pass
+    
+    # CONFIGURACIÓN INICIAL 
+    page_width, page_height = letter
+    y_position = page_height - 100
+    
+    # Folio
+    can.setFont("Courier-Bold", 20)
+    can.drawRightString(575, 690, f"#{str(nota['folio']).zfill(5)}")
+    
+    # Fecha y hora de entrada
+    can.setFont("Carlito", 12)
+    fecha_entrada = nota['fecha_entrada_real'].strftime('%d/%m/%Y - %H:%M:%S')
+    can.drawRightString(575, 715, f"{fecha_entrada}")
     
 
-    ## NOMBRE DEL CLIENTE
+    # === DATOS PRINCIPALES ===
+    can.setFont("Courier-Bold", 23)
+    can.drawString(480, 732, "ENTRADA")
+    
+    can.setFont("Courier-Bold", 15)
+    can.drawString(36, 715, "RENTA DE EQUIPO")
+
+    # Datos del cliente
     can.setFont("Carlito", 10)
     cliente_completo = f"{nota['codigo_cliente']} - {nota['cliente_nombre'].upper()}"
-    can.drawString(63, 703, f"{cliente_completo}")
-
-
-    can.setFont("Helvetica", 10)
-    can.drawString(479, 708, f" {nota['fecha_entrada_real'].strftime('%d/%m/%Y %H:%M')}")
+    can.drawString(36, 695, f"CLIENTE: {cliente_completo}")
     
-    can.drawString(67, 671, f" {nota['telefono']}")
-
-    can.setFont("Helvetica-Bold", 10)
-    can.drawString(67, 657, f" {nota['cliente_nombre']}")
+    # Teléfono
+    can.drawString(36, 680, f"TELÉFONO: {nota['telefono'] or 'NO REGISTRADO'}")
     
-   
-
-
-    y = 630
-    can.setFont("Helvetica-Bold", 10)
-   
-
-    y -= 15
+    # Dirección del cliente (con ajuste multilínea)
+    direccion_completa = nota['calle'] or ''
+    if nota['numero_exterior']:
+        direccion_completa += f" #{nota['numero_exterior']}"
+    if nota['numero_interior']:
+        direccion_completa += f", INT. {nota['numero_interior']}"
+    if nota['entre_calles']:
+        direccion_completa += f" (ENTRE {nota['entre_calles']})"
+    if nota['colonia']:
+        direccion_completa += f", COL. {nota['colonia']}"
+    if nota['codigo_postal']:
+        direccion_completa += f" - C.P. {nota['codigo_postal']}"
+    
+    direccion_texto = f"DIRECCIÓN: {direccion_completa.upper()}"
+    from reportlab.lib.utils import simpleSplit
+    direccion_lines = simpleSplit(direccion_texto, "Carlito", 10, 530)
+    y_direccion = 665
+    for line in direccion_lines:
+        can.drawString(36, y_direccion, line)
+        y_direccion -= 12
+    
+    # DATOS DE PIEZAS 
+    y_position -= 50
+    # Texto descriptivo antes de la tabla
+    can.setFont("Carlito", 10)
+    can.drawString(36, y_position, "RECIBÍ DE: ______________________________")
+    y_position -= 15
+    can.drawString(36, y_position, "EL SIGUIENTE EQUIPO:")
+    y_position -= 25
+    
+    # Encabezado de tabla - condicional según si hay piezas problemáticas
     can.setFont("Helvetica-Bold", 9)
-    can.drawString(60, y, "Pieza")
-    can.drawString(250, y, "Esperadas")
-    can.drawString(300, y, "Recibidas")
-    can.drawString(375, y, "Buenas")
-    can.drawString(420, y, "Dañadas")
-    can.drawString(470, y, "Sucias")
-    can.drawString(510, y, "Perdidas")
-
-    y -= 13
-    can.setFont("Helvetica", 9)
+    can.drawString(36, y_position + 5, "CANT. (PIEZAS)")
+    can.drawString(150, y_position + 5, "DESCRIPCIÓN")
+    can.drawString(350, y_position + 5, "RECIBIDAS")
+    
+    if hay_piezas_problematicas:
+        can.drawString(420, y_position + 5, "BUENAS")
+        can.drawString(470, y_position + 5, "DAÑADAS")
+        can.drawString(520, y_position + 5, "PERDIDAS")
+    
+    y_position -= 15
+    
+    can.setFont("Carlito", 10)
     for pieza in piezas:
+        # Verificar si necesitamos nueva página
+        if y_position < 200:
+            can.showPage()
+            can.setFont("Carlito", 10)
+            y_position = page_height - 60
+        
         def mostrar_vacio_si_cero(val):
             return "" if val == 0 else str(val)
-        can.drawString(60, y, f"{pieza['nombre_pieza']}")
-        can.drawString(250, y, str(pieza['cantidad_esperada']))
-        can.drawString(300, y, mostrar_vacio_si_cero(pieza['cantidad_recibida']))
-        can.drawString(375, y, mostrar_vacio_si_cero(pieza['cantidad_buena']))
-        can.drawString(420, y, mostrar_vacio_si_cero(pieza['cantidad_danada']))
-        can.drawString(470, y, mostrar_vacio_si_cero(pieza['cantidad_sucia']))
-        can.drawString(510, y, mostrar_vacio_si_cero(pieza['cantidad_perdida']))
-        y -= 13
+            
+        can.drawString(70, y_position + 5, str(pieza['cantidad_esperada']))
+        can.drawString(150, y_position + 5, pieza['nombre_pieza'].upper())
+        can.drawString(365, y_position + 5, mostrar_vacio_si_cero(pieza['cantidad_recibida']))
+        
+        # Solo mostrar columnas de estado si hay piezas problemáticas
+        if hay_piezas_problematicas:
+            can.drawString(435, y_position + 5, mostrar_vacio_si_cero(pieza['cantidad_buena']))
+            can.drawString(485, y_position + 5, mostrar_vacio_si_cero(pieza['cantidad_danada']))
+            can.drawString(535, y_position + 5, mostrar_vacio_si_cero(pieza['cantidad_perdida']))
+        
+        y_position -= 13
 
-        if y < 100:
-            can.showPage()
-            y = 750
+    y_position -= 10
 
-    y -= 10
-    can.setFont("Helvetica", 10)
-    can.drawString(60, y, f"DIRECCIÓN DE OBRA: {nota['direccion_obra'] or 'Sin dirección'}")
-    y -= 13
-           
-
-    # === FIRMAS ===
-    y -= 30
+    # Dirección de obra
     can.setFont("Carlito", 10)
-    # Línea para firma de la empresa (Andamios Colosio)
-    can.line(60, y, 250, y)
-    # Línea para firma del cliente
-    can.line(350, y, 540, y)
+    direccion_obra_texto = f"DIRECCIÓN DE OBRA: {nota['direccion_obra'].upper()}"
+    max_width = 550
+    obra_lines = simpleSplit(direccion_obra_texto, "Carlito", 13, max_width)
+    for line in obra_lines:
+        can.drawString(36, y_position, line)
+        y_position -= 10
 
-    y -= 15
-    # Etiquetas de firmas
-    can.drawString(60, y, "RECIBE: ANDAMIOS COLOSIO")
-    can.drawString(350, y, f"ENTREGA:")
-
-
+    # Mantener espacio antes de términos
+    y_position -= max(0, 30 - (len(obra_lines) * 18))
     
-    y -= 10
-    can.setFont("Helvetica-Bold", 10)
-    can.drawString(60, y, "Observaciones:")
-    y -= 13
-    can.setFont("Helvetica", 10)
-    can.drawString(60, y, nota['observaciones'] or "Ninguna")
+    
 
+    # Texto 
+    can.setFont("Carlito", 9)
+    terminos_texto = """
+    IMPORTANTE: CUALQUIER DAÑO, PÉRDIDA O EQUIPO SUCIO SERÁ FACTURADO SEGÚN TARIFAS VIGENTES."""
+
+    terminos_lines = simpleSplit(terminos_texto, "Carlito", 9, 520)
+    for line in terminos_lines:
+        if y_position < 100:
+            can.showPage()
+            y_position = page_height - 60
+        can.drawString(36, y_position, line)
+        y_position -= 12
+    
+    y_position -= 50
+    
+    # === FIRMAS ===
+    can.setFont("Carlito", 10)
+    # Líneas para firmas
+    can.line(60, y_position, 250, y_position)  # Línea empresa
+    can.line(350, y_position, 540, y_position)  # Línea cliente
+    y_position -= 15
+    
+    # Etiquetas de firmas (invertidas para entrada)
+    can.drawString(60, y_position, "RECIBE: ANDAMIOS COLOSIO")
+    can.drawString(350, y_position, "ENTREGA: _______________________")
+    y_position -= 10
+    
+    can.drawString(60, y_position, f"NOMBRE: {usuario_nombre}")
+    y_position -= 15
+
+    # Observaciones si existen
+    if nota['observaciones']:
+        y_position -= 20
+        can.setFont("Carlito", 13)
+        obs_texto = f"OBSERVACIONES: {nota['observaciones'].upper()}"
+        obs_lines = simpleSplit(obs_texto, "Carlito", 13, 550)
+        for line in obs_lines:
+            if y_position < 50:
+                can.showPage()
+                y_position = page_height - 60
+            can.drawString(36, y_position, line)
+            y_position -= 18
+
+    # Guardar el canvas
     can.save()
     packet.seek(0)
 
-    # --- Combinar con plantilla ---
+    # --- COMBINAR CON LA PLANTILLA ---
     try:
-        plantilla_path = os.path.join(current_app.root_path, 'static/notas/Plantilla_entrada.pdf')
+        plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
+        overlay_pdf = PdfReader(packet)
+        output = PdfWriter()
+
         if os.path.exists(plantilla_path):
             plantilla_pdf = PdfReader(plantilla_path)
-            overlay_pdf = PdfReader(packet)
-            output = PdfWriter()
+            # Primera página: plantilla + overlay
             page = plantilla_pdf.pages[0]
             page.merge_page(overlay_pdf.pages[0])
             output.add_page(page)
+
+            # Páginas siguientes: solo overlay (blanco)
+            for i in range(1, len(overlay_pdf.pages)):
+                output.add_page(overlay_pdf.pages[i])
         else:
-            overlay_pdf = PdfReader(packet)
-            output = PdfWriter()
-            output.add_page(overlay_pdf.pages[0])
+            # Si no hay plantilla, agrega todas las páginas del overlay
+            for page in overlay_pdf.pages:
+                output.add_page(page)
+
     except Exception as e:
+        print(f"Error con plantilla: {e}")
         overlay_pdf = PdfReader(packet)
         output = PdfWriter()
-        output.add_page(overlay_pdf.pages[0])
+        for page in overlay_pdf.pages:
+            output.add_page(page)
 
     output_stream = BytesIO()
     output.write(output_stream)

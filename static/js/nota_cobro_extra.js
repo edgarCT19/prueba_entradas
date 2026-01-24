@@ -1,13 +1,16 @@
 document.addEventListener('DOMContentLoaded', function () {
 
-    // --- Calcular total ---
+    // --- Calcular total con precisión mejorada ---
     function actualizarTotalCobroExtra() {
         let subtotal = 0;
         document.querySelectorAll('.subtotal').forEach(input => {
             subtotal += parseFloat(input.value) || 0;
         });
-        const iva = subtotal * 0.16;
-        const totalConIva = subtotal + iva;
+        
+        // Aplicar precisión decimal para evitar errores de punto flotante
+        subtotal = Math.round(subtotal * 100) / 100;
+        const iva = Math.round((subtotal * 0.16) * 100) / 100;
+        const totalConIva = Math.round((subtotal + iva) * 100) / 100;
 
         const subtotalSpan = document.getElementById('subtotal-cobro-extra');
         const ivaSpan = document.getElementById('iva-cobro-extra');
@@ -19,16 +22,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 
+    // --- Función de redondeo para efectivo (mejorada) ---
     function redondearEfectivo(total) {
-        const decimal = total - Math.floor(total);
-        if (decimal <= 0.49) {
-            return Math.floor(total);
-        } else if (decimal >= 0.60) {
-            return Math.ceil(total);
-        } else if (decimal >= 0.50 && decimal <= 0.59) {
-            return Math.floor(total) + 0.50;
-        }
-        return total;
+        if (!total || isNaN(total)) return 0;
+        const entero = Math.floor(total);
+        const centavos = Math.round((total - entero) * 100);
+        
+        if (centavos <= 49) return entero;
+        if (centavos >= 60) return entero + 1;
+        return entero + 0.5;
     }
 
     // --- Calcular cambio ---
@@ -54,18 +56,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
                 let html = `
-                    <h6>Detalles sugeridos para cobro extra</h6>
-                    <table class="table table-sm" id="tabla-detalles-cobro-extra">
-                        <thead>
-                            <tr>
-                                <th>Pieza</th>
-                                <th>Tipo afectación</th>
-                                <th>Cantidad</th>
-                                <th>Costo unitario ($)</th>
-                                <th>Subtotal ($)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <div class="p-3">
+                        <h6 class="mb-3 text-center">Detalles Sugeridos para Cobro Extra</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm" id="tabla-detalles-cobro-extra">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Pieza</th>
+                                    <th>Tipo Afectación</th>
+                                    <th>Cantidad</th>
+                                    <th>Costo Unitario</th>
+                                    <th>Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                 `;
                 data.detalles.forEach((det, idx) => {
                     const esTraslado = det.es_traslado_extra;
@@ -92,20 +97,24 @@ document.addEventListener('DOMContentLoaded', function () {
                     `;
                 });
 
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
 
                 detalleDiv.innerHTML = html;
 
-                // Actualiza subtotales y total
+                // Actualiza subtotales y total con precisión mejorada
                 document.querySelectorAll('.costo-unitario').forEach(input => {
                     input.addEventListener('input', function () {
                         const idx = this.dataset.idx;
-                        const cantidad = document.querySelectorAll('.cantidad')[idx].value;
+                        const cantidad = parseInt(document.querySelectorAll('.cantidad')[idx].value) || 0;
                         const costo = parseFloat(this.value) || 0;
-                        const subtotal = cantidad * costo;
+                        const subtotal = Math.round((cantidad * costo) * 100) / 100;
                         document.querySelectorAll('.subtotal')[idx].value = subtotal.toFixed(2);
                         actualizarTotalCobroExtra();
                         document.getElementById('metodo-pago-extra').dispatchEvent(new Event('change'));
-
                     });
                 });
 
@@ -191,9 +200,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // Total
+            // Total con precisión mejorada
             let subtotal_general = 0;
             detalles.forEach(d => subtotal_general += d.subtotal);
+            subtotal_general = Math.round(subtotal_general * 100) / 100;
 
             // Otros campos
             const metodoPago = document.getElementById('metodo-pago-extra').value;
@@ -206,9 +216,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (metodoPago === 'tarjeta_debito' || metodoPago === 'tarjeta_credito' || metodoPago === 'transferencia') {
                 montoRecibido = parseFloat(document.getElementById('total-cobro-extra-con-iva').textContent) || 0;
             }
-            // Calcular IVA y total
-            const iva = subtotal_general * 0.16;
-            const total = subtotal_general + iva;
+            
+            // Calcular IVA y total con precisión
+            const iva = Math.round((subtotal_general * 0.16) * 100) / 100;
+            const total = Math.round((subtotal_general + iva) * 100) / 100;
 
             // Validación
             if (detalles.length === 0) {

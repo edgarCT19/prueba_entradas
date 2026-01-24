@@ -228,13 +228,15 @@ def modulo_rentas():
         r.id_sucursal,
         -- Calcular folio por sucursal
         (SELECT COUNT(*) FROM rentas r2 WHERE r2.id_sucursal = r.id_sucursal AND r2.id <= r.id ORDER BY r2.id) AS folio_sucursal,
-        s.nombre AS sucursal_nombre
+        s.nombre AS sucursal_nombre,
+        ncr.id AS cobro_retraso_id
     FROM rentas r
     JOIN clientes c ON r.cliente_id = c.id
     JOIN sucursales s ON r.id_sucursal = s.id
     LEFT JOIN notas_entrada ne ON ne.renta_id = r.id
         AND ne.id = (SELECT MAX(id) FROM notas_entrada WHERE renta_id = r.id)
     LEFT JOIN notas_cobro_extra nce ON nce.nota_entrada_id = ne.id
+    LEFT JOIN notas_cobro_retraso ncr ON ncr.nota_entrada_id = ne.id
     {where_sucursal}
     ORDER BY r.fecha_registro DESC
     """, params_sucursal)

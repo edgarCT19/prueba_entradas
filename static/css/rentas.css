@@ -1,6 +1,8 @@
+    
     margin-top: 0 !important;
     margin-bottom: 0 !important;
     height: 1px !important;
+
 /* --- CONTENEDOR PRINCIPAL RENTAS --- */
 .rentas-box-container {
     background: #fff;
@@ -431,10 +433,428 @@
     border-color: #23395d !important;
 }
 
+/* Estilos para el modal de nueva renta con diseño del inventario */
+#modalNuevaRenta .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalNuevaRenta .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalNuevaRenta .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalNuevaRenta .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalNuevaRenta .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalNuevaRenta .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalNuevaRenta .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.15);
+    overflow: hidden;
+}
+
+#modalNuevaRenta .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalNuevaRenta .table-dark th {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%) !important;
+    border-color: #1a2d4a !important;
+    color: #fff !important;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.5rem 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#modalNuevaRenta .table-bordered td {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.3rem;
+    background: #fff;
+    border-color: #dee2e6;
+    line-height: 1.2;
+}
+
+#modalNuevaRenta .table-bordered input.form-control {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.5rem;
+    height: auto;
+    min-height: 1.8rem;
+}
+
+#modalNuevaRenta .form-label {
+    color: #23395d;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#modalNuevaRenta .form-control,
+#modalNuevaRenta .form-select {
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    font-size: 0.95rem;
+    padding: 0.6rem 1rem;
+    transition: all 0.2s ease-in-out;
+    background-color: #fff;
+}
+
+#modalNuevaRenta .form-control:focus,
+#modalNuevaRenta .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.2rem rgba(35, 57, 93, 0.25);
+    background-color: #f8f9fa;
+}
+
+#modalNuevaRenta .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.6rem 1.2rem;
+}
+
+#modalNuevaRenta .btn-primary {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    border-color: #23395d;
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.3);
+}
+
+#modalNuevaRenta .btn-primary:hover {
+    background: linear-gradient(135deg, #1a2d4a 0%, #23395d 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(35, 57, 93, 0.4);
+}
+
+#modalNuevaRenta .btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border-color: #28a745;
+    color: #fff;
+}
+
+#modalNuevaRenta .btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border-color: #dc3545;
+    color: #fff;
+}
+
+#modalNuevaRenta .modal-body {
+    padding: 2rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+#modalNuevaRenta .text-muted {
+    color: #6c757d !important;
+    font-size: 0.85rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #modalNuevaRenta .modal-dialog {
+        max-width: 95%;
+        margin: 1rem auto;
+    }
+    
+    #modalNuevaRenta .modal-header {
+        padding: 1rem 1.5rem;
+    }
+    
+    #modalNuevaRenta .modal-title {
+        font-size: 1.2rem;
+    }
+    
+    #modalNuevaRenta .modal-body {
+        padding: 1.5rem;
+    }
+    
+    #modalNuevaRenta .col-md-6 {
+        margin-bottom: 1.5rem;
+    }
+    
+    #modalNuevaRenta .table-responsive {
+        font-size: 0.75rem;
+    }
+    
+    #modalNuevaRenta .d-flex.gap-2 {
+        flex-direction: column;
+        gap: 0.75rem !important;
+    }
+    
+    #modalNuevaRenta .d-flex.gap-2 > * {
+        flex: 1;
+    }
+    
+    #modalNuevaRenta #cantidad_producto {
+        max-width: 100% !important;
+    }
+    
+    #modalNuevaRenta .form-label {
+        font-size: 0.9rem;
+    }
+    
+    #modalNuevaRenta .card-header h6 {
+        font-size: 1rem;
+    }
+}
+
+/* Estilos adicionales para mayor impacto visual */
+#modalNuevaRenta .form-check-label {
+    color: #23395d;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+#modalNuevaRenta .table-sm td {
+    font-weight: 600;
+    color: #23395d;
+    font-size: 0.7rem;
+    padding: 0.4rem 0.3rem;
+}
+
+#modalNuevaRenta .table-sm td .btn {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.65rem;
+    line-height: 1;
+}
+
+#modalNuevaRenta .table-sm td input[type="number"] {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.4rem;
+    width: 100%;
+    max-width: 60px;
+}
+
+#modalNuevaRenta .table-primary td {
+    background-color: rgba(35, 57, 93, 0.1) !important;
+    border-color: #23395d !important;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+#modalNuevaRenta .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#modalNuevaRenta .form-text {
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
 /*///////////////////////////////////////////////////////*/
 /*///////////////////////////////////////////////////////*/
 /*///////////////////////////////////////////////////////*/
 /* MODAL NOTA DE SALIDA FORMAL */
+
+/* Estilos para el modal de nota de salida siguiendo exactamente el patrón del modal nueva renta */
+#modalNotaSalida .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalNotaSalida .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalNotaSalida .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalNotaSalida .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalNotaSalida .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalNotaSalida .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalNotaSalida .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.15);
+    overflow: hidden;
+}
+
+#modalNotaSalida .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalNotaSalida .table-dark th {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border: none;
+    font-weight: 700;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+#modalNotaSalida .table-bordered td {
+    border-color: #d1d8e0;
+    vertical-align: middle;
+    padding: 0.6rem;
+    text-align: center;
+}
+
+#modalNotaSalida .form-label {
+    color: #23395d !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    text-transform: none;
+}
+
+#modalNotaSalida .form-control,
+#modalNotaSalida .form-select {
+    border: 1.5px solid #d1d8e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    transition: all 0.2s ease;
+}
+
+#modalNotaSalida .form-control:focus,
+#modalNotaSalida .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.15rem rgba(35, 57, 93, 0.15);
+}
+
+#modalNotaSalida .btn {
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+#modalNotaSalida .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalNotaSalida .btn-primary:hover {
+    background: #1a2d4a;
+    border-color: #1a2d4a;
+}
+
+#modalNotaSalida .modal-body {
+    background: #f8fafc;
+    padding: 2rem;
+}
+
+#modalNotaSalida .text-primary {
+    color: #23395d !important;
+}
+
+#modalNotaSalida .fw-bold {
+    color: #23395d;
+    font-weight: 600;
+}
+
+/* Responsive adjustments para modal nota salida */
+@media (max-width: 768px) {
+    #modalNotaSalida .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    #modalNotaSalida .modal-body {
+        padding: 1rem;
+    }
+    
+    #modalNotaSalida .card-body {
+        padding: 1rem;
+    }
+    
+    #modalNotaSalida .modal-header {
+        padding: 1rem;
+    }
+    
+    #modalNotaSalida .modal-footer-azul {
+        padding: 1rem;
+    }
+    
+    #modalNotaSalida .modal-title {
+        font-size: 1.2rem;
+    }
+    
+    #modalNotaSalida .card-header h6 {
+        font-size: 1rem;
+    }
+}
+
+/* Estilos heredados mantenidos para compatibilidad */
 .modal-nota-salida-header {
     background: #23395d;
     color: #fff;
@@ -507,6 +927,203 @@
     border-bottom-right-radius: 16px;
 }
 
+/* Estilos para el modal de nota de entrada siguiendo exactamente el patrón del modal nueva renta */
+#modalNotaEntrada .modal-header {
+    background: #23395d;
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalNotaEntrada .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+}
+
+#modalNotaEntrada .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+}
+
+#modalNotaEntrada .modal-footer-azul {
+    background: #f1f4fa;
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalNotaEntrada .card-header {
+    background: #23395d;
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalNotaEntrada .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#modalNotaEntrada .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#modalNotaEntrada .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalNotaEntrada .table-dark th {
+    background: #23395d !important;
+    border-color: #1a2d4a !important;
+    color: #fff !important;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.75rem 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#modalNotaEntrada .table-bordered td {
+    font-size: 0.85rem;
+    padding: 0.6rem 0.5rem;
+    background: #fff;
+    border-color: #dee2e6;
+}
+
+#modalNotaEntrada .form-label {
+    color: #23395d;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#modalNotaEntrada .form-control,
+#modalNotaEntrada .form-select {
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    font-size: 0.95rem;
+    padding: 0.6rem 1rem;
+    background-color: #fff;
+}
+
+#modalNotaEntrada .form-control:focus,
+#modalNotaEntrada .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.2rem rgba(35, 57, 93, 0.25);
+    background-color: #f8f9fa;
+}
+
+#modalNotaEntrada .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.6rem 1.2rem;
+}
+
+#modalNotaEntrada .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalNotaEntrada .btn-success {
+    background: #28a745;
+    border-color: #28a745;
+    color: #fff;
+}
+
+#modalNotaEntrada .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+#modalNotaEntrada .modal-body {
+    padding: 2rem;
+    background: #f8f9fa;
+}
+
+#modalNotaEntrada .text-primary {
+    color: #23395d !important;
+    font-weight: 600;
+}
+
+#modalNotaEntrada .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#modalNotaEntrada .form-check-label {
+    color: #23395d;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+#modalNotaEntrada .alert {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+#modalNotaEntrada .text-muted {
+    color: #6c757d !important;
+    font-size: 0.85rem;
+}
+
+/* Responsive adjustments para modal nota entrada */
+@media (max-width: 768px) {
+    #modalNotaEntrada .modal-dialog {
+        max-width: 95%;
+        margin: 1rem auto;
+    }
+    
+    #modalNotaEntrada .modal-header {
+        padding: 1rem 1.5rem;
+    }
+    
+    #modalNotaEntrada .modal-title {
+        font-size: 1.2rem;
+    }
+    
+    #modalNotaEntrada .modal-body {
+        padding: 1.5rem;
+    }
+    
+    #modalNotaEntrada .col-md-6 {
+        margin-bottom: 1.5rem;
+    }
+    
+    #modalNotaEntrada .table-responsive {
+        font-size: 0.75rem;
+    }
+    
+    #modalNotaEntrada .form-label {
+        font-size: 0.9rem;
+    }
+    
+    #modalNotaEntrada .card-header h6 {
+        font-size: 1rem;
+    }
+}
+
 
 /* Agregar a static/css/rentas.css */
 
@@ -549,9 +1166,370 @@
 }
 
 /*///////////////////////////////////////////////////////*/
+/*///////////////////////////////////////////////////////*/
+/*///////////////////////////////////////////////////////*/
+/* MODAL PREFACTURA FORMAL */
+
+/* Estilos para el modal de prefactura siguiendo exactamente el patrón del modal nueva renta */
+#modalPrefacturaPago .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalPrefacturaPago .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalPrefacturaPago .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalPrefacturaPago .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalPrefacturaPago .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalPrefacturaPago .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalPrefacturaPago .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.15);
+    overflow: hidden;
+}
+
+#modalPrefacturaPago .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalPrefacturaPago .form-label {
+    color: #23395d !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    text-transform: none;
+}
+
+#modalPrefacturaPago .form-control,
+#modalPrefacturaPago .form-select {
+    border: 1.5px solid #d1d8e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    transition: all 0.2s ease;
+}
+
+#modalPrefacturaPago .form-control:focus,
+#modalPrefacturaPago .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.15rem rgba(35, 57, 93, 0.15);
+}
+
+#modalPrefacturaPago .btn {
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+#modalPrefacturaPago .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalPrefacturaPago .btn-primary:hover {
+    background: #1a2d4a;
+    border-color: #1a2d4a;
+}
+
+#modalPrefacturaPago .alert-info {
+    background-color: #e3f2fd;
+    border-color: #23395d;
+    color: #23395d;
+    border-radius: 6px;
+    padding: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+#modalPrefacturaPago .modal-body {
+    background: #f8fafc;
+    padding: 2rem;
+}
+
+#modalPrefacturaPago .text-muted {
+    color: #6c757d !important;
+}
+
+#modalPrefacturaPago .input-group-text {
+    background: #f1f4fa;
+    border: 1.5px solid #d1d8e0;
+    color: #23395d;
+    font-weight: 600;
+}
+
+#modalPrefacturaPago .form-control-plaintext {
+    color: #23395d;
+    font-weight: 600;
+}
+
+/* Responsive adjustments para modal prefactura */
+@media (max-width: 768px) {
+    #modalPrefacturaPago .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    #modalPrefacturaPago .modal-body {
+        padding: 1rem;
+    }
+    
+    #modalPrefacturaPago .card-body {
+        padding: 1rem;
+    }
+    
+    #modalPrefacturaPago .modal-header {
+        padding: 1rem;
+    }
+    
+    #modalPrefacturaPago .modal-footer-azul {
+        padding: 1rem;
+    }
+    
+    #modalPrefacturaPago .modal-title {
+        font-size: 1.2rem;
+    }
+    
+    #modalPrefacturaPago .card-header h6 {
+        font-size: 1rem;
+    }
+}
+
+/*///////////////////////////////////////////////////////*/
 /*///////////// MODAL COBRO POR RETRASO FORMAL //////////*/
 /*///////////////////////////////////////////////////////*/
 
+/* Estilos para el modal de cobro por retraso siguiendo exactamente el patrón del modal prefactura */
+#modalCobroRetraso .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalCobroRetraso .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalCobroRetraso .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalCobroRetraso .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalCobroRetraso .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalCobroRetraso .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalCobroRetraso .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.15);
+    overflow: hidden;
+}
+
+#modalCobroRetraso .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalCobroRetraso .table-dark th {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border: none;
+    font-weight: 700;
+    text-align: center;
+    font-size: 0.8rem;
+    padding: 0.6rem 0.4rem;
+}
+
+#modalCobroRetraso .table-bordered td {
+    border-color: #d1d8e0;
+    vertical-align: middle;
+    padding: 0.5rem 0.4rem;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+#modalCobroRetraso .form-label {
+    color: #23395d !important;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    text-transform: none;
+}
+
+#modalCobroRetraso .form-control,
+#modalCobroRetraso .form-select {
+    border: 1.5px solid #d1d8e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    transition: all 0.2s ease;
+}
+
+#modalCobroRetraso .form-control:focus,
+#modalCobroRetraso .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.15rem rgba(35, 57, 93, 0.15);
+}
+
+#modalCobroRetraso .btn {
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+#modalCobroRetraso .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalCobroRetraso .btn-primary:hover {
+    background: #1a2d4a;
+    border-color: #1a2d4a;
+}
+
+#modalCobroRetraso .alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+    color: #856404;
+    border-radius: 6px;
+    padding: 0.8rem;
+}
+
+#modalCobroRetraso .alert-info {
+    background-color: #e3f2fd;
+    border-color: #23395d;
+    color: #23395d;
+    border-radius: 6px;
+    padding: 0.8rem;
+}
+
+#modalCobroRetraso .modal-body {
+    background: #f8fafc;
+    padding: 2rem;
+}
+
+#modalCobroRetraso .text-danger {
+    color: #dc3545 !important;
+    font-weight: 600;
+}
+
+#modalCobroRetraso .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Responsive adjustments para modal cobro retraso */
+@media (max-width: 768px) {
+    #modalCobroRetraso .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    #modalCobroRetraso .modal-body {
+        padding: 1rem;
+    }
+    
+    #modalCobroRetraso .card-body {
+        padding: 1rem;
+    }
+    
+    #modalCobroRetraso .modal-header {
+        padding: 1rem;
+    }
+    
+    #modalCobroRetraso .modal-footer-azul {
+        padding: 1rem;
+    }
+    
+    #modalCobroRetraso .modal-title {
+        font-size: 1.2rem;
+    }
+    
+    #modalCobroRetraso .card-header h6 {
+        font-size: 1rem;
+    }
+    
+    #modalCobroRetraso .table-responsive {
+        font-size: 0.75rem;
+    }
+}
+
+/* Estilos heredados mantenidos para compatibilidad */
 .modal-cobro-retraso-header {
     background: #23395d;
     color: #ffffff;
@@ -615,3 +1593,4 @@
         padding-left: 0;
     }
 }
+

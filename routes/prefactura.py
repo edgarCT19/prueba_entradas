@@ -2,7 +2,7 @@
 import os
 from io import BytesIO
 from datetime import datetime
-from flask import Blueprint, redirect, request, jsonify, send_file, current_app, url_for
+from flask import Blueprint, redirect, request, jsonify, send_file, current_app, url_for, session
 from utils.db import get_db_connection
 
 from reportlab.lib.pagesizes import letter
@@ -12,6 +12,32 @@ from PyPDF2 import PdfReader, PdfWriter
 from num2words import num2words 
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+
+
+def obtener_folio_consecutivo_prefactura(fecha_registro):
+    """
+    Obtiene el folio consecutivo para prefacturas/cobros basándose en la fecha de registro.
+    Considera todos los registros de prefacturas, cobros extra y cobros de retraso.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Contar todos los registros anteriores a esta fecha de las tres tablas
+    cursor.execute("""
+        SELECT COUNT(*) FROM (
+            SELECT fecha_emision as fecha FROM prefacturas WHERE fecha_emision <= %s
+            UNION ALL
+            SELECT fecha FROM notas_cobro_extra WHERE fecha <= %s
+            UNION ALL
+            SELECT fecha FROM notas_cobro_retraso WHERE fecha <= %s
+        ) AS todos_cobros
+    """, (fecha_registro, fecha_registro, fecha_registro))
+    
+    resultado = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    return resultado[0] if resultado else 1
 
 
 prefactura_bp = Blueprint('prefactura', __name__, url_prefix='/prefactura')
@@ -66,7 +92,7 @@ def obtener_historial_pagos(renta_id):
 
 @prefactura_bp.route('/api/info-redondeo/<int:renta_id>')
 def obtener_info_redondeo(renta_id):
-    """Obtiene información sobre si se debe aplicar redondeo basado en el primer abono"""
+    """Obtiene información sobre redondeo para coincidir con la lógica de Python"""
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
@@ -93,12 +119,8 @@ def obtener_info_redondeo(renta_id):
     primer_metodo_abono = abono_info['primer_metodo']
     saldo_pendiente = float(total_renta) - total_ya_pagado
     
-    # Determinar si se debe aplicar redondeo
-    aplicar_redondeo = False
-    if es_primer_abono:
-        aplicar_redondeo = True  
-    else:
-        aplicar_redondeo = primer_metodo_abono == 'EFECTIVO'
+    # Lógica simplificada para el frontend: aplicar redondeo en efectivo si es primer abono O si el primero fue efectivo
+    aplicar_redondeo_efectivo = es_primer_abono or (primer_metodo_abono == 'EFECTIVO')
     
     return jsonify({
         'es_primer_abono': es_primer_abono,
@@ -106,7 +128,7 @@ def obtener_info_redondeo(renta_id):
         'saldo_pendiente': saldo_pendiente,
         'total_renta': total_renta,
         'total_pagado': total_ya_pagado,
-        'aplicar_redondeo': aplicar_redondeo
+        'aplicar_redondeo_efectivo': aplicar_redondeo_efectivo
     })
 
 
@@ -173,8 +195,9 @@ def registrar_pago_prefactura(renta_id):
             if monto_recibido and float(monto_recibido) > monto_redondeado:
                 cambio = float(monto_recibido) - monto_redondeado
 
-        # Verificar si es el primer abono para aplicar redondeo
+        # LÓGICA SIMPLIFICADA DE REDONDEO PARA ABONOS
         if tipo == 'abono':
+            # Obtener información de abonos previos
             cursor.execute("""
                 SELECT COUNT(*) as total_abonos, 
                        COALESCE(SUM(monto), 0) as total_pagado,
@@ -184,7 +207,7 @@ def registrar_pago_prefactura(renta_id):
             """, (renta_id, renta_id))
             abono_info = cursor.fetchone()
             es_primer_abono = abono_info[0] == 0
-            total_ya_pagado = abono_info[1]
+            total_ya_pagado = abono_info[1] or 0
             primer_metodo_abono = abono_info[2]
             
             # Obtener total de la renta
@@ -192,52 +215,54 @@ def registrar_pago_prefactura(renta_id):
             total_renta = cursor.fetchone()[0]
             saldo_pendiente = total_renta - total_ya_pagado
             
-            print(f"es_primer_abono: {es_primer_abono}, primer_metodo: {primer_metodo_abono}, saldo_pendiente: {saldo_pendiente}")
+            print(f"=== REDONDEO ABONOS ===")
+            print(f"es_primer_abono: {es_primer_abono}")
+            print(f"primer_metodo_abono: {primer_metodo_abono}")
+            print(f"metodo_actual: {metodo}")
+            print(f"saldo_pendiente: {saldo_pendiente}")
+            print(f"monto_original: {monto}")
             
-
-            # Aplicar redondeo solo si es el primer abono Y es efectivo
-            if es_primer_abono and metodo.upper() == 'EFECTIVO':
-                saldo_redondeado = redondear_efectivo(saldo_pendiente)
-                print(f"Saldo original: {saldo_pendiente}, Saldo redondeado: {saldo_redondeado}")
-                # Si el monto a pagar es mayor o igual al saldo pendiente original, es liquidación
-                if float(monto) >= saldo_pendiente:
-                    monto = saldo_redondeado  # Cobrar el monto redondeado
-                    if float(monto_recibido) > saldo_redondeado:
-                        cambio = float(monto_recibido) - saldo_redondeado
-                    # Forzar saldo pendiente a cero si se liquida con redondeo
-                    saldo_pendiente = 0.0
-
-        # --- Nueva lógica: Si el primer abono fue efectivo y se redondeó, nunca mostrar los centavos en abonos futuros ---
-        # Esto se aplica a todos los métodos de pago en abonos posteriores
-        cursor.execute("""
-            SELECT COUNT(*) as total_abonos,
-                   (SELECT metodo_pago FROM prefacturas WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1 ORDER BY fecha_emision ASC LIMIT 1) as primer_metodo
-            FROM prefacturas 
-            WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1
-        """, (renta_id, renta_id))
-        abono_info2 = cursor.fetchone()
-        primer_metodo_abono2 = abono_info2[1]
-        if primer_metodo_abono2 == 'EFECTIVO':
-            # Buscar el primer abono efectivo y ver si hubo redondeo
-            cursor.execute("""
-                SELECT monto, (SELECT total_con_iva FROM rentas WHERE id = %s) as total_renta
-                FROM prefacturas WHERE renta_id = %s AND tipo = 'abono' AND pagada = 1 ORDER BY fecha_emision ASC LIMIT 1
-            """, (renta_id, renta_id))
-            primer_abono = cursor.fetchone()
-            if primer_abono:
-                monto_abono = float(primer_abono[0])
-                total_renta = float(primer_abono[1])
-                # Si el monto del primer abono no tiene centavos, asumimos que hubo redondeo
-                if abs(monto_abono - round(monto_abono)) in [0, 0.5, 1]:
-                    # Forzar saldo pendiente a 0 si ya se liquidó el monto redondeado
-                    cursor.execute("""
-                        SELECT COALESCE(SUM(monto),0) as total_pagado
-                        FROM prefacturas
-                        WHERE renta_id = %s AND pagada = 1
-                    """, (renta_id,))
-                    total_pagado = float(cursor.fetchone()[0])
-                    if total_pagado >= monto_abono:
-                        saldo_pendiente = 0.0
+            # APLICAR REDONDEO SEGÚN LA SITUACIÓN
+            if metodo.upper() == 'EFECTIVO':
+                if es_primer_abono:
+                    # Primer abono en efectivo
+                    if float(monto) >= saldo_pendiente:
+                        # Es liquidación completa: redondear el saldo total
+                        saldo_redondeado = redondear_efectivo(saldo_pendiente)
+                        monto = saldo_redondeado
+                        print(f"Liquidación completa - Saldo redondeado: {saldo_redondeado}")
+                    else:
+                        # Es abono parcial: redondear el monto del abono
+                        monto_redondeado = redondear_efectivo(float(monto))
+                        monto = monto_redondeado
+                        print(f"Abono parcial - Monto redondeado: {monto_redondeado}")
+                    
+                    # Recalcular cambio si es necesario
+                    if monto_recibido and float(monto_recibido) > float(monto):
+                        cambio = float(monto_recibido) - float(monto)
+                        
+                elif primer_metodo_abono == 'EFECTIVO':
+                    # Abono posterior cuando el primero fue efectivo: aplicar redondeo
+                    monto_redondeado = redondear_efectivo(float(monto))
+                    monto = monto_redondeado
+                    print(f"Abono posterior efectivo - Monto redondeado: {monto_redondeado}")
+                    
+                    # Recalcular cambio si es necesario
+                    if monto_recibido and float(monto_recibido) > float(monto):
+                        cambio = float(monto_recibido) - float(monto)
+                else:
+                    # Primer abono efectivo sin previos: aplicar redondeo normal
+                    monto_redondeado = redondear_efectivo(float(monto))
+                    monto = monto_redondeado
+                    print(f"Primer efectivo sin previos - Monto redondeado: {monto_redondeado}")
+                    
+                    # Recalcular cambio si es necesario
+                    if monto_recibido and float(monto_recibido) > float(monto):
+                        cambio = float(monto_recibido) - float(monto)
+            
+            print(f"monto_final: {monto}")
+            print(f"cambio_final: {cambio}")
+            print("========================")
                 
         # Insertar la prefactura (abono o inicial)
         cursor.execute("""
@@ -339,93 +364,215 @@ def generar_pdf_prefactura(prefactura_id):
         WHERE rd.renta_id = %s
     """, (prefactura['renta_id'],))
     detalles = cursor.fetchall()
+    
+    # Obtener el total correcto de la renta original
+    cursor.execute("""
+        SELECT total_con_iva
+        FROM rentas 
+        WHERE id = %s
+    """, (prefactura['renta_id'],))
+    total_renta_info = cursor.fetchone()
+    
+    # Obtener historial completo de pagos/abonos
+    cursor.execute("""
+        SELECT id, tipo, metodo_pago, monto, 
+               DATE_FORMAT(fecha_emision, '%d/%m/%Y %H:%i') as fecha_emision_formatted,
+               fecha_emision,
+               monto_recibido, cambio
+        FROM prefacturas
+        WHERE renta_id = %s AND pagada = 1
+        ORDER BY fecha_emision ASC
+    """, (prefactura['renta_id'],))
+    historial_pagos = cursor.fetchall()
+    
+    # Calcular totales
+    total_renta = float(total_renta_info['total_con_iva']) if total_renta_info else float(prefactura['monto'])
+    total_pagado = sum(float(pago['monto']) for pago in historial_pagos)
+    saldo_pendiente = total_renta - total_pagado
+    
+    # Determinar el tipo de visualización basándose en el tipo de prefactura, no en cantidad de pagos
+    # Si hay algún abono en el historial, mostrar como sistema de abonos
+    tiene_abonos = any(pago['tipo'] == 'abono' for pago in historial_pagos)
+    es_pago_inicial_completo = (len(historial_pagos) == 1 and 
+                               historial_pagos[0]['tipo'] == 'inicial' and 
+                               saldo_pendiente <= 0.01)
+    
+    # Obtener datos del usuario actual
+    usuario_id = session.get('user_id')
+    usuario_nombre = "USUARIO NO IDENTIFICADO"
+    if usuario_id:
+        cursor.execute("""
+            SELECT CONCAT(nombre, ' ', apellido1, ' ', apellido2) as nombre_completo
+            FROM usuarios 
+            WHERE id = %s
+        """, (usuario_id,))
+        usuario_row = cursor.fetchone()
+        if usuario_row:
+            usuario_nombre = usuario_row['nombre_completo'].upper()
+    
     cursor.close()
     conn.close()
+
+    # --- FUNCIÓN DE REDONDEO PARA PDF (IGUAL QUE EN BACKEND) ---
+    def redondear_efectivo(monto):
+        entero = int(monto)
+        centavos = round((monto - entero) * 100)
+        if centavos <= 49:
+            return entero
+        elif centavos >= 60:
+            return entero + 1
+        else:
+            return entero + 0.5
+
+    # --- APLICAR REDONDEO A LOS DATOS DEL PDF SI ES NECESARIO ---
+    # Verificar si hay abonos en efectivo para aplicar redondeo visual
+    primer_abono_efectivo = None
+    tiene_abonos_efectivo = False
+    
+    for pago in historial_pagos:
+        if pago['tipo'] == 'abono' and pago['metodo_pago'] == 'EFECTIVO':
+            if not primer_abono_efectivo:
+                primer_abono_efectivo = pago
+            tiene_abonos_efectivo = True
+            break
+    
+    # Si hay abonos en efectivo, aplicar redondeo visual a los totales y saldos
+    if tiene_abonos_efectivo:
+        # Redondear saldo pendiente para mostrar consistencia
+        if saldo_pendiente > 0.01:
+            saldo_pendiente_original = saldo_pendiente
+            saldo_pendiente = redondear_efectivo(saldo_pendiente)
+            # Ajustar el total pagado para que sume correctamente
+            total_pagado = total_renta - saldo_pendiente
+            
+            print(f"PDF - Redondeo aplicado: Saldo original {saldo_pendiente_original:.2f} -> Saldo redondeado {saldo_pendiente:.2f}")
+    
+    print(f"PDF - Total renta: {total_renta:.2f}, Total pagado: {total_pagado:.2f}, Saldo pendiente: {saldo_pendiente:.2f}")
 
     # --- GENERAR OVERLAY CON DATOS ---
     packet = BytesIO()
     can = canvas.Canvas(packet, pagesize=letter)
-    pdfmetrics.registerFont(TTFont('Carlito', os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')))
+    
+    # Registrar fuentes
+    try:
+        font_path = os.path.join(current_app.root_path, 'static/fonts/Carlito-Regular.ttf')
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont('Carlito', font_path))
+    except:
+        pass
 
     # === INFORMACIÓN DEL CLIENTE ===
+    
+    # === TÍTULO PRINCIPAL ===
+    can.setFont("Courier-Bold", 15)
+    can.drawString(490, 732, "PREFACTURA")
+    
+    
+    # === DATOS DEL CLIENTE (ANIDADOS) ===
+    y_cliente = 715
+    
     can.setFont("Carlito", 10)
     
     # Código y nombre del cliente
     cliente_codigo_nombre = f"{prefactura['codigo_cliente']} - {prefactura['cliente_nombre'].upper()}"
-    can.drawString(62, 703, f"{cliente_codigo_nombre}")
+    can.drawString(36, y_cliente, f"CLIENTE: {cliente_codigo_nombre}")
+    y_cliente -= 13
     
     # Teléfono
-    can.drawString(70, 656, f"{prefactura['telefono'] or 'No registrado'}")
+    can.drawString(36, y_cliente, f"TELÉFONO: {prefactura['telefono'] or 'NO REGISTRADO'}")
+    y_cliente -= 13
     
     # Correo
-    can.drawString(62, 640.5
-                   , f"{prefactura['correo'] or 'No registrado'}")
+    can.drawString(36, y_cliente, f"CORREO: {prefactura['correo'] or 'NO REGISTRADO'}")
+    y_cliente -= 13
     
-    # Dirección (calle, número y entre calles)
+    # Dirección completa (con ajuste multilínea si es necesario)
     direccion_completa = prefactura['calle'] or ''
     if prefactura['numero_exterior']:
-        direccion_completa += f" {prefactura['numero_exterior']}"
+        direccion_completa += f" #{prefactura['numero_exterior']}"
     if prefactura['numero_interior']:
-        direccion_completa += f", Int. {prefactura['numero_interior']}"
+        direccion_completa += f", INT. {prefactura['numero_interior']}"
     if prefactura['entre_calles']:
-        direccion_completa += f" (entre {prefactura['entre_calles']})"
+        direccion_completa += f" (ENTRE {prefactura['entre_calles']})"
     if prefactura['colonia']:
         direccion_completa += f", COL. {prefactura['colonia']}"
     if prefactura['codigo_postal']:
         direccion_completa += f" - C.P. {prefactura['codigo_postal']}"
 
+    direccion_texto = f"DIRECCIÓN: {direccion_completa.upper()}"
+    from reportlab.lib.utils import simpleSplit
+    direccion_lines = simpleSplit(direccion_texto, "Carlito", 10, 530)
+    for line in direccion_lines:
+        can.drawString(36, y_cliente, line)
+        y_cliente -= 13
     
-    can.drawString(73, 687, f"{direccion_completa.upper()}")
+    # Estado y Municipio en la misma línea
+    can.drawString(36, y_cliente, f"ESTADO: {prefactura['estado'] or 'NO REGISTRADO'.upper()}")
+    can.drawString(290, y_cliente, f"MUNICIPIO: {prefactura['municipio'] or 'NO REGISTRADO'.upper()}")
+    y_cliente -= 13
     
-    # Estado y Municipio
-    can.drawString(60, 671, f"{prefactura['estado'] or 'No registrado'.upper()}")
-    can.drawString(290, 671, f"{prefactura['municipio'] or 'No registrado'.upper()}")
-    
-    # RFC
-    can.drawString(290, 639.5, f"{prefactura['rfc'] or 'No registrado'.upper()}")
-    
-    # Facturable
+    # RFC y Facturable en la misma línea
+    can.drawString(36, y_cliente, f"RFC: {prefactura['rfc'] or 'NO REGISTRADO'.upper()}")
     facturable_texto = "SÍ" if prefactura['facturable'] else "NO"
-    can.drawString(458, 638.5, f"{facturable_texto}")
+    can.drawString(290, y_cliente, f"FACTURABLE: {facturable_texto}")
+    y_cliente -= 20
     
-        # === FECHA Y HORA DE EMISIÓN (HORA DE CAMPECHE) ===
-    can.setFont("Carlito", 10)
-    # La fecha ya viene en hora de Campeche desde la BD
+    # === FECHA Y HORA DE EMISIÓN ===
+    can.setFont("Carlito", 12)
+    
     fecha_emision = prefactura['fecha_emision']
-    can.drawString(482, 708, f"{fecha_emision.strftime('%d/%m/%Y')} - {fecha_emision.strftime('%H:%M:%S')}")
+    can.drawRightString(575, 715, f"{fecha_emision.strftime('%d/%m/%Y - %H:%M:%S')}")
     
     # Folio
-    can.setFont("Carlito", 10)
-    can.drawString(564, 725, f"#{prefactura_id}")
+    can.setFont("Courier-Bold", 20)
+    folio_consecutivo = obtener_folio_consecutivo_prefactura(prefactura['fecha_emision'])
+    can.drawRightString(575, 690, f"#{str(folio_consecutivo).zfill(4)}")
 
     # === TABLA DE PRODUCTOS ===
-    can.setFont("Carlito", 10)
+    
+    y_tabla = y_cliente - 5
+    
+    # Línea superior de encabezados
+    can.line(28, y_tabla + 20, 585, y_tabla + 20)
+    
+    # Encabezados de tabla
+    can.setFont("Helvetica-Bold", 9)
+    can.drawString(36, y_tabla + 10, "DESCRIPCIÓN")
+    can.drawRightString(350, y_tabla + 10, "CANT.")
+    can.drawRightString(400, y_tabla + 10, "DÍAS")
+    can.drawRightString(490, y_tabla + 10, "PRECIO UNIT.")
+    can.drawRightString(570, y_tabla + 10, "SUBTOTAL")
+    
+    # Línea inferior de encabezados
+    can.line(28, y_tabla + 5, 585, y_tabla + 5)
+    y_tabla -= 15
     
     # Datos de productos
-    y = 605
+    can.setFont("Carlito", 10)
     subtotal_general = 0
     
     for item in detalles:
-        can.drawString(50, y, item['nombre'][:40])  # Limitar longitud del nombre
-        can.drawRightString(347, y, str(item['cantidad']))
-        can.drawRightString(405, y, str(item['dias_renta'] or 'N/A'))
-        can.drawRightString(495, y, f"${item['costo_unitario']:.2f}")
-        can.drawRightString(570, y, f"${item['subtotal']:.2f}")
+        can.drawString(36, y_tabla + 5, item['nombre'][:35].upper())  # Limitar longitud del nombre
+        can.drawRightString(350, y_tabla + 5, str(item['cantidad']))
+        can.drawRightString(400, y_tabla + 5, str(item['dias_renta'] or 'N/A'))
+        can.drawRightString(490, y_tabla + 5, f"${item['costo_unitario']:.2f}")
+        can.drawRightString(570, y_tabla + 5, f"${item['subtotal']:.2f}")
         
         subtotal_general += float(item['subtotal'])
-        y -= 18
+        y_tabla -= 13
         
         # Si hay muchos productos, crear nueva página o ajustar
-        if y < 300:
+        if y_tabla < 300:
             break
+    
+    y_tabla -= 5
 
-        # === LÍNEA DIVISORA Y TOTALES ===
-    y -= 15
-    can.line(28, y+15, 585, y+15)  # Línea separadora
+    # === LÍNEA DIVISORA Y TOTALES ===
+    can.line(28, y_tabla + 15, 585, y_tabla + 15)  # Línea separadora
 
     espacio_3mm = 10
     can.setFont("Carlito", 11)
-    y_totales = y + 10 - espacio_3mm  # 3mm debajo de la línea
+    y_totales = y_tabla + 10 - espacio_3mm  # 3mm debajo de la línea
 
     # PERÍODO DE RENTA (AL LADO IZQUIERDO DEL SUBTOTAL)
     periodo_renta = f"{prefactura['fecha_salida'].strftime('%d/%m/%Y')}"
@@ -433,65 +580,154 @@ def generar_pdf_prefactura(prefactura_id):
         periodo_renta += f" - {prefactura['fecha_entrada'].strftime('%d/%m/%Y')}"
     else:
         periodo_renta += " - Indefinido"
-    can.setFont("Carlito", 10)
-    can.drawString(60, y_totales, f"PERIODO DE RENTA: {periodo_renta}")
+    can.setFont("Helvetica-Bold", 10)
+    can.drawString(36, y_totales, f"PERIODO DE RENTA: {periodo_renta}")
 
     # Subtotal de productos (AL LADO DERECHO)
-    can.setFont("Carlito", 11)
+    can.setFont("Carlito", 10)
     can.drawString(400, y_totales, "SUBTOTAL:")
     can.drawRightString(570, y_totales, f"${subtotal_general:.2f}")
-    y_totales -= 15
+    y_totales -= 12
 
     # Traslado
     traslado_tipo = prefactura.get('traslado', 'ninguno')
     costo_traslado = prefactura.get('costo_traslado', 0)
+    can.setFont("Carlito", 10)
     can.drawString(400, y_totales, f"TRASLADO ({traslado_tipo}):")
     can.drawRightString(570, y_totales, f"${costo_traslado:.2f}")
-    y_totales -= 15
+    y_totales -= 12
 
     # IVA
     can.drawString(400, y_totales, "IVA (16%):")
     can.drawRightString(570, y_totales, f"${prefactura['iva']:.2f}")
-    y_totales -= 20
+    y_totales -= 12
 
-    # Total final
-    can.setFont("Helvetica-Bold", 11)
-    can.drawString(400, y_totales, "TOTAL:")
-    can.drawRightString(570, y_totales, f"${prefactura['monto']:.2f}")
-
-    # === MÉTODO DE PAGO (DEBAJO DEL TOTAL) ===
-    y_totales -= 15
-    can.setFont("Carlito", 11)
-    can.drawString(400, y_totales, "MÉTODO/PAGO:")
-    can.drawRightString(570, y_totales, f"{prefactura['metodo_pago']}")
-
-    # === TOTAL EN LETRAS (AL LADO IZQUIERDO) ===
-    monto = prefactura['monto']
-    monto_entero = int(monto)
-    monto_centavos = int(round((monto - monto_entero) * 100))
+    # Total de la renta
+    can.setFont("Helvetica-Bold", 9)
+    can.drawString(400, y_totales, "TOTAL RENTA:")
+    can.drawRightString(570, y_totales, f"${total_renta:.2f}")
+    
+    # === TOTAL EN LETRAS (AL LADO IZQUIERDO DEL TOTAL RENTA) ===
+    monto_entero = int(total_renta)
+    monto_centavos = int(round((total_renta - monto_entero) * 100))
     monto_letras = num2words(monto_entero, lang='es').upper()
     if monto_centavos > 0:
-        monto_letras = f"{monto_letras} PESOS CON {monto_centavos:02d}/100 M.N."
+        monto_letras = f"SON: {monto_letras} PESOS CON {monto_centavos:02d}/100 M.N."
     else:
-        monto_letras = f"{monto_letras} PESOS 00/100 M.N."
+        monto_letras = f"SON: {monto_letras} PESOS 00/100 M.N."
 
-    # Posicionar el total en letras al lado izquierdo del método de pago
-    can.drawString(60, y_totales, f"SON: {monto_letras}")   
-   
+    # Usar simpleSplit para manejar texto multilínea si es muy largo
+    can.setFont("Carlito", 9)
+    monto_letras_lines = simpleSplit(monto_letras, "Carlito", 9, 350)  # Ancho máximo hasta donde empieza TOTAL RENTA
+    y_letras = y_totales
+    for line in monto_letras_lines:
+        can.drawString(36, y_letras, line)
+        y_letras -= 10
+    
+    # Ajustar y_totales según cuántas líneas ocupó el texto en letras
+    lines_used = len(monto_letras_lines)
+    y_totales -= max(12, lines_used * 10)
+
+    # === MOSTRAR INFORMACIÓN SEGÚN TIPO DE PAGO ===
+    if tiene_abonos:
+        # === HISTORIAL DE PAGOS (PARA CUALQUIER ABONO, INCLUSO EL PRIMERO) ===
+        # Línea separadora antes del historial
+        can.line(28, y_totales + 5, 585, y_totales + 5)
+        y_totales -= 10
+        
+        can.setFont("Helvetica-Bold", 11)
+        can.drawString(36, y_totales, "HISTORIAL DE PAGOS:")
+        y_totales -= 15
+        
+        # Encabezados de tabla de pagos
+        can.setFont("Helvetica-Bold", 8)
+        can.drawString(36, y_totales, "FECHA")
+        can.drawString(120, y_totales, "TIPO")
+        can.drawString(200, y_totales, "MÉTODO")
+        can.drawRightString(350, y_totales, "MONTO")
+        can.drawRightString(450, y_totales, "RECIBIDO")
+        can.drawRightString(550, y_totales, "CAMBIO")
+        y_totales -= 12
+        
+        # Datos de pagos
+        can.setFont("Carlito", 8)
+        for pago in historial_pagos:
+            # Aplicar redondeo visual a los montos de efectivo si es necesario
+            monto_mostrar = float(pago['monto'])
+            monto_recibido_mostrar = pago['monto_recibido']
+            cambio_mostrar = pago['cambio']
+            
+            # Si es abono en efectivo, aplicar redondeo visual para consistencia
+            if pago['tipo'] == 'abono' and pago['metodo_pago'] == 'EFECTIVO' and tiene_abonos_efectivo:
+                monto_mostrar = redondear_efectivo(monto_mostrar)
+                # Recalcular cambio si hay monto recibido
+                if monto_recibido_mostrar and float(monto_recibido_mostrar) > 0:
+                    cambio_mostrar = float(monto_recibido_mostrar) - monto_mostrar
+            
+            can.drawString(36, y_totales, pago['fecha_emision_formatted'])
+            can.drawString(120, y_totales, pago['tipo'].upper())
+            can.drawString(200, y_totales, pago['metodo_pago'])
+            can.drawRightString(350, y_totales, f"${monto_mostrar:.2f}")
+            
+            # Mostrar monto recibido y cambio solo si existen
+            if monto_recibido_mostrar:
+                can.drawRightString(450, y_totales, f"${float(monto_recibido_mostrar):.2f}")
+            
+            # Mostrar cambio siempre (incluso si es $0)
+            cambio_valor = float(cambio_mostrar) if cambio_mostrar else 0.0
+            can.drawRightString(550, y_totales, f"${cambio_valor:.2f}")
+            
+            y_totales -= 10
+        
+        y_totales -= 10
+        
+        # Resumen de pagos
+        can.setFont("Helvetica-Bold", 10)
+        can.drawString(200, y_totales, "TOTAL PAGADO:")
+        can.drawRightString(350, y_totales, f"${total_pagado:.2f}")
+        y_totales -= 12
+        
+        can.drawString(200, y_totales, "SALDO PENDIENTE:")
+        can.drawRightString(350, y_totales, f"${saldo_pendiente:.2f}")
+        y_totales -= 20
+        
+
+    else:
+        # === PAGO COMPLETO INICIAL (SOLO CUANDO ES UN PAGO INICIAL QUE LIQUIDA TODO) ===
+        pago_actual = historial_pagos[0] if historial_pagos else prefactura
+        
+        can.setFont("Carlito", 10)
+        can.drawString(400, y_totales, "MÉTODO/PAGO:")
+        can.drawRightString(570, y_totales, f"{pago_actual['metodo_pago']}")
+        y_totales -= 12
+        
+        # Mostrar información de cambio si es efectivo y hay cambio
+        if (pago_actual.get('monto_recibido') and 
+            pago_actual.get('cambio') and 
+            float(pago_actual['cambio']) > 0):
+            
+            can.setFont("Carlito", 10)
+            can.drawString(400, y_totales, f"RECIBIDO:")
+            can.drawRightString(570, y_totales, f"${float(pago_actual['monto_recibido']):.2f}")
+            y_totales -= 12
+            
+            can.drawString(400, y_totales, f"CAMBIO:")
+            can.drawRightString(570, y_totales, f"${float(pago_actual['cambio']):.2f}")
+            y_totales -= 12
 
     # === AVISOS IMPORTANTES PARA EL CLIENTE ===
-    y_avisos = y_totales - 10  # Más espacio entre totales y avisos
+    y_avisos = y_totales - 15  
 
     # Línea separadora para los avisos
-    can.line(28, y_avisos + 5, 585, y_avisos + 5)
+    can.line(28, y_avisos + 20, 585, y_avisos + 20)
     y_avisos -= 5
 
     # REQUISITOS DE CLIENTE
     can.setFont("Helvetica-Bold", 10)
-    can.drawString(60, y_avisos, "REQUISITOS DE CLIENTE:")
+    can.drawString(60, y_avisos, "REQUISITOS DEL CLIENTE:")
     y_avisos -= 12
 
-    can.setFont("Helvetica", 8)
+    can.setFont("Carlito", 8)
     can.drawString(60, y_avisos, "LOS SIGUIENTES DOCUMENTOS PUEDEN SER EN IMAGEN O EN COPIA IMPRESA:")
     y_avisos -= 12
 
@@ -512,7 +748,7 @@ def generar_pdf_prefactura(prefactura_id):
     can.drawString(60, y_avisos, "REQUISITOS DE RENTA:")
     y_avisos -= 11
 
-    can.setFont("Helvetica", 8)
+    can.setFont("Carlito", 8)
     can.drawString(70, y_avisos, "• SE REQUIERE EL PAGO COMPLETO POR ADELANTADO DE LA RENTA.")
     y_avisos -= 10
 
@@ -524,20 +760,30 @@ def generar_pdf_prefactura(prefactura_id):
     can.drawString(60, y_avisos, "¡IMPORTANTE!")
     y_avisos -= 11
 
-    can.setFont("Helvetica", 8)
+    can.setFont("Carlito", 8)
     can.drawString(70, y_avisos, "• EL PERIODO DE RENTA INCLUYE DOMINGOS, DÍAS INHÁBILES Y FESTIVOS.")
     y_avisos -= 10
 
     can.drawString(70, y_avisos, "• NO SE ARMA, NI SE DESARMA EL EQUIPO.")
+    y_avisos -= 10
+    
+    # === FIRMA DEL USUARIO ===
+    can.setFont("Carlito", 10)
+    # Línea para firma
+    can.line(60, y_avisos, 250, y_avisos)
+    y_avisos -= 15
+    
+    # Etiqueta de firma con nombre del usuario
+    can.drawString(60, y_avisos, f"ATENDIDO POR: {usuario_nombre}")
 
 
     # Guardar el canvas
     can.save()
     packet.seek(0)
 
-    # --- COMBINAR CON LA PLANTILLA (SI TIENES) ---
+    # --- COMBINAR CON LA PLANTILLA  ---
     try:
-        plantilla_path = os.path.join(current_app.root_path, 'static/notas/prefactura_plantilla.pdf')
+        plantilla_path = os.path.join(current_app.root_path, 'static/notas/base.pdf')
         if os.path.exists(plantilla_path):
             plantilla_pdf = PdfReader(plantilla_path)
             overlay_pdf = PdfReader(packet)
