@@ -21,6 +21,7 @@ from routes.notas_salida import notas_salida_bp
 from routes.prefactura import prefactura_bp
 from routes.cobros_extra import bp_extras
 from routes.cobro_retraso import cobro_retraso_bp
+from routes.caja import caja_bp
 
 def create_app(config_name='default'):
     app = Flask(__name__)
@@ -60,6 +61,7 @@ def create_app(config_name='default'):
     app.register_blueprint(prefactura_bp)
     app.register_blueprint(bp_extras)
     app.register_blueprint(cobro_retraso_bp)
+    app.register_blueprint(caja_bp)
     
     # Ruta principal
     @app.route('/')

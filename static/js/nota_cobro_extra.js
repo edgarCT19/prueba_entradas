@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const grupoSeguimiento = document.getElementById('grupo-numero-seguimiento');
                     const inputSeguimiento = document.getElementById('numero-seguimiento-extra');
 
-                    if (metodo === 'efectivo') {
+                    if (metodo === 'EFECTIVO') {
                         document.getElementById('total-cobro-extra-con-iva').textContent = redondearEfectivo(total).toFixed(2);
                         montoRecibidoInput.value = '';
                         montoRecibidoInput.removeAttribute('readonly');
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const cambio = parseFloat(document.getElementById('cambio-extra').value) || 0;
             const numeroSeguimiento = document.getElementById('numero-seguimiento-extra').value || '';
 
-            if (metodoPago === 'tarjeta_debito' || metodoPago === 'tarjeta_credito' || metodoPago === 'transferencia') {
+            if (metodoPago === 'T.DÉBITO' || metodoPago === 'T.CRÉDITO' || metodoPago === 'TRANSFERENCIA') {
                 montoRecibido = parseFloat(document.getElementById('total-cobro-extra-con-iva').textContent) || 0;
             }
             

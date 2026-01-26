@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Método de pago: mostrar número de seguimiento si aplica
     document.getElementById('cobro-retraso-metodo-pago').addEventListener('change', function () {
         const grupo = document.getElementById('grupo-numero-seguimiento-retraso');
-        if (['transferencia', 'tarjeta_debito', 'tarjeta_credito'].includes(this.value)) {
+        if (['TRANSFERENCIA', 'T.DÉBITO', 'T.CRÉDITO'].includes(this.value)) {
             grupo.style.display = '';
         } else {
             grupo.style.display = 'none';
@@ -98,7 +98,7 @@ function cargarCobroRetraso(rentaId) {
             // Limpiar campos
             document.getElementById('cobro-retraso-traslado-extra').value = 'ninguno';
             document.getElementById('cobro-retraso-costo-traslado').value = '';
-            document.getElementById('cobro-retraso-metodo-pago').value = 'efectivo';
+            document.getElementById('cobro-retraso-metodo-pago').value = 'EFECTIVO';
             document.getElementById('cobro-retraso-monto-recibido').value = '';
             document.getElementById('cobro-retraso-cambio').value = '';
             document.getElementById('cobro-retraso-facturable').value = '0';
@@ -139,7 +139,7 @@ function calcularTotalesCobroRetraso() {
     
     // Aplicar redondeo para efectivo
     const metodoPago = document.getElementById('cobro-retraso-metodo-pago').value;
-    if (metodoPago === 'efectivo') {
+    if (metodoPago === 'EFECTIVO') {
         const totalOriginal = total;
         total = redondearEfectivo(total);
         console.log(`Redondeo aplicado: ${totalOriginal.toFixed(2)} -> ${total.toFixed(2)}`);
@@ -155,7 +155,7 @@ function calcularTotalesCobroRetraso() {
     const cambioInput = document.getElementById('cobro-retraso-cambio');
     const grupoSeguimiento = document.getElementById('grupo-numero-seguimiento-retraso');
 
-    if (['transferencia', 'tarjeta_debito', 'tarjeta_credito'].includes(metodoPago)) {
+    if (['TRANSFERENCIA', 'T.DÉBITO', 'T.CRÉDITO'].includes(metodoPago)) {
         montoRecibidoInput.value = total.toFixed(2);
         montoRecibidoInput.readOnly = true;
         cambioInput.value = '0.00';
@@ -185,7 +185,7 @@ function guardarCobroRetraso() {
     }
     
     // Validación para efectivo
-    if (metodoPago === 'efectivo') {
+    if (metodoPago === 'EFECTIVO') {
         const montoRecibido = parseFloat(document.getElementById('cobro-retraso-monto-recibido').value) || 0;
         const total = parseFloat(document.getElementById('total-cobro-retraso-con-iva').textContent) || 0;
         if (montoRecibido < total) {

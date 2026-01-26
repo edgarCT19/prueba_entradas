@@ -1,0 +1,168 @@
+/* === ESTILOS PARA MÓDULO DE CAJA === */
+
+/* Tarjetas de resumen */
+.bg-success.bg-opacity-10 {
+    background-color: rgba(25, 135, 84, 0.1) !important;
+}
+
+.bg-danger.bg-opacity-10 {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.bg-primary.bg-opacity-10 {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+/* Tabla de movimientos */
+#tablaMovimientos {
+    font-size: 0.9rem;
+}
+
+#tablaMovimientos th {
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#tablaMovimientos .badge {
+    font-size: 0.75rem;
+}
+
+/* Badges para tipos de movimiento */
+.badge-ingreso {
+    background-color: #198754 !important;
+    color: white !important;
+}
+
+.badge-egreso {
+    background-color: #dc3545 !important;
+    color: white !important;
+}
+
+.badge-manual {
+    background-color: #6c757d !important;
+    color: white !important;
+}
+
+.badge-automatico {
+    background-color: #0d6efd !important;
+    color: white !important;
+}
+
+/* Botones de acción */
+.btn-grupo-acciones {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.btn-grupo-acciones .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Modal de movimiento */
+#modalMovimiento .modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+#modalMovimiento .modal-header .btn-close {
+    filter: invert(1);
+}
+
+/* Estados de campos */
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Animaciones para cards */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Resaltado de montos */
+.monto-positivo {
+    color: #198754;
+    font-weight: 600;
+}
+
+.monto-negativo {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Filtros */
+.card-header {
+    font-weight: 600;
+}
+
+/* Estados responsive */
+@media (max-width: 768px) {
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    #tablaMovimientos {
+        font-size: 0.8rem;
+    }
+    
+    .table-responsive {
+        border: none;
+    }
+}
+
+/* Loading states */
+.loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Iconos especiales */
+.icon-ingreso {
+    color: #198754;
+}
+
+.icon-egreso {
+    color: #dc3545;
+}
+
+.icon-efectivo {
+    color: #28a745;
+}
+
+.icon-tarjeta {
+    color: #007bff;
+}
+
+.icon-transferencia {
+    color: #6f42c1;
+}

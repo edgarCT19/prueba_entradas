@@ -145,7 +145,7 @@ CREATE TABLE `cotizaciones` (
   KEY `idx_cotizaciones_sucursal` (`sucursal_id`),
   CONSTRAINT `cotizaciones_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
   CONSTRAINT `cotizaciones_ibfk_2` FOREIGN KEY (`sucursal_id`) REFERENCES `sucursales` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -183,7 +183,7 @@ CREATE TABLE `historial_rentas` (
   PRIMARY KEY (`id`),
   KEY `renta_id` (`renta_id`),
   CONSTRAINT `historial_rentas_ibfk_1` FOREIGN KEY (`renta_id`) REFERENCES `rentas` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -210,7 +210,7 @@ CREATE TABLE `inventario_sucursal` (
   KEY `id_pieza` (`id_pieza`),
   CONSTRAINT `inventario_sucursal_ibfk_1` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursales` (`id`),
   CONSTRAINT `inventario_sucursal_ibfk_2` FOREIGN KEY (`id_pieza`) REFERENCES `piezas` (`id_pieza`)
-) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -242,7 +242,7 @@ CREATE TABLE `movimientos_inventario` (
   CONSTRAINT `movimientos_inventario_ibfk_1` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursales` (`id`),
   CONSTRAINT `movimientos_inventario_ibfk_2` FOREIGN KEY (`id_pieza`) REFERENCES `piezas` (`id_pieza`),
   CONSTRAINT `movimientos_inventario_ibfk_3` FOREIGN KEY (`sucursal_destino`) REFERENCES `sucursales` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=183 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -270,7 +270,7 @@ CREATE TABLE `notas_cobro_extra` (
   PRIMARY KEY (`id`),
   KEY `nota_entrada_id` (`nota_entrada_id`),
   CONSTRAINT `notas_cobro_extra_ibfk_1` FOREIGN KEY (`nota_entrada_id`) REFERENCES `notas_entrada` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -293,7 +293,7 @@ CREATE TABLE `notas_cobro_extra_detalle` (
   KEY `id_pieza` (`id_pieza`),
   CONSTRAINT `notas_cobro_extra_detalle_ibfk_1` FOREIGN KEY (`cobro_extra_id`) REFERENCES `notas_cobro_extra` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `notas_cobro_extra_detalle_ibfk_2` FOREIGN KEY (`id_pieza`) REFERENCES `piezas` (`id_pieza`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -322,7 +322,7 @@ CREATE TABLE `notas_cobro_retraso` (
   PRIMARY KEY (`id`),
   KEY `nota_entrada_id` (`nota_entrada_id`),
   CONSTRAINT `notas_cobro_retraso_ibfk_1` FOREIGN KEY (`nota_entrada_id`) REFERENCES `notas_entrada` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -346,7 +346,7 @@ CREATE TABLE `notas_cobro_retraso_detalle` (
   KEY `id_producto` (`id_producto`),
   CONSTRAINT `notas_cobro_retraso_detalle_ibfk_1` FOREIGN KEY (`cobro_retraso_id`) REFERENCES `notas_cobro_retraso` (`id`),
   CONSTRAINT `notas_cobro_retraso_detalle_ibfk_2` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -374,7 +374,7 @@ CREATE TABLE `notas_entrada` (
   KEY `idx_renta` (`renta_id`),
   CONSTRAINT `notas_entrada_ibfk_1` FOREIGN KEY (`renta_id`) REFERENCES `rentas` (`id`),
   CONSTRAINT `notas_entrada_ibfk_2` FOREIGN KEY (`nota_salida_id`) REFERENCES `notas_salida` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -400,7 +400,7 @@ CREATE TABLE `notas_entrada_detalle` (
   KEY `idx_nota_entrada` (`nota_entrada_id`),
   CONSTRAINT `notas_entrada_detalle_ibfk_1` FOREIGN KEY (`nota_entrada_id`) REFERENCES `notas_entrada` (`id`) ON DELETE CASCADE,
   CONSTRAINT `notas_entrada_detalle_ibfk_2` FOREIGN KEY (`id_pieza`) REFERENCES `piezas` (`id_pieza`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -420,7 +420,7 @@ CREATE TABLE `notas_salida` (
   PRIMARY KEY (`id`),
   KEY `renta_id` (`renta_id`),
   CONSTRAINT `notas_salida_ibfk_1` FOREIGN KEY (`renta_id`) REFERENCES `rentas` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=35 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -440,7 +440,7 @@ CREATE TABLE `notas_salida_detalle` (
   KEY `id_pieza` (`id_pieza`),
   CONSTRAINT `notas_salida_detalle_ibfk_1` FOREIGN KEY (`nota_salida_id`) REFERENCES `notas_salida` (`id`),
   CONSTRAINT `notas_salida_detalle_ibfk_2` FOREIGN KEY (`id_pieza`) REFERENCES `piezas` (`id_pieza`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=98 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -459,7 +459,7 @@ CREATE TABLE `password_reset_tokens` (
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
   CONSTRAINT `password_reset_tokens_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -509,7 +509,7 @@ CREATE TABLE `prefacturas` (
   `renta_id` int NOT NULL,
   `fecha_emision` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `generada` tinyint(1) DEFAULT '0',
-  `tipo` enum('inicial','servicio','recargo','renovacion') DEFAULT 'inicial',
+  `tipo` enum('inicial','servicio','recargo','renovacion','abono') DEFAULT 'inicial',
   `pagada` tinyint(1) DEFAULT '0',
   `metodo_pago` enum('EFECTIVO','T.DÉBITO','T.CRÉDITO','TRANSFERENCIA') DEFAULT NULL,
   `monto` decimal(10,2) DEFAULT '0.00',
@@ -521,7 +521,7 @@ CREATE TABLE `prefacturas` (
   PRIMARY KEY (`id`),
   KEY `renta_id` (`renta_id`),
   CONSTRAINT `prefacturas_ibfk_1` FOREIGN KEY (`renta_id`) REFERENCES `rentas` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=142 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -599,7 +599,7 @@ CREATE TABLE `renta_detalle` (
   KEY `id_producto` (`id_producto`),
   CONSTRAINT `renta_detalle_ibfk_1` FOREIGN KEY (`renta_id`) REFERENCES `rentas` (`id`) ON DELETE CASCADE,
   CONSTRAINT `renta_detalle_ibfk_2` FOREIGN KEY (`id_producto`) REFERENCES `productos` (`id_producto`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=98 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -611,7 +611,6 @@ DROP TABLE IF EXISTS `rentas`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `rentas` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `nota_entrada_id` int DEFAULT NULL,
   `cliente_id` int NOT NULL,
   `id_sucursal` int DEFAULT NULL,
   `fecha_registro` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -635,7 +634,7 @@ CREATE TABLE `rentas` (
   KEY `fk_rentas_sucursal` (`id_sucursal`),
   CONSTRAINT `fk_rentas_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursales` (`id`),
   CONSTRAINT `rentas_ibfk_1` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=64 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -696,6 +695,62 @@ CREATE TABLE `roles_permisos` (
   CONSTRAINT `roles_permisos_ibfk_1` FOREIGN KEY (`rol_id`) REFERENCES `roles` (`id`),
   CONSTRAINT `roles_permisos_ibfk_2` FOREIGN KEY (`permiso_id`) REFERENCES `permisos` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `salidas_internas`
+--
+
+DROP TABLE IF EXISTS `salidas_internas`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `salidas_internas` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_sucursal` int NOT NULL,
+  `folio_sucursal` int NOT NULL,
+  `fecha_salida` datetime NOT NULL,
+  `responsable_entrega` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Nombre del chofer o persona que se lleva el equipo',
+  `observaciones` text COLLATE utf8mb4_unicode_ci,
+  `estado` enum('activa','finalizada_regreso','finalizada_no_regreso','cancelada') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'activa',
+  `fecha_finalizacion` datetime DEFAULT NULL,
+  `observaciones_finalizacion` text COLLATE utf8mb4_unicode_ci,
+  `usuario_creacion` int NOT NULL,
+  `usuario_finalizacion` int DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_folio_sucursal` (`id_sucursal`,`folio_sucursal`),
+  KEY `idx_sucursal` (`id_sucursal`),
+  KEY `idx_folio_sucursal` (`folio_sucursal`),
+  KEY `idx_estado` (`estado`),
+  KEY `idx_fecha_salida` (`fecha_salida`),
+  KEY `fk_salidas_internas_usuario_creacion` (`usuario_creacion`),
+  KEY `fk_salidas_internas_usuario_finalizacion` (`usuario_finalizacion`),
+  CONSTRAINT `fk_salidas_internas_sucursal` FOREIGN KEY (`id_sucursal`) REFERENCES `sucursales` (`id`),
+  CONSTRAINT `fk_salidas_internas_usuario_creacion` FOREIGN KEY (`usuario_creacion`) REFERENCES `usuarios` (`id`),
+  CONSTRAINT `fk_salidas_internas_usuario_finalizacion` FOREIGN KEY (`usuario_finalizacion`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Tabla para registrar salidas internas de equipo (préstamos sin pago)';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `salidas_internas_detalle`
+--
+
+DROP TABLE IF EXISTS `salidas_internas_detalle`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `salidas_internas_detalle` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `salida_interna_id` int NOT NULL,
+  `id_pieza` int NOT NULL,
+  `cantidad` int NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_salida_interna` (`salida_interna_id`),
+  KEY `idx_pieza` (`id_pieza`),
+  CONSTRAINT `fk_salidas_internas_detalle_pieza` FOREIGN KEY (`id_pieza`) REFERENCES `piezas` (`id_pieza`),
+  CONSTRAINT `fk_salidas_internas_detalle_salida` FOREIGN KEY (`salida_interna_id`) REFERENCES `salidas_internas` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Detalle de productos en cada salida interna';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -771,4 +826,40 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-24  9:41:19
+-- Dump completed on 2026-01-26  8:52:37
+
+
+CREATE TABLE movimientos_caja (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    fecha DATE NOT NULL,
+    hora TIME NOT NULL DEFAULT (CURTIME()),
+    tipo ENUM('ingreso', 'egreso') NOT NULL,
+    concepto VARCHAR(255) NOT NULL,
+    monto DECIMAL(10,2) NOT NULL,
+    metodo_pago ENUM('EFECTIVO','T.DÉBITO','T.CRÉDITO','TRANSFERENCIA') NOT NULL,
+    numero_seguimiento VARCHAR(100) NULL,
+    observaciones TEXT NULL
+    
+    -- Para diferenciar movimientos manuales vs automáticos
+    tipo_movimiento ENUM('manual', 'automatico') NOT NULL DEFAULT 'manual',
+    
+    -- Referencias para movimientos automáticos
+    referencia_tabla VARCHAR(50) NULL COMMENT 'prefacturas, notas_cobro_extra, notas_cobro_retraso',
+    referencia_id INT NULL COMMENT 'ID del registro que generó este movimiento',
+    
+    -- Auditoria
+    usuario_id INT NOT NULL,
+    sucursal_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Índices para consultas rápidas
+    INDEX idx_fecha (fecha),
+    INDEX idx_tipo (tipo),
+    INDEX idx_sucursal_fecha (sucursal_id, fecha),
+    INDEX idx_referencia (referencia_tabla, referencia_id),
+    INDEX idx_tipo_movimiento (tipo_movimiento),
+    
+    -- Relaciones
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+    FOREIGN KEY (sucursal_id) REFERENCES sucursales(id)
+);

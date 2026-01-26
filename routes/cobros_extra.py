@@ -11,30 +11,41 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import os
 
-def obtener_folio_consecutivo_prefactura(fecha_registro):
+def obtener_folio_consecutivo_prefactura():
     """
-    Obtiene el folio consecutivo para prefacturas/cobros basándose en la fecha de registro.
-    Considera todos los registros de prefacturas, cobros extra y cobros de retraso.
+    Obtiene el próximo folio consecutivo para cualquier tipo de cobro.
+    Considera folios de prefacturas, cobros extra y cobros de retraso.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Contar todos los registros anteriores a esta fecha de las tres tablas
-    cursor.execute("""
-        SELECT COUNT(*) FROM (
-            SELECT fecha_emision as fecha FROM prefacturas WHERE fecha_emision <= %s
-            UNION ALL
-            SELECT fecha FROM notas_cobro_extra WHERE fecha <= %s
-            UNION ALL
-            SELECT fecha FROM notas_cobro_retraso WHERE fecha <= %s
-        ) AS todos_cobros
-    """, (fecha_registro, fecha_registro, fecha_registro))
-    
-    resultado = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    
-    return resultado[0] if resultado else 1
+    try:
+        # Obtener el folio más alto de todas las tablas de cobros
+        cursor.execute("""
+            SELECT COALESCE(MAX(folio), 0) as max_folio FROM (
+                SELECT COALESCE(folio, 0) as folio FROM prefacturas
+                UNION ALL
+                SELECT COALESCE(folio, 0) as folio FROM notas_cobro_extra
+                UNION ALL  
+                SELECT COALESCE(folio, 0) as folio FROM notas_cobro_retraso
+            ) AS todos_folios
+        """)
+        resultado = cursor.fetchone()
+        max_folio = resultado[0] if resultado else 0
+        
+        # El próximo folio es el máximo + 1
+        return max_folio + 1
+        
+    except Exception as e:
+        # Si alguna tabla no tiene el campo folio, usar solo prefacturas
+        print(f"Error al obtener folio unificado: {e}")
+        cursor.execute("SELECT COALESCE(MAX(folio), 0) + 1 FROM notas_cobro_extra")
+        resultado = cursor.fetchone()
+        return resultado[0] if resultado else 1
+        
+    finally:
+        cursor.close()
+        conn.close()
 
 bp_extras = Blueprint('cobros_extra', __name__, url_prefix='/cobros_extra')
 
@@ -102,21 +113,24 @@ def crear_cobro_extra(renta_id):
             return jsonify({'success': False, 'error': 'No se encontró la nota de entrada.'}), 400
         nota_entrada_id = nota_entrada['id']
 
+        # Obtener el próximo folio
+        folio = obtener_folio_consecutivo_prefactura()
+        
         # Crear cobro extra principal
         cursor.execute("""
             INSERT INTO notas_cobro_extra (
                 nota_entrada_id, tipo, subtotal, iva, total, metodo_pago,
                 monto_recibido, cambio, fecha, facturable, numero_seguimiento,
-                observaciones, estado_pago
+                observaciones, estado_pago, folio
             ) VALUES (
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
-                %s, %s
+                %s, %s, %s
             )
         """, (
             nota_entrada_id, tipo, subtotal, iva, total, metodo_pago,
             monto_recibido, cambio, fecha, facturable, numero_seguimiento,
-            observaciones, estado_pago
+            observaciones, estado_pago, folio
         ))
         cobro_id = cursor.lastrowid
 
@@ -353,9 +367,9 @@ def generar_pdf_cobro_extra(cobro_extra_id):
     fecha_emision = cobro['fecha']
     can.drawRightString(575, 715, f"{fecha_emision.strftime('%d/%m/%Y - %H:%M:%S')}")
     
-    # Folio
+    # Folio (usar el folio guardado en la BD)
     can.setFont("Courier-Bold", 20)
-    folio_consecutivo = obtener_folio_consecutivo_prefactura(cobro['fecha'])
+    folio_consecutivo = cobro_extra['folio']  # Usar el folio guardado
     can.drawRightString(575, 690, f"#{str(folio_consecutivo).zfill(4)}")
 
     # === TABLA DE PRODUCTOS ===

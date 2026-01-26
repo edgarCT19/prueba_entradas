@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}Movimientos de Caja - Andamios Colosio{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/caja.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado Principal -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h2 class="mb-0 text-primary">
+                                <i class="bi bi-cash-stack me-2"></i>Movimientos de Caja
+                            </h2>
+                            <p class="text-muted mb-0">Gestión de ingresos y egresos de efectivo</p>
+                        </div>
+                        <div class="col-auto">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-success" id="btnNuevoIngreso">
+                                    <i class="bi bi-plus-circle me-1"></i>Nuevo Ingreso
+                                </button>
+                                <button type="button" class="btn btn-danger" id="btnNuevoEgreso">
+                                    <i class="bi bi-dash-circle me-1"></i>Nuevo Egreso
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros y Resumen -->
+    <div class="row mb-4">
+        <!-- Filtros -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-funnel me-2"></i>Filtros
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="fechaInicio" class="form-label">Fecha Inicio</label>
+                            <input type="date" class="form-control" id="fechaInicio" name="fechaInicio">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="fechaFin" class="form-label">Fecha Fin</label>
+                            <input type="date" class="form-control" id="fechaFin" name="fechaFin">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="tipoMovimiento" class="form-label">Tipo</label>
+                            <select class="form-select" id="tipoMovimiento" name="tipoMovimiento">
+                                <option value="">Todos los tipos</option>
+                                <option value="ingreso">Solo Ingresos</option>
+                                <option value="egreso">Solo Egresos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="tipoOrigen" class="form-label">Origen</label>
+                            <select class="form-select" id="tipoOrigen" name="tipoOrigen">
+                                <option value="">Todos los orígenes</option>
+                                <option value="manual">Movimientos Manuales</option>
+                                <option value="automatico">Cobros Automáticos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="metodoPago" class="form-label">Método de Pago</label>
+                            <select class="form-select" id="metodoPago" name="metodoPago">
+                                <option value="">Todos los métodos</option>
+                                <option value="EFECTIVO">Efectivo</option>
+                                <option value="T.DÉBITO">Tarjeta Débito</option>
+                                <option value="T.CRÉDITO">Tarjeta Crédito</option>
+                                <option value="TRANSFERENCIA">Transferencia</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-primary w-100" id="btnFiltrar">
+                                <i class="bi bi-search me-1"></i>Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumen del Día -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-date me-2"></i>Resumen del Día
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center g-3">
+                        <div class="col-12">
+                            <div class="bg-success bg-opacity-10 rounded p-3">
+                                <h6 class="text-success mb-1">Total Ingresos</h6>
+                                <h4 class="text-success mb-0">$<span id="totalIngresos">0.00</span></h4>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="bg-danger bg-opacity-10 rounded p-3">
+                                <h6 class="text-danger mb-1">Total Egresos</h6>
+                                <h4 class="text-danger mb-0">$<span id="totalEgresos">0.00</span></h4>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="bg-primary bg-opacity-10 rounded p-3">
+                                <h6 class="text-primary mb-1">Saldo Neto</h6>
+                                <h4 class="text-primary mb-0">$<span id="saldoNeto">0.00</span></h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Movimientos -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-list-ul me-2"></i>Movimientos de Caja
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="tablaMovimientos">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Fecha/Hora</th>
+                                    <th>Tipo</th>
+                                    <th>Concepto</th>
+                                    <th>Método</th>
+                                    <th>Monto</th>
+                                    <th>Origen</th>
+                                    <th>Usuario</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyMovimientos">
+                                <!-- Los movimientos se cargan dinámicamente -->
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">
+                                        <i class="bi bi-search fs-1"></i>
+                                        <p>Selecciona un rango de fechas para ver los movimientos</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Nuevo Movimiento -->
+<div class="modal fade" id="modalMovimiento" tabindex="-1" aria-labelledby="modalMovimientoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalMovimientoLabel">
+                    <i class="bi bi-cash-stack me-2"></i><span id="tituloModal">Nuevo Movimiento</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formMovimiento">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <input type="hidden" id="tipoMovimientoModal" name="tipo" value="">
+                        
+                        <div class="col-md-6">
+                            <label for="conceptoModal" class="form-label">Concepto *</label>
+                            <input type="text" class="form-control" id="conceptoModal" name="concepto" 
+                                   placeholder="Describe el motivo del movimiento" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="montoModal" class="form-label">Monto *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="montoModal" name="monto" 
+                                       step="0.01" min="0.01" placeholder="0.00" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="metodoPagoModal" class="form-label">Método de Pago *</label>
+                            <select class="form-select" id="metodoPagoModal" name="metodo_pago" required>
+                                <option value="">Selecciona método</option>
+                                <option value="EFECTIVO">Efectivo</option>
+                                <option value="T.DÉBITO">Tarjeta Débito</option>
+                                <option value="T.CRÉDITO">Tarjeta Crédito</option>
+                                <option value="TRANSFERENCIA">Transferencia</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6" id="grupoSeguimiento" style="display: none;">
+                            <label for="numeroSeguimientoModal" class="form-label">Número de Seguimiento</label>
+                            <input type="text" class="form-control" id="numeroSeguimientoModal" name="numero_seguimiento" 
+                                   placeholder="Número de seguimiento del banco">
+                        </div>
+
+                        <div class="col-12">
+                            <label for="observacionesModal" class="form-label">Observaciones</label>
+                            <textarea class="form-control" id="observacionesModal" name="observaciones" rows="3" 
+                                      placeholder="Observaciones adicionales (opcional)"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="btnGuardarMovimiento">
+                        <i class="bi bi-check-circle me-1"></i>Guardar Movimiento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/movimientos_caja.js') }}"></script>
+{% endblock %}

@@ -133,8 +133,8 @@
                             {% if session['rol_id'] == 2 %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('empleados.empleados') }}"><i
                                         class="bi bi-person-badge"></i> Empleados</a></li>
-                            <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-diagram-3"></i>
-                                    Sucursales</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('caja.movimientos_caja') }}"><i class="bi bi-cash-stack"></i>
+                                    Caja</a></li>
                             <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-gear"></i>
                                     Configuración</a></li>
                         </ul>
