@@ -5,6 +5,9 @@ from datetime import datetime
 from flask import Blueprint, redirect, request, jsonify, send_file, current_app, url_for, session
 from utils.db import get_db_connection
 
+# Importar función para registrar movimientos automáticos de caja
+from routes.caja import registrar_movimiento_automatico
+
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
@@ -289,6 +292,27 @@ def registrar_pago_prefactura(renta_id):
             numero_seguimiento, facturable_int, folio  
         ))
         prefactura_id = cursor.lastrowid
+
+        # Registrar movimiento automático de caja si es pago en efectivo
+        if metodo.upper() == 'EFECTIVO':
+            concepto = f"Pago prefactura #{folio} - Renta #{renta_id} ({tipo})"
+            usuario_id = session.get('user_id')
+            sucursal_id = session.get('sucursal_id', 1)
+            
+            resultado_caja = registrar_movimiento_automatico(
+                tipo='ingreso',
+                concepto=concepto,
+                monto=float(monto),
+                metodo_pago=metodo.upper(),
+                usuario_id=usuario_id,
+                sucursal_id=sucursal_id,
+                referencia_tabla='prefacturas',
+                referencia_id=prefactura_id,
+                observaciones=f"Generado automáticamente desde prefactura"
+            )
+            
+            if resultado_caja['success'] and resultado_caja.get('registered', False):
+                print(f"Movimiento de caja registrado automáticamente: ID {resultado_caja['movimiento_id']}")
 
         # Calcular el total pagado hasta ahora (sumar todas las prefacturas pagadas de la renta)
         cursor.execute("""

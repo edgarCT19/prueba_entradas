@@ -1,5 +1,61 @@
 /* === ESTILOS PARA MÓDULO DE CAJA === */
 
+/* --- CONTENEDOR PRINCIPAL CAJA --- */
+.caja-box-container {
+    background: #fff;
+    border-radius: 22px;
+    box-shadow: 0 2px 16px rgba(80, 80, 80, 0.10);
+    padding: 2.5rem 2.5rem 2rem 2.5rem;
+    margin-bottom: 2rem;
+    margin-top: 1.5rem;
+}
+
+.caja-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.caja-section-title {
+    color: #23395d;
+    font-weight: bold;
+    font-size: 2.3rem;
+    margin-bottom: 0;
+}
+
+.btn-caja-main {
+    font-weight: bold;
+    border-radius: 12px;
+    padding: 0.7rem 2rem;
+    font-size: 1.1rem;
+    border: none;
+    transition: all 0.2s ease;
+    color: #fff;
+}
+
+.btn-caja-main.btn-success {
+    background: #28a745;
+}
+
+.btn-caja-main.btn-success:hover {
+    background: #218838;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-caja-main.btn-danger {
+    background: #dc3545;
+}
+
+.btn-caja-main.btn-danger:hover {
+    background: #c82333;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
 /* Tarjetas de resumen */
 .bg-success.bg-opacity-10 {
     background-color: rgba(25, 135, 84, 0.1) !important;
@@ -61,12 +117,202 @@
 
 /* Modal de movimiento */
 #modalMovimiento .modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
 }
 
-#modalMovimiento .modal-header .btn-close {
-    filter: invert(1);
+#modalMovimiento .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalMovimiento .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalMovimiento .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalMovimiento .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+#modalMovimiento .card-header h6 {
+    color: #fff !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalMovimiento .card {
+    border: 2px solid #23395d;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(35, 57, 93, 0.15);
+    overflow: hidden;
+}
+
+#modalMovimiento .card-body {
+    padding: 1.5rem;
+    background: #fafbfd;
+}
+
+#modalMovimiento .form-label {
+    color: #23395d;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+#modalMovimiento .form-control,
+#modalMovimiento .form-select {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 1rem;
+    background: #fff;
+    transition: all 0.2s ease;
+}
+
+#modalMovimiento .form-control:focus,
+#modalMovimiento .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.2rem rgba(35, 57, 93, 0.25);
+}
+
+#modalMovimiento .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.2s ease;
+}
+
+#modalMovimiento .btn-primary {
+    background: #23395d;
+    border-color: #23395d;
+    color: #fff;
+}
+
+#modalMovimiento .btn-primary:hover {
+    background: #1a2d4a;
+    border-color: #1a2d4a;
+    transform: translateY(-1px);
+}
+
+#modalMovimiento .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+#modalMovimiento .btn-secondary:hover {
+    background: #545b62;
+    border-color: #545b62;
+    transform: translateY(-1px);
+}
+
+#modalMovimiento .modal-body {
+    padding: 2rem;
+    background: #f8f9fa;
+}
+
+#modalMovimiento .input-group-text {
+    background: #23395d;
+    color: #fff;
+    border-color: #23395d;
+    font-weight: 600;
+}
+
+/* Responsive adjustments para modal movimiento */
+@media (max-width: 768px) {
+    #modalMovimiento .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    
+    #modalMovimiento .card-body {
+        padding: 1rem;
+    }
+    
+    #modalMovimiento .modal-body {
+        padding: 1rem;
+    }
+}
+
+/* Modal de detalle con el mismo diseño que modal movimiento */
+#modalDetalle .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a73 100%);
+    color: #fff;
+    border-bottom: none;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 1.5rem 2rem;
+}
+
+#modalDetalle .modal-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+#modalDetalle .modal-content {
+    border: 2px solid #23395d;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(35, 57, 93, 0.2);
+}
+
+#modalDetalle .modal-footer-azul {
+    background: linear-gradient(135deg, #f1f4fa 0%, #e8eef7 100%);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+    border-top: 2px solid #23395d;
+    padding: 1.2rem 2rem;
+}
+
+#modalDetalle .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    transition: all 0.2s ease;
+}
+
+#modalDetalle .btn-secondary {
+    background: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+}
+
+#modalDetalle .btn-secondary:hover {
+    background: #545b62;
+    border-color: #545b62;
+    transform: translateY(-1px);
+}
+
+#modalDetalle .modal-body {
+    padding: 2rem;
+    background: #f8f9fa;
 }
 
 /* Estados de campos */
@@ -98,6 +344,79 @@
 /* Filtros */
 .card-header {
     font-weight: 600;
+    background: #23395d !important;
+    color: #fff !important;
+    border-bottom: 2px solid #1a2d4a !important;
+}
+
+.card-header h5, 
+.card-header .card-title {
+    color: #fff !important;
+    font-weight: bold;
+    margin: 0;
+}
+
+/* Estilos para las tablas */
+.table thead th,
+#tablaMovimientosEfectivo thead th,
+#tablaIngresosDigitales thead th {
+    background: #23395d !important;
+    color: #fff !important;
+    font-weight: bold !important;
+    border-bottom: 2px solid #1a2d4a !important;
+    font-size: 1.08rem;
+}
+
+.table-dark {
+    background: #23395d !important;
+}
+
+.table-dark th {
+    background: #23395d !important;
+    color: #fff !important;
+    border-color: #1a2d4a !important;
+}
+
+/* Tabs con colores del tema */
+.nav-tabs .nav-link {
+    color: #23395d;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link.active {
+    background: #23395d !important;
+    color: #fff !important;
+    border-color: #23395d !important;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #23395d;
+    color: #23395d;
+}
+
+/* Botones primarios con tema azul */
+.btn-primary {
+    background: #23395d !important;
+    border-color: #23395d !important;
+    color: #fff !important;
+}
+
+.btn-primary:hover {
+    background: #1a2d4a !important;
+    border-color: #1a2d4a !important;
+    color: #fff !important;
+}
+
+.btn-caja-main.btn-primary {
+    background: #23395d !important;
+    border-color: #23395d !important;
+}
+
+.btn-caja-main.btn-primary:hover {
+    background: #1a2d4a !important;
+    border-color: #1a2d4a !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(35, 57, 93, 0.3);
 }
 
 /* Estados responsive */

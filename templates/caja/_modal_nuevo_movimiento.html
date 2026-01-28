@@ -1,0 +1,83 @@
+<!-- Modal para Nuevo Movimiento -->
+<div class="modal fade" id="modalMovimiento" tabindex="-1" aria-labelledby="modalMovimientoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalMovimientoLabel">
+                    <i class="bi bi-plus-circle me-2"></i>Nuevo Movimiento de Efectivo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="formMovimiento">
+                <div class="modal-body">
+                    <div class="row g-3 align-items-stretch">
+                        <!-- Columna Izquierda - Tipo y Monto -->
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header text-center">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-cash-coin me-2"></i>Datos del Movimiento
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="tipoMovimiento" class="form-label">
+                                            Tipo de Movimiento <span class="text-danger">*</span>
+                                        </label>
+                                        <select class="form-select" id="tipoMovimiento" name="tipo" required>
+                                            <option value="">Seleccionar tipo</option>
+                                            <option value="ingreso">Ingreso</option>
+                                            <option value="egreso">Egreso</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="montoMovimiento" class="form-label">
+                                            Monto <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="montoMovimiento" name="monto" 
+                                                   step="0.01" min="0.01" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Columna Derecha - Descripción -->
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header text-center">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-file-text me-2"></i>Descripción
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="conceptoMovimiento" class="form-label">
+                                            Concepto <span class="text-danger">*</span>
+                                        </label>
+                                        <textarea class="form-control" id="conceptoMovimiento" name="concepto" 
+                                                  rows="3" placeholder="Describe el motivo del movimiento..." required></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="observacionesMovimiento" class="form-label">Observaciones</label>
+                                        <textarea class="form-control" id="observacionesMovimiento" name="observaciones" 
+                                                  rows="3" placeholder="Observaciones adicionales (opcional)"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-azul">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>Guardar Movimiento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

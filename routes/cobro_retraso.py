@@ -8,6 +8,9 @@ from PyPDF2 import PdfReader, PdfWriter
 from num2words import num2words 
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+
+# Importar función para registrar movimientos automáticos de caja
+from routes.caja import registrar_movimiento_automatico
 import os
 
 
@@ -251,6 +254,27 @@ def guardar_cobro_retraso(renta_id):
             observaciones, facturable, traslado_extra, costo_traslado_extra, 'Retraso Pagado', numero_seguimiento, folio
         ))
         cobro_retraso_id = cursor.lastrowid
+
+        # Registrar movimiento automático de caja si es pago en efectivo
+        if metodo_pago.upper() == 'EFECTIVO':
+            concepto = f"Cobro retraso #{folio} - Nota entrada #{nota_entrada_id}"
+            usuario_id = session.get('user_id')
+            sucursal_id = session.get('sucursal_id', 1)
+            
+            resultado_caja = registrar_movimiento_automatico(
+                tipo='ingreso',
+                concepto=concepto,
+                monto=float(total),
+                metodo_pago=metodo_pago.upper(),
+                usuario_id=usuario_id,
+                sucursal_id=sucursal_id,
+                referencia_tabla='notas_cobro_retraso',
+                referencia_id=cobro_retraso_id,
+                observaciones=f"Generado automáticamente desde cobro retraso"
+            )
+            
+            if resultado_caja['success'] and resultado_caja.get('registered', False):
+                print(f"Movimiento de caja registrado automáticamente: ID {resultado_caja['movimiento_id']}")
 
         # Insertar detalles
         for det in detalles:
