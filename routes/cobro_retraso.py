@@ -8,6 +8,7 @@ from PyPDF2 import PdfReader, PdfWriter
 from num2words import num2words 
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from utils.datetime_utils import get_local_now
 
 # Importar función para registrar movimientos automáticos de caja
 from routes.caja import registrar_movimiento_automatico
@@ -674,7 +675,7 @@ def generar_pdf_cobro_retraso(cobro_retraso_id):
     output_stream.seek(0)
     
     # Agregar timestamp para evitar caché del navegador
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = get_local_now().strftime("%Y%m%d_%H%M%S")
     filename = f"cobro_retraso_{str(cobro_retraso_id).zfill(5)}_{timestamp}.pdf"
     
     # Agregar headers para evitar caché del navegador

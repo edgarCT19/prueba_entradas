@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from utils.db import get_db_connection
 # Importar función de folio centralizada desde inventario
 from routes.inventario import obtener_siguiente_folio_nota_sucursal
+# Importar funciones de datetime utils
+from utils.datetime_utils import get_local_now, format_datetime_local
 
 from flask import send_file
 from io import BytesIO
@@ -84,7 +86,7 @@ def preview_nota_entrada(renta_id):
         }), 404
 
     # Fecha y hora actual
-    fecha_hora = datetime.now().strftime('%d/%m/%Y %H:%M')
+    fecha_hora = format_datetime_local(get_local_now(), '%d/%m/%Y %H:%M')
 
     # Buscar si existe una renovación activa (total o parcial) para esta renta
     cursor.execute("""
@@ -109,12 +111,19 @@ def preview_nota_entrada(renta_id):
             fecha_base = fecha_base.date()
         fecha_limite_dt = datetime.combine(fecha_base + timedelta(days=1), datetime.strptime('10:00', '%H:%M').time())
         fecha_limite = f"{fecha_limite_dt.strftime('%d/%m/%Y')} hasta las 10:00 a.m."
-        ahora = datetime.now()
-        if ahora <= fecha_limite_dt:
+        
+        # Convertir ambos datetime a naive para comparación
+        ahora = get_local_now()
+        if hasattr(ahora, 'replace'):
+            ahora_naive = ahora.replace(tzinfo=None)
+        else:
+            ahora_naive = ahora
+            
+        if ahora_naive <= fecha_limite_dt:
             estado = 'A tiempo'
         else:
             estado = 'Retrasada'
-            delta = ahora - fecha_limite_dt
+            delta = ahora_naive - fecha_limite_dt
             dias_retraso = delta.days + (1 if delta.seconds > 0 else 0)
 
     # Piezas que salieron (de la nota de salida)

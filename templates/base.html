@@ -128,7 +128,7 @@
                                     href="{{ url_for('inventario.inventario_general') }}"><i class="bi bi-boxes"></i>
                                     Inventario General</a></li>
                             {% endif %}
-                            <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-bar-chart"></i>
+                            <li class="nav-item"><a class="nav-link" href="{{ url_for('reportes.reporte_diario') }}"><i class="bi bi-bar-chart"></i>
                                     Reportes</a></li>
                             {% if session['rol_id'] == 2 %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('empleados.empleados') }}"><i

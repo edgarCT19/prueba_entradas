@@ -11,7 +11,7 @@ from io import BytesIO
 from flask import send_file
 from PyPDF2 import PdfReader, PdfWriter
 import os
-from datetime import datetime
+from utils.datetime_utils import get_local_now, format_datetime_local
     
 
 def requiere_permiso(nombre_permiso):
@@ -414,9 +414,9 @@ def enviar_equipos():
                         id_sucursal, id_pieza, tipo_movimiento, cantidad, fecha,
                         usuario, sucursal_destino, observaciones, descripcion,
                         folio_nota_salida
-                    ) VALUES (%s, %s, 'transferencia_salida', %s, NOW(),
+                    ) VALUES (%s, %s, 'transferencia_salida', %s, %s,
                              %s, %s, %s, %s, %s)
-                """, (sucursal_origen_id, id_pieza, cantidad, 
+                """, (sucursal_origen_id, id_pieza, cantidad, get_local_now(), 
                       usuario_id, sucursal_destino_id, observaciones,
                       f'Envío a {nombre_destino}', folio_salida))
 
@@ -501,9 +501,9 @@ def recibir_equipos():
                         id_sucursal, id_pieza, tipo_movimiento, cantidad, fecha,
                         usuario, sucursal_destino, observaciones, descripcion,
                         folio_nota_entrada
-                    ) VALUES (%s, %s, 'transferencia_entrada', %s, NOW(),
+                    ) VALUES (%s, %s, 'transferencia_entrada', %s, %s,
                              %s, %s, %s, %s, %s)
-                """, (sucursal_destino_id, id_pieza, cantidad, 
+                """, (sucursal_destino_id, id_pieza, cantidad, get_local_now(), 
                       usuario_id, sucursal_origen_id, observaciones,  # CORREGIDO: guardamos origen en sucursal_destino
                       f'Recepción de {nombre_origen}', folio_entrada))
 
@@ -572,8 +572,8 @@ def transferir_piezas_multiple():
             cursor.execute("""
                 INSERT INTO notas_salida (
                     folio, renta_id, fecha, numero_referencia, observaciones
-                ) VALUES (%s, NULL, NOW(), %s, %s)
-            """, (folio_salida, f'TRANSFERENCIA-{folio_salida}', 
+                ) VALUES (%s, NULL, %s, %s, %s)
+            """, (folio_salida, get_local_now(), f'TRANSFERENCIA-{folio_salida}', 
                   f'Transferencia de {nombre_origen} a {nombre_destino}. {observaciones}'))
             nota_salida_id = cursor.lastrowid
 
@@ -583,9 +583,10 @@ def transferir_piezas_multiple():
                     folio, renta_id, nota_salida_id, fecha_entrada_real,
                     requiere_traslado_extra, costo_traslado_extra, observaciones,
                     estado, created_at, estado_retraso, accion_devolucion
-                ) VALUES (%s, NULL, %s, NOW(), 'ninguno', 0, %s, 'normal', NOW(), 'Sin Retraso', 'no')
-            """, (folio_entrada, nota_salida_id, 
-                  f'Transferencia de {nombre_origen} a {nombre_destino}. {observaciones}'))
+                ) VALUES (%s, NULL, %s, %s, 'ninguno', 0, %s, 'normal', %s, 'Sin Retraso', 'no')
+            """, (folio_entrada, nota_salida_id, get_local_now(),
+                  f'Transferencia de {nombre_origen} a {nombre_destino}. {observaciones}',
+                  get_local_now()))
             nota_entrada_id = cursor.lastrowid
 
             # 5. Procesar cada pieza
@@ -644,9 +645,9 @@ def transferir_piezas_multiple():
                         id_sucursal, id_pieza, tipo_movimiento, cantidad, fecha,
                         usuario, sucursal_destino, observaciones, descripcion,
                         folio_nota_salida, folio_nota_entrada
-                    ) VALUES (%s, %s, 'transferencia_salida', %s, NOW(),
+                    ) VALUES (%s, %s, 'transferencia_salida', %s, %s,
                              %s, %s, %s, %s, %s, %s)
-                """, (sucursal_origen_id, id_pieza, cantidad, 
+                """, (sucursal_origen_id, id_pieza, cantidad, get_local_now(), 
                       usuario_id, sucursal_destino_id, observaciones,
                       f'Transferencia a {nombre_destino}',
                       folio_salida, folio_entrada))
@@ -656,9 +657,9 @@ def transferir_piezas_multiple():
                         id_sucursal, id_pieza, tipo_movimiento, cantidad, fecha,
                         usuario, sucursal_destino, observaciones, descripcion,
                         folio_nota_salida, folio_nota_entrada
-                    ) VALUES (%s, %s, 'transferencia_entrada', %s, NOW(),
+                    ) VALUES (%s, %s, 'transferencia_entrada', %s, %s,
                              %s, %s, %s, %s, %s, %s)
-                """, (sucursal_destino_id, id_pieza, cantidad,
+                """, (sucursal_destino_id, id_pieza, cantidad, get_local_now(),
                       usuario_id, sucursal_origen_id, observaciones,
                       f'Transferencia desde {nombre_origen}',
                       folio_salida, folio_entrada))

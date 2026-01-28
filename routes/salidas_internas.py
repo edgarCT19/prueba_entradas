@@ -1,8 +1,9 @@
 # ======================= IMPORTS =======================
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
-from datetime import datetime, timedelta
+from datetime import timedelta
 from utils.db import get_db_connection
 from functools import wraps
+from utils.datetime_utils import get_local_now
 
 # Importar función de folios del módulo inventario
 from routes.inventario import obtener_siguiente_folio_nota_sucursal
@@ -136,7 +137,7 @@ def crear_salida_interna():
                 INSERT INTO salidas_internas 
                 (id_sucursal, folio_sucursal, fecha_salida, responsable_entrega, observaciones, estado, usuario_creacion)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (sucursal_id, folio_int, datetime.now(), responsable_entrega, observaciones, 'activa', usuario_id))
+            """, (sucursal_id, folio_int, get_local_now(), responsable_entrega, observaciones, 'activa', usuario_id))
 
             salida_id = cursor.lastrowid
 
@@ -318,7 +319,7 @@ def finalizar_salida_interna(salida_id):
                 WHERE id = %s
             """, (
                 'finalizada_regreso' if tipo_finalizacion == 'regreso' else 'finalizada_no_regreso',
-                datetime.now(),
+                get_local_now(),
                 observaciones_finalizacion,
                 usuario_id,
                 salida_id

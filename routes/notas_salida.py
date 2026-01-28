@@ -12,6 +12,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+from utils.datetime_utils import get_local_now, format_datetime_local
 import os
 
 notas_salida_bp = Blueprint('notas_salida', __name__, url_prefix='/notas_salida')
@@ -97,7 +98,7 @@ def preview_nota_salida(renta_id):
 
     return jsonify({
         'folio': folio,
-        'fecha': datetime.now().strftime('%d/%m/%Y %H:%M'),
+        'fecha': format_datetime_local(get_local_now(), '%d/%m/%Y %H:%M'),
         'cliente': f"{renta['nombre']} {renta['apellido1']} {renta['apellido2']}",
         'celular': renta['telefono'],
         'direccion_obra': renta['direccion_obra'],
@@ -132,7 +133,7 @@ def crear_nota_salida(renta_id):
         # Insertar nota de salida
         cursor.execute("""
             INSERT INTO notas_salida (folio, renta_id, fecha, numero_referencia, observaciones)
-            VALUES (%s, %s, NOW() - INTERVAL 6 HOUR, %s, %s)
+            VALUES (%s, %s, NOW(), %s, %s)
                        """, (folio, renta_id, numero_referencia, observaciones))
         
         nota_salida_id = cursor.lastrowid

@@ -1,11 +1,12 @@
+# Front Controller - Punto de entrada principal del sistema
 from flask import Flask, render_template, redirect, url_for
 from flask_mail import Mail
 import os
 
-# Importar configuración centralizada
+# Traer la configuración desde otro archivo
 from config import config
 
-# Importar blueprints
+# Traer todos los módulos que manejan diferentes partes del sistema
 from routes.login import login_bp
 from routes.dashboard import dashboard_bp
 from routes.clientes import clientes_bp
@@ -22,17 +23,20 @@ from routes.prefactura import prefactura_bp
 from routes.cobros_extra import bp_extras
 from routes.cobro_retraso import cobro_retraso_bp
 from routes.caja import caja_bp
+from routes.reportes import reportes_bp
 
+# Función que arma toda la aplicación
 def create_app(config_name='default'):
+    # Crear la app principal
     app = Flask(__name__)
     
-    # Cargar configuración
+    # Aplicar la configuración que queremos usar
     app.config.from_object(config[config_name])
     
-    # Inicializar extensiones
+    # Activar el sistema de correos
     mail = Mail(app)
     
-    # Filtros de plantillas
+    # Función que convierte estados en colores para las plantillas
     @app.template_filter('estado_color')
     def estado_color(estado):
         colores = {
@@ -45,33 +49,37 @@ def create_app(config_name='default'):
         }
         return colores.get(estado, 'dark')
     
-    # Registrar blueprints
-    app.register_blueprint(login_bp)
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(clientes_bp)
-    app.register_blueprint(bp_inventario)
-    app.register_blueprint(bp_producto)
-    app.register_blueprint(empleados_bp)
-    app.register_blueprint(usuarios_bp)
-    app.register_blueprint(cotizaciones_bp)
-    app.register_blueprint(rentas_bp)
-    app.register_blueprint(salidas_internas_bp)
-    app.register_blueprint(notas_entrada_bp)
-    app.register_blueprint(notas_salida_bp)
-    app.register_blueprint(prefactura_bp)
-    app.register_blueprint(bp_extras)
-    app.register_blueprint(cobro_retraso_bp)
-    app.register_blueprint(caja_bp)
+    # Conectar todos los módulos a la aplicación principal
+    # Cada módulo maneja su propia parte del sistema
+    app.register_blueprint(login_bp)           # Maneja login y autenticación
+    app.register_blueprint(dashboard_bp)       # Maneja el tablero principal
+    app.register_blueprint(clientes_bp)        # Maneja todo de clientes
+    app.register_blueprint(bp_inventario)      # Maneja inventario y almacén
+    app.register_blueprint(bp_producto)        # Maneja productos y piezas
+    app.register_blueprint(empleados_bp)       # Maneja empleados
+    app.register_blueprint(usuarios_bp)        # Maneja usuarios del sistema
+    app.register_blueprint(cotizaciones_bp)    # Maneja cotizaciones
+    app.register_blueprint(rentas_bp)          # Maneja rentas de equipo
+    app.register_blueprint(salidas_internas_bp)# Maneja movimientos internos
+    app.register_blueprint(notas_entrada_bp)   # Maneja devoluciones de equipo
+    app.register_blueprint(notas_salida_bp)    # Maneja entregas de equipo
+    app.register_blueprint(prefactura_bp)      # Maneja facturación
+    app.register_blueprint(bp_extras)          # Maneja cobros extra
+    app.register_blueprint(cobro_retraso_bp)   # Maneja cobros por retraso
+    app.register_blueprint(caja_bp)            # Maneja caja y dinero
+    app.register_blueprint(reportes_bp)        # Maneja reportes y estadísticas
     
-    # Ruta principal
+    # Página de inicio - redirige al login
     @app.route('/')
     def home():
         return redirect(url_for('login.login'))
     
+    # Devolver la aplicación ya armada
     return app
 
-# Crear la aplicación
+# Crear la aplicación usando la función de arriba
 app = create_app(os.getenv('FLASK_ENV', 'default'))
 
+# Si ejecutamos este archivo directamente, arrancar el servidor
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'])

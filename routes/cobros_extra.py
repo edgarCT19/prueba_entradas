@@ -1,13 +1,13 @@
 # routes/cobros_extra.py
 from flask import Blueprint, jsonify, request, send_file, current_app, url_for, session
 from utils.db import get_db_connection
-from datetime import datetime
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from PyPDF2 import PdfReader, PdfWriter
 from num2words import num2words 
 from reportlab.pdfbase import pdfmetrics
+from utils.datetime_utils import get_local_now
 
 # Importar función para registrar movimientos automáticos de caja
 from routes.caja import registrar_movimiento_automatico
@@ -105,7 +105,7 @@ def crear_cobro_extra(renta_id):
     observaciones = data.get('observaciones', '')
     estado_pago = "Extra Pagado" if monto_recibido >= total else "Extra Pendiente"
     tipo = data.get('tipo', 'extra')
-    fecha = datetime.now()
+    fecha = get_local_now()
     detalles = data.get('detalles', [])
 
     try:
@@ -213,23 +213,46 @@ def sugerencias_cobro_extra(renta_id):
                    nd.cantidad_danada, nd.cantidad_sucia, nd.cantidad_perdida
             FROM notas_entrada_detalle nd
             JOIN piezas p ON nd.id_pieza = p.id_pieza
-            WHERE nd.nota_entrada_id = %s
+            WHERE nd.nota_entrada_id = %s 
+            AND (nd.cantidad_danada > 0 OR nd.cantidad_sucia > 0 OR nd.cantidad_perdida > 0)
         """, (nota_entrada_id,))
         piezas = cursor.fetchall()
 
         detalles = []
         for pieza in piezas:
-            for tipo, campo in [('dañada', 'cantidad_danada'), ('sucia', 'cantidad_sucia'), ('perdida', 'cantidad_perdida')]:
-                cantidad = pieza[campo]
-                if cantidad > 0:
-                    detalles.append({
-                        'id_pieza': pieza['id_pieza'],
-                        'nombre_pieza': pieza['nombre_pieza'],
-                        'tipo_afectacion': tipo,
-                        'cantidad': cantidad,
-                        'costo_unitario': 0,
-                        'subtotal': 0
-                    })
+            # Agregar cada tipo de afectación que tenga cantidad > 0
+            if pieza['cantidad_danada'] and pieza['cantidad_danada'] > 0:
+                detalles.append({
+                    'id_pieza': pieza['id_pieza'],
+                    'nombre_pieza': pieza['nombre_pieza'],
+                    'tipo_afectacion': 'dañada',
+                    'cantidad': pieza['cantidad_danada'],
+                    'costo_unitario': 0,
+                    'subtotal': 0,
+                    'es_traslado_extra': False
+                })
+            
+            if pieza['cantidad_sucia'] and pieza['cantidad_sucia'] > 0:
+                detalles.append({
+                    'id_pieza': pieza['id_pieza'],
+                    'nombre_pieza': pieza['nombre_pieza'],
+                    'tipo_afectacion': 'sucia',
+                    'cantidad': pieza['cantidad_sucia'],
+                    'costo_unitario': 0,
+                    'subtotal': 0,
+                    'es_traslado_extra': False
+                })
+            
+            if pieza['cantidad_perdida'] and pieza['cantidad_perdida'] > 0:
+                detalles.append({
+                    'id_pieza': pieza['id_pieza'],
+                    'nombre_pieza': pieza['nombre_pieza'],
+                    'tipo_afectacion': 'perdida',
+                    'cantidad': pieza['cantidad_perdida'],
+                    'costo_unitario': 0,
+                    'subtotal': 0,
+                    'es_traslado_extra': False
+                })
         # Agregar traslado extra si aplica
         cursor.execute("""
             SELECT requiere_traslado_extra, costo_traslado_extra
@@ -243,8 +266,8 @@ def sugerencias_cobro_extra(renta_id):
                 'nombre_pieza': f"Traslado Extra ({traslado_row['requiere_traslado_extra'].capitalize()})",
                 'tipo_afectacion': 'traslado_extra',
                 'cantidad': 1,
-                'costo_unitario': traslado_row['costo_traslado_extra'],
-                'subtotal': traslado_row['costo_traslado_extra'],
+                'costo_unitario': float(traslado_row['costo_traslado_extra']),
+                'subtotal': float(traslado_row['costo_traslado_extra']),
                 'es_traslado_extra': True
             })
         return jsonify({'detalles': detalles})
@@ -393,7 +416,7 @@ def generar_pdf_cobro_extra(cobro_extra_id):
     
     # Folio (usar el folio guardado en la BD)
     can.setFont("Courier-Bold", 20)
-    folio_consecutivo = cobro_extra['folio']  # Usar el folio guardado
+    folio_consecutivo = cobro['folio']  # Usar el folio guardado
     can.drawRightString(575, 690, f"#{str(folio_consecutivo).zfill(4)}")
 
     # === TABLA DE PRODUCTOS ===
@@ -612,7 +635,7 @@ def generar_pdf_cobro_extra(cobro_extra_id):
     output_stream.seek(0)
     
     # Agregar timestamp para evitar caché del navegador
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = get_local_now().strftime("%Y%m%d_%H%M%S")
     filename = f"cobro_extra_{str(cobro_extra_id).zfill(5)}_{timestamp}.pdf"
     
     # Agregar headers para evitar caché del navegador

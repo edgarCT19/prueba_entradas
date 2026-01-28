@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (modalNueva) {
         modalNueva.addEventListener('show.bs.modal', function () {
             // Asegurar que la fecha automática se actualice
-            document.getElementById('fecha_automatica').value = new Date().toLocaleString('es-MX');
+            document.getElementById('fecha_automatica').value = getFechaLocalCampeche();
         });
 
         modalNueva.addEventListener('hidden.bs.modal', function () {

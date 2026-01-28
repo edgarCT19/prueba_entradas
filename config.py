@@ -19,7 +19,8 @@ class Config:
         'database': 'andamiosdb',
         'port': 3306,
         'charset': 'utf8mb4',
-        'autocommit': True
+        'autocommit': True,
+        'time_zone': '-06:00'  # Zona horaria de Campeche (CST)
     }
     
     # Configuración de correo electrónico

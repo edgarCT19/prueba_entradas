@@ -351,8 +351,9 @@ document.addEventListener('DOMContentLoaded', function () {
         id_sucursal: {{ sucursal_id_usuario }}
     };
     
-    // Mostrar fecha actual en el modal
+    // Mostrar fecha actual en el modal usando zona horaria de Campeche
     const fechaActual = new Date().toLocaleString('es-MX', {
+        timeZone: 'America/Merida', // Zona horaria de Campeche
         day: '2-digit',
         month: '2-digit', 
         year: 'numeric',

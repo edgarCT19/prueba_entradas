@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import datetime, timedelta
 from utils.db import get_db_connection
 from itertools import zip_longest
+from utils.datetime_utils import get_local_now, get_local_now_naive
 # PDF/Reportlab imports (usados en otras rutas, mantener agrupados)
 from PyPDF2 import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas
@@ -314,14 +315,15 @@ def modulo_rentas():
         
         fecha_entrada = renta[3]  
         fecha_limite = renta[16]  
-        ahora = datetime.now()
+        ahora_naive = get_local_now_naive()
         
         # Solo mostrar indicadores para rentas ACTIVAS con fechas específicas
         if fecha_limite:
+            # Crear fecha_limite_con_hora y convertir a zona horaria local
             fecha_limite_con_hora = datetime.combine(fecha_limite, datetime.strptime('10:00', '%H:%M').time())
 
             # Si ya pasó la fecha y hora límite = VENCIDA
-            if ahora > fecha_limite_con_hora:
+            if ahora_naive > fecha_limite_con_hora:
                 return {
                     'estado': 'vencida',
                     'clase': 'badge-vencida',
@@ -329,7 +331,7 @@ def modulo_rentas():
                 }
             
             # Si llegó a la fecha de entrada pero no ha pasado la hora límite = POR REGRESAR
-            elif ahora.date() >= fecha_entrada:
+            elif ahora_naive.date() >= fecha_entrada:
                 return {
                     'estado': 'por_regresar',
                     'clase': 'badge-por-regresar',
@@ -442,7 +444,7 @@ def crear_renta():
         fecha_salida = request.form['fecha_salida']
         fecha_entrada = request.form.get('fecha_entrada') or None
         observaciones = request.form.get('observaciones')
-        fecha_registro = datetime.now()
+        fecha_registro = get_local_now()
         fecha_programada = request.form.get('fecha_programada') or None
         costo_traslado = float(request.form.get('costo_traslado') or 0)
         traslado = request.form.get('traslado') or 'ninguno'
@@ -845,7 +847,7 @@ def renovar_renta(renta_id):
         # Actualizar estado de la renta padre a 'activa renovación'
         cursor.execute("UPDATE rentas SET estado_renta=%s WHERE id=%s", ("activa renovación", renta_id))
 
-        fecha_registro = datetime.now()
+        fecha_registro = get_local_now()
         costo_traslado = renta_original[3] or 0
         traslado = renta_original[4] or 'ninguno'
 

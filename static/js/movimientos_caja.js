@@ -7,12 +7,28 @@ $(document).ready(function() {
     let currentTab = 'efectivo';
     
     // ========================================================================
+    // UTILIDADES DE FECHA PARA ZONA HORARIA LOCAL
+    // ========================================================================
+    
+    function getFechaLocal() {
+        // Obtener fecha local de Campeche (GMT-6)
+        const ahora = new Date();
+        // Ajustar a zona horaria local de Campeche
+        const offsetCampeche = -6; // GMT-6
+        const offsetLocal = ahora.getTimezoneOffset() / 60; // Offset del navegador en horas
+        const ajuste = (offsetCampeche - (-offsetLocal)) * 60 * 60 * 1000;
+        const fechaLocal = new Date(ahora.getTime() + ajuste);
+        
+        return fechaLocal.toISOString().split('T')[0];
+    }
+    
+    // ========================================================================
     // INICIALIZACIÓN
     // ========================================================================
     
     function inicializar() {
-        // Configurar fechas por defecto (día actual)
-        const hoy = new Date().toISOString().split('T')[0];
+        // Configurar fechas por defecto usando zona horaria local de Campeche
+        const hoy = getFechaLocal();
         $('#fechaInicioEfectivo, #fechaFinEfectivo, #fechaInicioDigital, #fechaFinDigital').val(hoy);
         
         // Cargar datos iniciales
@@ -46,7 +62,7 @@ $(document).ready(function() {
         });
         
         $('#btnLimpiarFiltrosEfectivo').click(function() {
-            const hoy = new Date().toISOString().split('T')[0];
+            const hoy = getFechaLocal();
             $('#fechaInicioEfectivo, #fechaFinEfectivo').val(hoy);
             $('#tipoMovimientoEfectivo, #origenMovimientoEfectivo').val('');
             cargarMovimientosEfectivo();
@@ -59,7 +75,7 @@ $(document).ready(function() {
         });
         
         $('#btnLimpiarFiltrosDigital').click(function() {
-            const hoy = new Date().toISOString().split('T')[0];
+            const hoy = getFechaLocal();
             $('#fechaInicioDigital, #fechaFinDigital').val(hoy);
             cargarIngresosDigitales();
         });
@@ -208,9 +224,8 @@ $(document).ready(function() {
         const fechaFin = $('#fechaFinEfectivo').val();
         
         if (fechaInicio === fechaFin) {
-            const fecha = new Date(fechaInicio + 'T00:00:00');
-            const hoy = new Date().toDateString();
-            const fechaStr = fecha.toDateString() === hoy ? 'Hoy' : fecha.toLocaleDateString('es-MX');
+            const fechaHoy = getFechaLocal();
+            const fechaStr = fechaInicio === fechaHoy ? 'Hoy' : fechaInicio;
             $('#fechaResumenEfectivo').text(fechaStr);
         } else {
             $('#fechaResumenEfectivo').text('Período seleccionado');

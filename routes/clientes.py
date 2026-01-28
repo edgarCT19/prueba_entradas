@@ -3,9 +3,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from utils.db import get_db_connection
 from werkzeug.utils import secure_filename
 import os
-from datetime import datetime
 from functools import wraps
-import requests  
+import requests
+from utils.datetime_utils import get_local_now, format_date_local  
 
 def requiere_permiso(nombre_permiso):
     def decorator(f):
@@ -348,7 +348,7 @@ def nuevo_cliente():
         correo = request.form.get('correo')
         rfc = request.form.get('rfc')
         tipo_cliente = request.form['tipo_cliente']
-        fecha_alta = datetime.now().strftime('%Y-%m-%d')
+        fecha_alta = format_date_local(get_local_now(), '%Y-%m-%d')
         archivos = request.files.getlist('documentos')
 
         # AGREGAR campos de dirección:

@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}Reportes Diarios - Andamios Colosio{% endblock %}
+
+{% block head %}
+<style>
+.reporte-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid #007bff;
+}
+
+.reporte-section h4 {
+    color: #007bff;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.reporte-item {
+    background: white;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 10px;
+    border: 1px solid #e9ecef;
+    transition: box-shadow 0.2s;
+}
+
+.reporte-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.reporte-salida {
+    border-left: 4px solid #dc3545;
+}
+
+.reporte-entrada {
+    border-left: 4px solid #28a745;
+}
+
+.reporte-extra {
+    border-left: 4px solid #ffc107;
+}
+
+.cliente-info {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.obra-info {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+}
+
+.piezas-info {
+    color: #495057;
+    font-size: 0.95em;
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.folio-fecha {
+    text-align: right;
+    color: #6c757d;
+    font-size: 0.85em;
+}
+
+.no-data {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 20px;
+}
+
+.filtros-section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.icon-section {
+    font-size: 1.2em;
+    margin-right: 8px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-bar-chart icon-section"></i>Reporte Diario de Movimientos</h2>
+        <div class="badge bg-primary fs-6">{{ fecha_formato }}</div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Filtros -->
+    <div class="filtros-section">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="sucursal_id" class="form-label">Sucursal:</label>
+                <select class="form-select" id="sucursal_id" name="sucursal_id">
+                    {% for s in sucursales %}
+                    <option value="{{ s.id }}" {% if s.id == sucursal.id %}selected{% endif %}>
+                        {{ s.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="fecha" class="form-label">Fecha:</label>
+                <input type="date" class="form-control" id="fecha" name="fecha" value="{{ fecha_consulta }}">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Consultar
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Imprimir
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Resumen de sucursal -->
+    <div class="alert alert-info">
+        <strong><i class="bi bi-building"></i> {{ sucursal.nombre }}</strong> - 
+        Movimientos del {{ fecha_formato }}
+    </div>
+
+    <div class="row">
+        <!-- COLUMNA IZQUIERDA - SALIDAS -->
+        <div class="col-lg-6">
+            <!-- SALIDAS DE CLIENTES -->
+            <div class="reporte-section">
+                <h4><i class="bi bi-arrow-up-circle text-danger"></i> Salidas de Clientes</h4>
+                {% if salidas_clientes %}
+                    {% for salida in salidas_clientes %}
+                    <div class="reporte-item reporte-salida">
+                        <div class="cliente-info">{{ salida.cliente_nombre }}</div>
+                        <div class="obra-info">
+                            <i class="bi bi-geo-alt"></i> {{ salida.direccion_obra or 'Sin dirección especificada' }}
+                        </div>
+                        <div class="piezas-info">
+                            <i class="bi bi-box"></i> {{ salida.piezas_detalle }}
+                        </div>
+                        <div class="folio-fecha">
+                            Folio: {{ salida.folio }} | {{ salida.fecha.strftime('%H:%M') }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-data">No hay salidas de clientes registradas</div>
+                {% endif %}
+            </div>
+
+            <!-- SALIDAS EXTRAS -->
+            <div class="reporte-section">
+                <h4><i class="bi bi-arrow-up-circle text-warning"></i> Salidas Extras</h4>
+                {% if salidas_extras %}
+                    {% for salida in salidas_extras %}
+                    <div class="reporte-item reporte-extra">
+                        <div class="cliente-info">{{ salida.descripcion }}</div>
+                        <div class="piezas-info">
+                            <i class="bi bi-box"></i> {{ salida.piezas_detalle }}
+                        </div>
+                        <div class="folio-fecha">
+                            Folio: {{ salida.folio }} | {{ salida.fecha.strftime('%H:%M') }} | {{ salida.tipo.title() }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-data">No hay salidas extras registradas</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA - ENTRADAS -->
+        <div class="col-lg-6">
+            <!-- ENTRADAS DE CLIENTES -->
+            <div class="reporte-section">
+                <h4><i class="bi bi-arrow-down-circle text-success"></i> Entradas de Clientes</h4>
+                {% if entradas_clientes %}
+                    {% for entrada in entradas_clientes %}
+                    <div class="reporte-item reporte-entrada">
+                        <div class="cliente-info">{{ entrada.cliente_nombre }}</div>
+                        <div class="obra-info">
+                            <i class="bi bi-geo-alt"></i> {{ entrada.direccion_obra or 'Sin dirección especificada' }}
+                        </div>
+                        <div class="piezas-info">
+                            <i class="bi bi-box"></i> {{ entrada.piezas_detalle }}
+                        </div>
+                        <div class="folio-fecha">
+                            Folio: {{ entrada.folio }} | {{ entrada.fecha.strftime('%H:%M') }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-data">No hay entradas de clientes registradas</div>
+                {% endif %}
+            </div>
+
+            <!-- ENTRADAS EXTRAS -->
+            <div class="reporte-section">
+                <h4><i class="bi bi-arrow-down-circle text-warning"></i> Entradas Extras</h4>
+                {% if entradas_extras %}
+                    {% for entrada in entradas_extras %}
+                    <div class="reporte-item reporte-extra">
+                        <div class="cliente-info">{{ entrada.descripcion }}</div>
+                        <div class="piezas-info">
+                            <i class="bi bi-box"></i> {{ entrada.piezas_detalle }}
+                        </div>
+                        <div class="folio-fecha">
+                            Folio: {{ entrada.folio }} | {{ entrada.fecha.strftime('%H:%M') }} | {{ entrada.tipo.title() }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="no-data">No hay entradas extras registradas</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumen final -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h5>{{ salidas_clientes|length }}</h5>
+                    <small>Salidas de Clientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h5>{{ entradas_clientes|length }}</h5>
+                    <small>Entradas de Clientes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h5>{{ salidas_extras|length }}</h5>
+                    <small>Salidas Extras</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h5>{{ entradas_extras|length }}</h5>
+                    <small>Entradas Extras</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Media query para impresión -->
+<style media="print">
+    .filtros-section, .btn { display: none !important; }
+    .container-fluid { margin: 0; padding: 0; }
+    .reporte-item { break-inside: avoid; margin-bottom: 15px; }
+</style>
+{% endblock %} 

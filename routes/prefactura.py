@@ -286,7 +286,7 @@ def registrar_pago_prefactura(renta_id):
             INSERT INTO prefacturas (
             renta_id, fecha_emision, tipo, pagada, metodo_pago, monto, 
             monto_recibido, cambio, numero_seguimiento, generada, facturable, folio
-        ) VALUES (%s, NOW() - INTERVAL 6 HOUR, %s, 1, %s, %s, %s, %s, %s, 1, %s, %s)
+        ) VALUES (%s, NOW(), %s, 1, %s, %s, %s, %s, %s, 1, %s, %s)
         """, (
             renta_id, tipo, metodo.upper(), monto, monto_recibido, cambio, 
             numero_seguimiento, facturable_int, folio  

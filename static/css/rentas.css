@@ -1594,3 +1594,198 @@
     }
 }
 
+/*///////////////////////////////////////////////////////*/
+/*///////////////////////////////////////////////////////*/
+/*///////////////////////////////////////////////////////*/
+/* MODAL COBRO EXTRA FORMAL */
+
+/* Estilos para el modal de cobro extra siguiendo exactamente el patrón del modal nueva renta */
+#modalCobroExtra .modal-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a6b 100%);
+    color: white;
+    border-bottom: none;
+    border-radius: 15px 15px 0 0;
+}
+
+#modalCobroExtra .modal-title {
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: white;
+}
+
+#modalCobroExtra .modal-content {
+    border-radius: 15px;
+    border: none;
+}
+
+#modalCobroExtra .modal-footer-azul {
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 15px 15px;
+}
+
+#modalCobroExtra .card-header {
+    background: linear-gradient(135deg, #23395d 0%, #2c4a6b 100%);
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    border-radius: 10px 10px 0 0;
+    border: none;
+}
+
+#modalCobroExtra .card-header h6 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: bold;
+    color: white;
+}
+
+#modalCobroExtra .card {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#modalCobroExtra .card-body {
+    padding: 0;
+}
+
+/* Contenedor scrollable para la tabla de detalles */
+#modalCobroExtra #detalle-cobro-extra {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 0 0 10px 10px;
+}
+
+#modalCobroExtra .table-responsive {
+    max-height: none;
+    border-radius: 0 0 10px 10px;
+}
+
+#modalCobroExtra .table-dark th {
+    background-color: #23395d !important;
+    color: white !important;
+    border-color: #2c4a6b !important;
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 0.75rem 0.5rem;
+}
+
+#modalCobroExtra .table-bordered td {
+    border-color: #ddd;
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+
+#modalCobroExtra .table-bordered input.form-control {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+#modalCobroExtra .form-label {
+    color: #23395d;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.3px;
+}
+
+#modalCobroExtra .form-control,
+#modalCobroExtra .form-select {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+#modalCobroExtra .form-control:focus,
+#modalCobroExtra .form-select:focus {
+    border-color: #23395d;
+    box-shadow: 0 0 0 0.2rem rgba(35, 57, 93, 0.15);
+}
+
+#modalCobroExtra .btn {
+    border-radius: 8px;
+    font-weight: bold;
+    padding: 0.6rem 1.2rem;
+    transition: all 0.2s ease;
+}
+
+#modalCobroExtra .btn-primary {
+    background-color: #23395d;
+    border-color: #23395d;
+}
+
+#modalCobroExtra .btn-primary:hover {
+    background-color: #1e2f4f;
+    border-color: #1e2f4f;
+}
+
+#modalCobroExtra .btn-success {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+#modalCobroExtra .btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+#modalCobroExtra .modal-body {
+    padding: 1.5rem;
+}
+
+#modalCobroExtra .text-primary {
+    color: #23395d !important;
+}
+
+#modalCobroExtra .alert-info {
+    background-color: #e3f2fd;
+    border-color: #bbdefb;
+    color: #1976d2;
+    border-radius: 8px;
+}
+
+#modalCobroExtra .form-check-label {
+    color: #495057;
+    font-weight: 500;
+}
+
+#modalCobroExtra .text-muted {
+    color: #6c757d !important;
+}
+
+/* Responsive adjustments para modal cobro extra */
+@media (max-width: 768px) {
+    #modalCobroExtra .modal-dialog {
+        margin: 0.5rem;
+        max-width: none;
+    }
+    
+    #modalCobroExtra .modal-body {
+        padding: 1rem;
+    }
+    
+    #modalCobroExtra .card-header h6 {
+        font-size: 0.9rem;
+    }
+    
+    #modalCobroExtra .form-label {
+        font-size: 0.9rem;
+    }
+    
+    #modalCobroExtra .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    #modalCobroExtra .col-md-7,
+    #modalCobroExtra .col-md-5 {
+        margin-bottom: 1rem;
+    }
+    
+    #modalCobroExtra #detalle-cobro-extra {
+        max-height: 300px;
+    }
+}
+

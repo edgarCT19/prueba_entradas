@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session
 from utils.db import get_db_connection
-from datetime import datetime, date
+from datetime import date
 import traceback
 
 caja_bp = Blueprint('caja', __name__, url_prefix='/caja')

@@ -31,7 +31,7 @@ def generar_numero_cotizacion():
     cursor = conexion.cursor()
     
     # Obtener el año actual
-    año_actual = datetime.now().year
+    año_actual = get_local_now().year
     
     # Buscar el último número de cotización del año
     cursor.execute("""
@@ -90,35 +90,20 @@ def verificar_cotizaciones_vencidas():
 def calcular_estado_vigencia(cotizacion):
     """Calcula el estado de vigencia de una cotización (similar a rentas)"""
     
-    print(f"=== DEBUG COTIZACIÓN {cotizacion['id']} ===")
-    print(f"estado: {cotizacion['estado']}")
-    print(f"fecha_vigencia: {cotizacion['fecha_vigencia']} (tipo: {type(cotizacion['fecha_vigencia'])})")
-    print(f"dias_para_vencer: {cotizacion['dias_para_vencer']}")
-    
     # Solo mostrar indicadores para cotizaciones ENVIADAS
     if cotizacion['estado'] != 'enviada':
-        print(f"❌ Estado no es 'enviada': {cotizacion['estado']}")
         return None
     
     # Si no tiene fecha de vigencia, no mostrar indicador
     if not cotizacion['fecha_vigencia']:
-        print("❌ No tiene fecha de vigencia")
         return None
-    
-    print("✅ Pasó todas las validaciones!")
     
     fecha_vigencia = cotizacion['fecha_vigencia']
     dias_para_vencer = cotizacion['dias_para_vencer']
-    ahora = datetime.now()
-    
-    print(f"fecha_vigencia: {fecha_vigencia}")
-    print(f"dias_para_vencer: {dias_para_vencer}")
-    print(f"ahora: {ahora}")
-    print(f"ahora.date(): {ahora.date()}")
+    ahora = get_local_now()
     
     # Si ya pasó la fecha de vigencia = VENCIDA
     if dias_para_vencer is not None and dias_para_vencer <= 0:
-        print("🔴 ESTADO: VENCIDA")
         return {
             'estado': 'vencida',
             'clase': 'bg-danger',
@@ -127,7 +112,6 @@ def calcular_estado_vigencia(cotizacion):
     
     # Si le quedan 3 días o menos = POR VENCER
     elif dias_para_vencer is not None and dias_para_vencer <= 3:
-        print("🟡 ESTADO: POR VENCER")
         return {
             'estado': 'por_vencer',
             'clase': 'bg-warning',
@@ -136,7 +120,6 @@ def calcular_estado_vigencia(cotizacion):
     
     # Si le quedan más de 3 días = VIGENTE
     elif dias_para_vencer is not None and dias_para_vencer > 3:
-        print("🟢 ESTADO: VIGENTE")
         return {
             'estado': 'vigente',
             'clase': 'bg-success',
@@ -144,7 +127,6 @@ def calcular_estado_vigencia(cotizacion):
         }
     
     # En cualquier otro caso, no mostrar indicador adicional
-    print("❌ No cumple condiciones para indicador")
     return None
 
 
@@ -205,7 +187,7 @@ def generar_pdf_cotizacion_buffer(cotizacion_id):
     cursor.execute("""
         SELECT c.*, u.nombre as usuario_nombre, u.apellido1 as usuario_apellido,
                s.nombre as sucursal_nombre, s.direccion as sucursal_direccion,
-               (c.fecha_creacion - INTERVAL 6 HOUR) as fecha_creacion_local
+               c.fecha_creacion as fecha_creacion_local
         FROM cotizaciones c
         JOIN usuarios u ON c.usuario_id = u.id
         JOIN sucursales s ON c.sucursal_id = s.id
@@ -427,13 +409,10 @@ def generar_pdf_cotizacion_buffer(cotizacion_id):
 
 
     # ⭐ AGREGAR CONTROL DE PÁGINA NUEVA ⭐
-    print(f"Posición Y después de totales: {y}")  # Para debugging
-
     # Verificar si hay suficiente espacio para el resto del contenido
     espacio_necesario = 100 # Espacio para certificaciones, métodos de pago, etc.
 
     if y < espacio_necesario:
-        print("🔄 Creando nueva página...")
         # Crear nueva página
         can.showPage()
         y = 750  # Reiniciar Y en la nueva página
@@ -712,7 +691,7 @@ def crear_cotizacion():
         costo_traslado = float(request.form.get('costo_traslado', 0)) if requiere_traslado else 0
         
         # Calcular fecha de vigencia: 7 días desde hoy
-        fecha_vigencia = datetime.now() + timedelta(days=7)
+        fecha_vigencia = get_local_now() + timedelta(days=7)
         
         # Obtener productos
         productos = []
