@@ -170,7 +170,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const rentaId = window.rentaIdCobroExtraActual;
 
             // Obtener detalles
-            // Obtener detalles
             const detalles = [];
             document.querySelectorAll('#tabla-detalles-cobro-extra tbody tr').forEach(tr => {
                 const id_pieza = tr.querySelector('.id-pieza') ? tr.querySelector('.id-pieza').value : null;
@@ -219,7 +218,12 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Calcular IVA y total con precisión
             const iva = Math.round((subtotal_general * 0.16) * 100) / 100;
-            const total = Math.round((subtotal_general + iva) * 100) / 100;
+            let total = Math.round((subtotal_general + iva) * 100) / 100;
+
+            // Para efectivo, usar el monto redondeado como total real
+            if (metodoPago === 'EFECTIVO') {
+                total = redondearEfectivo(total); 
+            }
 
             // Validación
             if (detalles.length === 0) {

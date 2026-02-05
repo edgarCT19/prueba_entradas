@@ -58,6 +58,20 @@
 #modalCobroExtra .card-body {
     padding: 1.5rem;
     background: #fafbfd;
+    min-height: 500px;
+}
+
+#modalCobroExtra .col-md-7 .card-body {
+    padding: 0;
+    min-height: 680px;
+    background: #fafbfd;
+    display: flex;
+    flex-direction: column;
+}
+
+#modalCobroExtra #detalle-cobro-extra {
+    flex: 1;
+    overflow: hidden;
 }
 
 #modalCobroExtra .table thead th {
@@ -167,8 +181,27 @@
 
 #modalCobroExtra .table-responsive {
     border-radius: 8px;
-    overflow: hidden;
-    max-height: 300px;
+    overflow-y: auto;
+    max-height: 580px;
+    border: 1px solid #dee2e6;
+}
+
+#modalCobroExtra .table-responsive::-webkit-scrollbar {
+    width: 8px;
+}
+
+#modalCobroExtra .table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#modalCobroExtra .table-responsive::-webkit-scrollbar-thumb {
+    background: #23395d;
+    border-radius: 4px;
+}
+
+#modalCobroExtra .table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #1a2d4a;
 }
 
 /* Animaciones suaves */

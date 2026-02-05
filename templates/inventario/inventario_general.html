@@ -545,7 +545,7 @@
 <!-- ////////////////////////////////// -->
 <!-- ////////////////////////////////// -->
 
-<!-- Modal Nueva Pieza (diseño moderno) -->
+<!-- Modal Nueva Pieza -->
 <div class="modal fade {% if show_modal_nueva_pieza %}show d-block{% endif %}" id="modalNuevaPieza" tabindex="-1"
   aria-labelledby="modalNuevaPiezaLabel" aria-hidden="true" {% if show_modal_nueva_pieza %}style="background:rgba(0,0,0,0.5);" {% endif %}>
   <div class="modal-dialog">
@@ -604,10 +604,8 @@
 
 
 
-
-<!-- Incluir JavaScript de inventario -->
 <script src="{{ url_for('static', filename='js/inventario.js') }}"></script>
-<!-- Incluir JavaScript específico de inventario general -->
+
 <script src="{{ url_for('static', filename='js/inventario_general.js') }}"></script>
 
 {% if show_modal_nueva_pieza %}

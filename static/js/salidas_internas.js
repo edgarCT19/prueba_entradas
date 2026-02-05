@@ -190,10 +190,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (result.success) {
                 Swal.fire({
                     title: '¡Éxito!',
-                    text: result.message,
+                    html: `${result.message}<br><strong>Folio de nota de salida: #${result.folio_nota_salida}</strong>`,
                     icon: 'success',
-                    confirmButtonText: 'Aceptar'
-                }).then(() => {
+                    showCancelButton: true,
+                    confirmButtonText: 'Descargar PDF',
+                    cancelButtonText: 'Cerrar',
+                    reverseButtons: true
+                }).then((swalResult) => {
+                    if (swalResult.isConfirmed && result.folio_nota_salida) {
+                        // Abrir PDF en nueva ventana
+                        const url = `/salidas-internas/pdf-salida/${result.folio_nota_salida}`;
+                        window.open(url, '_blank');
+                    }
                     // Cerrar modal y recargar página
                     document.getElementById('modalNuevaSalidaInterna').querySelector('[data-bs-dismiss="modal"]').click();
                     location.reload();
@@ -296,16 +304,41 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                Swal.fire({
-                    title: '¡Éxito!',
-                    text: result.message,
-                    icon: 'success',
-                    confirmButtonText: 'Aceptar'
-                }).then(() => {
-                    // Cerrar modal y recargar página
-                    document.getElementById('modalFinalizarSalida').querySelector('[data-bs-dismiss="modal"]').click();
-                    location.reload();
-                });
+                // Mostrar SweetAlert con opción de PDF solo si hay folio_nota_entrada (regreso)
+                const tieneRegreso = result.folio_nota_entrada;
+                
+                if (tieneRegreso) {
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        html: `${result.message}<br><strong>Folio de nota de entrada: #${result.folio_nota_entrada}</strong>`,
+                        icon: 'success',
+                        showCancelButton: true,
+                        confirmButtonText: 'Descargar PDF',
+                        cancelButtonText: 'Cerrar',
+                        reverseButtons: true
+                    }).then((swalResult) => {
+                        if (swalResult.isConfirmed) {
+                            // Abrir PDF en nueva ventana
+                            const url = `/salidas-internas/pdf-entrada/${result.folio_nota_entrada}`;
+                            window.open(url, '_blank');
+                        }
+                        // Cerrar modal y recargar página
+                        document.getElementById('modalFinalizarSalida').querySelector('[data-bs-dismiss="modal"]').click();
+                        location.reload();
+                    });
+                } else {
+                    // Si no hay regreso, mostrar mensaje normal
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        text: result.message,
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        // Cerrar modal y recargar página
+                        document.getElementById('modalFinalizarSalida').querySelector('[data-bs-dismiss="modal"]').click();
+                        location.reload();
+                    });
+                }
             } else {
                 Swal.fire('Error', result.error || 'Error al finalizar la salida', 'error');
             }
@@ -508,3 +541,61 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 });
+
+// ========================================
+// FUNCIONES DE DESCARGA PDF
+// ========================================
+
+// Función para descargar PDF de salida interna
+function descargarPDFSalida(folio) {
+    if (!folio) {
+        Swal.fire('Error', 'Folio de salida no disponible', 'error');
+        return;
+    }
+    
+    // Abrir PDF en nueva ventana
+    const url = `/salidas-internas/pdf-salida/${folio}`;
+    window.open(url, '_blank');
+}
+
+// Función para descargar PDF de entrada interna (cuando hay regreso)
+function descargarPDFEntrada(folio) {
+    if (!folio) {
+        Swal.fire('Error', 'Folio de entrada no disponible', 'error');
+        return;
+    }
+    
+    // Abrir PDF en nueva ventana
+    const url = `/salidas-internas/pdf-entrada/${folio}`;
+    window.open(url, '_blank');
+}
+
+// ========================================
+// MANEJO DE BOTONES PDF EN TABLA
+// ========================================
+
+// Event listener para botones PDF de entrada
+document.body.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-pdf-entrada');
+    if (btn) {
+        const salidaId = btn.dataset.salidaId;
+        obtenerFolioEntrada(salidaId);
+    }
+});
+
+// Función para obtener folio de entrada desde el backend
+function obtenerFolioEntrada(salidaId) {
+    fetch(`/salidas-internas/folio-entrada/${salidaId}`)
+        .then(response => response.json())
+        .then(result => {
+            if (result.success && result.folio_nota_entrada) {
+                descargarPDFEntrada(result.folio_nota_entrada);
+            } else {
+                Swal.fire('Error', 'No se encontró el folio de entrada', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('Error', 'Error al obtener el folio de entrada', 'error');
+        });
+}

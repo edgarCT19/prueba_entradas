@@ -251,9 +251,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             cancelButtonText: 'Cerrar',
                             reverseButtons: true
                         }).then((result) => {
-                            if (result.isConfirmed && data.folio) {
+                            if (result.isConfirmed && data.folio_nota_salida) {
                                 // Descargar PDF
-                                const url = `/inventario/pdf-reparacion-lote/${data.folio}`;
+                                const url = `/inventario/pdf-reparacion-lote/${data.folio_nota_salida}`;
                                 window.open(url, '_blank');
                             }
                             // Cerrar modal y recargar página

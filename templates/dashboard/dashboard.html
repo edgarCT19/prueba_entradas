@@ -1,57 +1,289 @@
+<!-- templates/dashboard/dashboard.html -->
 {% extends 'base.html' %}
 
 {% block title %}Dashboard - Andamios Colosio{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="dashboard-welcome card shadow-sm mt-5 mb-4" style="background: #f8fafc; border-radius: 18px;">
-    <div class="card-body text-center">
-        <h1 class="display-5 mb-3" style="color: #23395d;">
-            ¡Bienvenido{{ 'a' if session['rol'] == 1 else '' }}, {{ session['nombre_usuario'] }}!
-        </h1>
-        <p class="lead" style="color: #274472;">
-            Este es tu panel principal. Desde aquí puedes acceder a todos los módulos del sistema Andamios Colosio.
-        </p>
-        <hr class="my-4" style="border-color: #274472;">
-        <div class="row justify-content-center">
-            <div class="col-md-4 mb-3">
-                <div class="info-box p-3" style="background: #23395d; color: #fff; border-radius: 12px;">
-                    <i class="bi bi-building display-6"></i>
-                    <div class="mt-2">Sucursal actual: 
-                        <strong>
-                        {% if session['sucursal_id'] == 1 %}
-                            La Matriz Colosio
-                        {% elif session['sucursal_id'] == 2 %}
-                            Sucursal Los Reyes
-                        {% elif session['sucursal_id'] == 3 %}
-                            Sucursal Lerma
+<!-- Container principal -->
+<div class="container-fluid py-4">
+    <div class="dashboard-container">
+        <!-- Título principal -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="dashboard-title">
+                    <i class="bi bi-speedometer2 me-2"></i>Panel de Control
+                </h2>
+                <p class="dashboard-subtitle">¡Hola! Aquí tienes un resumen de las actividades importantes.</p>
+            </div>
+        </div>
+
+        <!-- Grid de cards -->
+        <div class="row">
+            <!-- RENTAS A VENCER HOY -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="dashboard-card">
+                    <div class="card-header-sistema">
+                        <span><i class="bi bi-clock-history"></i>Rentas a Vencer Hoy</span>
+                        <span class="badge-count">{{ rentas_a_vencer|length }}</span>
+                    </div>
+                    <div class="card-content">
+                        {% if rentas_a_vencer %}
+                        {% for renta in rentas_a_vencer %}
+                        <div class="list-group-item-sistema">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ renta.cliente_nombre }}</h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar me-1"></i>Vence: {{
+                                            renta.fecha_entrada.strftime('%d/%m/%Y') }}
+                                        </small>
+                                        <div>
+                                            <span class="badge badge-urgente">HOY</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <a href="/rentas/detalle/{{ renta.id }}"
+                                            class="btn btn-outline-primary btn-sm">Ver detalle</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                         {% else %}
-                            Desconocida
+                        <div class="empty-state">
+                            <i class="bi bi-check-circle text-success"></i>
+                            <p>No hay rentas por vencer hoy</p>
+                        </div>
                         {% endif %}
-                        </strong>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4 mb-3">
-                <div class="info-box p-3" style="background: #274472; color: #fff; border-radius: 12px;">
-                    <i class="bi bi-person-badge display-6"></i>
-                    <div class="mt-2">Rol: 
-                        <strong>
-                        {% if session['rol'] == 1 %}
-                            Cliente
-                        {% elif session['rol'] == 2 %}
-                            Administrador
-                        {% elif session['rol'] == 3 %}
-                            Cargador
-                        {% elif session['rol'] == 4 %}
-                            Cliente
+
+            <!-- RENTAS VENCIDAS -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="dashboard-card">
+                    <div class="card-header-sistema">
+                        <span><i class="bi bi-exclamation-triangle"></i>Vencidas</span>
+                        <span class="badge-count">{{ rentas_vencidas|length }}</span>
+                    </div>
+                    <div class="card-content">
+                        {% if rentas_vencidas %}
+                        {% for renta in rentas_vencidas %}
+                        <div class="list-group-item-sistema">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ renta.cliente_nombre }}</h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar-x me-1"></i>Venció: {{
+                                            renta.fecha_entrada.strftime('%d/%m/%Y') }}
+                                        </small>
+                                        <div>
+                                            <span class="badge badge-urgente">{{ renta.dias_vencida }} días</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <a href="/rentas/detalle/{{ renta.id }}"
+                                            class="btn btn-outline-danger btn-sm">Ver detalle</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
                         {% else %}
-                            Desconocido
+                        <div class="empty-state">
+                            <i class="bi bi-check-circle text-success"></i>
+                            <p>No hay rentas vencidas</p>
+                        </div>
                         {% endif %}
-                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RENTAS PROGRAMADAS -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="dashboard-card">
+                    <div class="card-header-sistema">
+                        <span><i class="bi bi-calendar-event"></i>Próximas a Vencer</span>
+                        <span class="badge-count">{{ rentas_programadas|length }}</span>
+                    </div>
+                    <div class="card-content">
+                        {% if rentas_programadas %}
+                        {% for renta in rentas_programadas %}
+                        <div class="list-group-item-sistema">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ renta.cliente_nombre }}</h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar-event me-1"></i>Vence: {{
+                                            renta.fecha_entrada.strftime('%d/%m/%Y') }}
+                                        </small>
+                                        <div>
+                                            <span class="badge badge-warning">{{ renta.dias_hasta_vencimiento }} días</span>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <a href="/rentas/detalle/{{ renta.id }}" class="btn btn-outline-info btn-sm">Ver
+                                            detalle</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-calendar-x"></i>
+                            <p>No hay rentas programadas</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- COBROS PENDIENTES -->
+            <div class="col-lg-6 col-md-6 mb-4">
+                <div class="dashboard-card">
+                    <div class="card-header-sistema">
+                        <span><i class="bi bi-currency-dollar"></i>Cobros de Retraso</span>
+                        <span class="badge-count">{{ cobros_pendientes|length }}</span>
+                    </div>
+                    <div class="card-content">
+                        {% if cobros_pendientes %}
+                        {% for renta in cobros_pendientes %}
+                        <div class="list-group-item-sistema">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ renta.cliente_nombre }}</h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-cash me-1"></i>Cobro pendiente por retraso
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge badge-warning">Pendiente</span>
+                                    <div class="mt-1">
+                                        <a href="/rentas/detalle/{{ renta.id }}"
+                                            class="btn btn-outline-primary btn-sm">Gestionar</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-check-circle text-success"></i>
+                            <p>No hay cobros de retraso pendientes</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXTRAS PENDIENTES -->
+            <div class="col-lg-6 col-md-6 mb-4">
+                <div class="dashboard-card">
+                    <div class="card-header-sistema">
+                        <span><i class="bi bi-plus-circle"></i>Cobros Extra</span>
+                        <span class="badge-count">{{ extras_pendientes|length }}</span>
+                    </div>
+                    <div class="card-content">
+                        {% if extras_pendientes %}
+                        {% for renta in extras_pendientes %}
+                        <div class="list-group-item-sistema">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ renta.cliente_nombre }}</h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-plus-circle me-1"></i>Cobro extra pendiente
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge badge-info">Extra</span>
+                                    <div class="mt-1">
+                                        <a href="/rentas/detalle/{{ renta.id }}"
+                                            class="btn btn-outline-primary btn-sm">Gestionar</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-check-circle text-success"></i>
+                            <p>No hay cobros extra pendientes</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- BLOC DE NOTAS -->
+            <div class="col-lg-6 col-md-12 mb-4">
+                <div class="bloc-notas-card">
+                    <div class="card-header-sistema">
+                        <span><i class="bi bi-journal-text"></i>Bloc de Notas</span>
+                        <button class="btn btn-light btn-sm" onclick="toggleNewNote()">
+                            <i class="bi bi-plus"></i> Nueva
+                        </button>
+                    </div>
+                    <div style="padding: 1rem;">
+                        <div class="mb-3" id="nuevaNotaSection" style="display: none;">
+                            <textarea id="nuevaNota" class="form-control" placeholder="Escribir una nota importante..."
+                                rows="3"></textarea>
+                            <div class="d-flex justify-content-end mt-2">
+                                <button class="btn btn-secondary btn-sm me-2" onclick="toggleNewNote()">
+                                    <i class="bi bi-x"></i> Cancelar
+                                </button>
+                                <button class="btn btn-primary btn-sm" onclick="guardarNota()">
+                                    <i class="bi bi-check"></i> Guardar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bloc-notas-content">
+                            <div id="listadoNotas">
+                                {% for nota in notas_usuario %}
+                                <div class="nota-item" data-id="{{ nota.id }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <p class="mb-2">{{ nota.contenido }}</p>
+                                            <small class="text-muted">
+                                                <i class="bi bi-clock me-1"></i>{{
+                                                nota.fecha_creacion.strftime('%d/%m/%Y %H:%M') }}
+                                            </small>
+                                        </div>
+                                        <button class="btn btn-outline-danger btn-sm"
+                                            onclick="eliminarNota({{ nota.id }})" title="Eliminar nota">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CALENDARIO MINI -->
+            <div class="col-lg-6 col-md-12 mb-4">
+                <div class="calendario-card">
+                    <div class="card-header-sistema">
+                        <span><i class="bi bi-calendar3"></i>Febrero 2026</span>
+                    </div>
+                    <div class="calendario-mini">
+                        <div id="calendarioMini"></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

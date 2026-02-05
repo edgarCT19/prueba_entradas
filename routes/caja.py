@@ -1,7 +1,15 @@
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, send_file
 from utils.db import get_db_connection
-from datetime import date
+from datetime import date, datetime
+from utils.datetime_utils import get_local_now, format_datetime_local
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.utils import simpleSplit
 import traceback
+import os
 
 caja_bp = Blueprint('caja', __name__, url_prefix='/caja')
 
@@ -434,3 +442,290 @@ def obtener_ingresos_digitales():
     except Exception as e:
         print(f"Error al obtener ingresos digitales: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@caja_bp.route('/pdf/movimientos')
+def generar_pdf_movimientos():
+    try:
+        # Obtener parámetros de filtros de la URL
+        fecha_inicio = request.args.get('fecha_inicio', date.today().strftime('%Y-%m-%d'))
+        fecha_fin = request.args.get('fecha_fin', fecha_inicio)
+        tipo = request.args.get('tipo')
+        tipo_movimiento = request.args.get('tipo_movimiento')
+        sucursal_id = session.get('sucursal_id', 1)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Obtener información de la sucursal
+        cursor.execute("""
+            SELECT nombre, direccion
+            FROM sucursales 
+            WHERE id = %s
+        """, (sucursal_id,))
+        sucursal = cursor.fetchone()
+        
+        # Obtener información del usuario
+        usuario_id = session.get('user_id')
+        usuario_nombre = "USUARIO NO IDENTIFICADO"
+        if usuario_id:
+            cursor.execute("""
+                SELECT CONCAT(nombre, ' ', apellido1, ' ', apellido2) as nombre_completo
+                FROM usuarios 
+                WHERE id = %s
+            """, (usuario_id,))
+            usuario_row = cursor.fetchone()
+            if usuario_row:
+                usuario_nombre = usuario_row['nombre_completo'].upper()
+        
+        # Construir filtros
+        where_clauses = ["mc.sucursal_id = %s", "DATE(mc.fecha_hora) BETWEEN %s AND %s"]
+        params = [sucursal_id, fecha_inicio, fecha_fin]
+        
+        if tipo:
+            where_clauses.append("mc.tipo = %s")
+            params.append(tipo)
+            
+        if tipo_movimiento:
+            where_clauses.append("mc.tipo_movimiento = %s")
+            params.append(tipo_movimiento)
+        
+        where_sql = " AND ".join(where_clauses)
+        
+        # Obtener movimientos
+        cursor.execute(f"""
+            SELECT mc.id, mc.fecha_hora, mc.tipo, mc.concepto, mc.monto, mc.metodo_pago,
+                   mc.numero_seguimiento, mc.observaciones, mc.tipo_movimiento,
+                   CONCAT(u.nombre, ' ', u.apellido1) as usuario_nombre
+            FROM movimientos_caja mc
+            LEFT JOIN usuarios u ON mc.usuario_id = u.id
+            WHERE {where_sql}
+            ORDER BY mc.fecha_hora DESC
+        """, params)
+        
+        movimientos = cursor.fetchall()
+        
+        # Obtener resumen
+        cursor.execute("""
+            SELECT tipo, COALESCE(SUM(monto), 0) as total, COUNT(*) as cantidad
+            FROM movimientos_caja 
+            WHERE sucursal_id = %s AND DATE(fecha_hora) BETWEEN %s AND %s
+            GROUP BY tipo
+        """, (sucursal_id, fecha_inicio, fecha_fin))
+        
+        resultados_resumen = cursor.fetchall()
+        
+        total_ingresos = 0.0
+        total_egresos = 0.0
+        count_ingresos = 0
+        count_egresos = 0
+        
+        for resultado in resultados_resumen:
+            if resultado['tipo'] == 'ingreso':
+                total_ingresos = float(resultado['total'])
+                count_ingresos = resultado['cantidad']
+            elif resultado['tipo'] == 'egreso':
+                total_egresos = float(resultado['total'])
+                count_egresos = resultado['cantidad']
+        
+        saldo_neto = total_ingresos - total_egresos
+        
+        cursor.close()
+        conn.close()
+        
+        # --- GENERAR PDF ---
+        packet = BytesIO()
+        can = canvas.Canvas(packet, pagesize=letter)
+        
+        # Registrar fuente
+        try:
+            font_path = os.path.join('static/fonts/Carlito-Regular.ttf')
+            if os.path.exists(font_path):
+                pdfmetrics.registerFont(TTFont('Carlito', font_path))
+        except:
+            pass
+        
+        # === ENCABEZADO ===
+        can.setFont("Courier-Bold", 16)
+        titulo = "REPORTE DE MOVIMIENTOS DE CAJA"
+        text_width = can.stringWidth(titulo, "Courier-Bold", 16)
+        x_centered = (letter[0] - text_width) / 2
+        can.drawString(x_centered, letter[1] - 50, titulo)
+        
+        # Información de la sucursal
+        can.setFont("Carlito", 10)
+        y_pos = letter[1] - 80
+        if sucursal:
+            can.drawString(40, y_pos, f"SUCURSAL: {sucursal['nombre'].upper()}")
+            y_pos -= 12
+            if sucursal['direccion']:
+                can.drawString(40, y_pos, f"DIRECCIÓN: {sucursal['direccion'].upper()}")
+                y_pos -= 12
+        
+        # Fechas del reporte
+        can.setFont("Helvetica-Bold", 10)
+        fecha_inicio_fmt = datetime.strptime(fecha_inicio, '%Y-%m-%d').strftime('%d/%m/%Y')
+        fecha_fin_fmt = datetime.strptime(fecha_fin, '%Y-%m-%d').strftime('%d/%m/%Y')
+        
+        if fecha_inicio == fecha_fin:
+            can.drawString(40, y_pos, f"FECHA: {fecha_inicio_fmt}")
+        else:
+            can.drawString(40, y_pos, f"PERÍODO: {fecha_inicio_fmt} AL {fecha_fin_fmt}")
+        
+        # Fecha y hora de generación
+        can.setFont("Carlito", 9)
+        fecha_generacion = format_datetime_local(get_local_now(), '%d/%m/%Y %H:%M:%S')
+        can.drawRightString(letter[0] - 40, y_pos, f"GENERADO: {fecha_generacion}")
+        y_pos -= 25
+        
+        # === RESUMEN ===
+        can.setFont("Helvetica-Bold", 12)
+        can.drawString(40, y_pos, "RESUMEN FINANCIERO")
+        y_pos -= 20
+        
+        can.setFont("Carlito", 10)
+        can.drawString(60, y_pos, f"TOTAL INGRESOS: ${total_ingresos:,.2f} ({count_ingresos} movimientos)")
+        y_pos -= 15
+        can.drawString(60, y_pos, f"TOTAL EGRESOS: ${total_egresos:,.2f} ({count_egresos} movimientos)")
+        y_pos -= 15
+        can.setFont("Helvetica-Bold", 11)
+        color_saldo = "green" if saldo_neto >= 0 else "red"
+        can.drawString(60, y_pos, f"SALDO NETO: ${saldo_neto:,.2f}")
+        y_pos -= 30
+        
+        # === FILTROS APLICADOS ===
+        can.setFont("Helvetica-Bold", 10)
+        can.drawString(40, y_pos, "FILTROS APLICADOS:")
+        y_pos -= 15
+        
+        can.setFont("Carlito", 9)
+        if tipo:
+            tipo_texto = "INGRESOS" if tipo == "ingreso" else "EGRESOS"
+            can.drawString(60, y_pos, f"• TIPO DE MOVIMIENTO: {tipo_texto}")
+            y_pos -= 12
+        
+        if tipo_movimiento:
+            origen_texto = "MOVIMIENTOS MANUALES" if tipo_movimiento == "manual" else "PAGOS DEL SISTEMA"
+            can.drawString(60, y_pos, f"• ORIGEN: {origen_texto}")
+            y_pos -= 12
+        
+        if not tipo and not tipo_movimiento:
+            can.drawString(60, y_pos, "• TODOS LOS MOVIMIENTOS")
+            y_pos -= 12
+        
+        y_pos -= 20
+        
+        # === TABLA DE MOVIMIENTOS ===
+        can.setFont("Helvetica-Bold", 10)
+        can.drawString(40, y_pos, "DETALLE DE MOVIMIENTOS")
+        y_pos -= 20
+        
+        # Encabezados de tabla
+        can.setFont("Helvetica-Bold", 9)
+        # Lado izquierdo
+        can.drawString(40, y_pos, "FECHA")
+        can.drawString(90, y_pos, "HORA")
+        can.drawString(130, y_pos, "TIPO")
+        can.drawString(180, y_pos, "CONCEPTO")
+        # Lado derecho
+        can.drawString(450, y_pos, "MONTO")
+        can.drawString(520, y_pos, "ORIGEN")
+        
+        # Línea bajo encabezados
+        can.line(40, y_pos - 3, 570, y_pos - 3)
+        y_pos -= 20
+        
+        # Datos de movimientos
+        can.setFont("Carlito", 8)
+        for movimiento in movimientos:
+            # Verificar si necesitamos nueva página
+            if y_pos < 120:
+                can.showPage()
+                can.setFont("Carlito", 8)
+                y_pos = letter[1] - 60
+                
+                # Repetir encabezados en nueva página
+                can.setFont("Helvetica-Bold", 9)
+                can.drawString(40, y_pos, "FECHA")
+                can.drawString(90, y_pos, "HORA")
+                can.drawString(130, y_pos, "TIPO")
+                can.drawString(180, y_pos, "CONCEPTO")
+                can.drawString(450, y_pos, "MONTO")
+                can.drawString(520, y_pos, "ORIGEN")
+                can.line(40, y_pos - 3, 570, y_pos - 3)
+                y_pos -= 20
+                can.setFont("Carlito", 8)
+            
+            # Preparar datos
+            fecha_mov = movimiento['fecha_hora'].strftime('%d/%m/%Y')
+            hora_mov = movimiento['fecha_hora'].strftime('%H:%M')
+            tipo_mov = movimiento['tipo'].upper()
+            monto_mov = f"${float(movimiento['monto']):,.2f}"
+            origen_mov = "MANUAL" if movimiento['tipo_movimiento'] == "manual" else "SISTEMA"
+            
+            # Manejar concepto completo con salto de línea si es necesario
+            concepto_completo = movimiento['concepto'].upper()
+            # Dividir el concepto en líneas que quepan en el espacio disponible (aproximadamente 250 puntos)
+            concepto_lines = simpleSplit(concepto_completo, "Carlito", 8, 250)
+            
+            # Dibujar la primera línea con todos los datos
+            can.drawString(40, y_pos, fecha_mov)
+            can.drawString(90, y_pos, hora_mov)
+            can.drawString(130, y_pos, tipo_mov)
+            can.drawString(180, y_pos, concepto_lines[0] if concepto_lines else "")
+            can.drawString(450, y_pos, monto_mov)
+            can.drawString(520, y_pos, origen_mov)
+            
+            y_pos -= 12
+            
+            # Si hay más líneas del concepto, dibujarlas
+            if len(concepto_lines) > 1:
+                for concepto_line in concepto_lines[1:]:
+                    # Verificar espacio antes de continuar
+                    if y_pos < 120:
+                        can.showPage()
+                        can.setFont("Carlito", 8)
+                        y_pos = letter[1] - 60
+                        
+                        # Repetir encabezados en nueva página
+                        can.setFont("Helvetica-Bold", 9)
+                        can.drawString(40, y_pos, "FECHA")
+                        can.drawString(90, y_pos, "HORA")
+                        can.drawString(130, y_pos, "TIPO")
+                        can.drawString(180, y_pos, "CONCEPTO")
+                        can.drawString(450, y_pos, "MONTO")
+                        can.drawString(520, y_pos, "ORIGEN")
+                        can.line(40, y_pos - 3, 570, y_pos - 3)
+                        y_pos -= 20
+                        can.setFont("Carlito", 8)
+                    
+                    can.drawString(180, y_pos, concepto_line)
+                    y_pos -= 12
+            
+            # Espacio adicional entre movimientos
+            y_pos -= 3
+        
+        # === INFORMACIÓN DEL USUARIO ===
+        y_pos -= 20
+        can.setFont("Carlito", 9)
+        can.drawString(40, y_pos, f"REPORTE GENERADO POR: {usuario_nombre}")
+        
+        can.save()
+        packet.seek(0)
+        
+        # Preparar nombre del archivo
+        fecha_archivo = fecha_inicio_fmt.replace('/', '-')
+        if fecha_inicio != fecha_fin:
+            fecha_fin_archivo = fecha_fin_fmt.replace('/', '-')
+            nombre_archivo = f"movimientos_caja_{fecha_archivo}_al_{fecha_fin_archivo}.pdf"
+        else:
+            nombre_archivo = f"movimientos_caja_{fecha_archivo}.pdf"
+        
+        return send_file(
+            packet, 
+            download_name=nombre_archivo,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error al generar PDF de movimientos: {e}")
+        return f"Error al generar PDF: {str(e)}", 500

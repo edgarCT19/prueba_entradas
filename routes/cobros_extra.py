@@ -94,9 +94,11 @@ def crear_cobro_extra(renta_id):
     db = get_db_connection()
     cursor = db.cursor(dictionary=True)
     data = request.get_json()
+    
+    # Obtener valores del frontend (ya calculados correctamente, incluyendo redondeo)
     subtotal = float(data.get('subtotal', 0))
     iva = float(data.get('iva', 0))
-    total = float(data.get('total', 0))
+    total = float(data.get('total', 0))  # Este ya viene redondeado para efectivo
     metodo_pago = data.get('metodo_pago', '')
     monto_recibido = float(data.get('monto_recibido', total)) 
     cambio = float(data.get('cambio', 0))
@@ -143,10 +145,11 @@ def crear_cobro_extra(renta_id):
             usuario_id = session.get('user_id')
             sucursal_id = session.get('sucursal_id', 1)
             
+            # Usar el total que ya viene redondeado del frontend
             resultado_caja = registrar_movimiento_automatico(
                 tipo='ingreso',
                 concepto=concepto,
-                monto=float(total),
+                monto=float(total),  # Total ya redondeado para efectivo
                 metodo_pago=metodo_pago.upper(),
                 usuario_id=usuario_id,
                 sucursal_id=sucursal_id,
@@ -291,7 +294,7 @@ def generar_pdf_cobro_extra(cobro_extra_id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT nc.*, ne.folio as folio_entrada, ne.renta_id,
-               r.fecha_entrada, r.fecha_salida, r.direccion_obra, r.iva,
+               r.fecha_entrada, r.fecha_salida, r.direccion_obra, 
                r.traslado, r.costo_traslado,
                CONCAT(c.nombre, ' ', c.apellido1, ' ', c.apellido2) AS cliente_nombre,
                c.codigo_cliente,

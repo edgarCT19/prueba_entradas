@@ -599,16 +599,69 @@ $(document).ready(function() {
     }
     
     // ========================================================================
-    // FUNCIONES DE EXPORTACIÓN (FUTURAS)
+    // FUNCIONES DE EXPORTACIÓN PDF
     // ========================================================================
     
     $('#btnExportarEfectivo').click(function() {
-        mostrarInfo('Función de exportación en desarrollo');
+        exportarMovimientosEfectivoPDF();
     });
     
     $('#btnExportarDigital').click(function() {
-        mostrarInfo('Función de exportación en desarrollo');
+        exportarIngresosDigitalesPDF();
     });
+    
+    function exportarMovimientosEfectivoPDF() {
+        // Obtener filtros actuales
+        const fechaInicio = $('#fechaInicioEfectivo').val();
+        const fechaFin = $('#fechaFinEfectivo').val();
+        const tipo = $('#tipoMovimientoEfectivo').val();
+        const tipoMovimiento = $('#origenMovimientoEfectivo').val();
+        
+        // Construir URL con parámetros
+        let url = '/caja/pdf/movimientos?';
+        url += `fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+        
+        if (tipo) {
+            url += `&tipo=${tipo}`;
+        }
+        
+        if (tipoMovimiento) {
+            url += `&tipo_movimiento=${tipoMovimiento}`;
+        }
+        
+        // Abrir PDF en nueva ventana
+        window.open(url, '_blank');
+        
+        mostrarExito('Generando reporte PDF de movimientos en efectivo...');
+    }
+    
+    function exportarIngresosDigitalesPDF() {
+        mostrarInfo('Exportación de ingresos digitales en desarrollo. Por ahora usa la exportación de efectivo para movimientos completos.');
+    }
+    
+    function mostrarExito(mensaje) {
+        const toast = $(`
+            <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="bi bi-check-circle me-2"></i>${mensaje}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `);
+        
+        if ($('#toastContainer').length === 0) {
+            $('body').append('<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>');
+        }
+        
+        $('#toastContainer').append(toast);
+        toast.toast('show');
+        
+        toast.on('hidden.bs.toast', function() {
+            $(this).remove();
+        });
+    }
     
     function mostrarInfo(mensaje) {
         const toast = $(`

@@ -54,14 +54,14 @@ def obtener_siguiente_folio_nota_sucursal(cursor, sucursal_id):
             WHERE mi.id_sucursal = %s 
             AND mi.folio_nota_salida IS NOT NULL
             AND mi.folio_nota_salida != ''
-            AND mi.tipo_movimiento IN ('transferencia_salida', 'reparacion_lote')
+            AND mi.tipo_movimiento IN ('transferencia_salida', 'reparacion_lote', 'salida_interna')
             UNION ALL
             SELECT CAST(mi.folio_nota_entrada AS UNSIGNED) as folio
             FROM movimientos_inventario mi
             WHERE mi.id_sucursal = %s 
             AND mi.folio_nota_entrada IS NOT NULL
             AND mi.folio_nota_entrada != ''
-            AND mi.tipo_movimiento IN ('alta_equipo', 'transferencia_entrada')
+            AND mi.tipo_movimiento IN ('alta_equipo', 'transferencia_entrada', 'retorno_salida_interna')
             UNION ALL
             SELECT si.folio_sucursal as folio
             FROM salidas_internas si
@@ -428,7 +428,7 @@ def enviar_equipos():
                 return jsonify({
                     'success': True,
                     'message': f'Equipos enviados correctamente a {nombre_destino}',
-                    'folio_salida': folio_salida,
+                    'folio_nota_salida': folio_salida,
                     'piezas_enviadas': piezas_enviadas
                 })
             else:
@@ -515,7 +515,7 @@ def recibir_equipos():
                 return jsonify({
                     'success': True,
                     'message': f'Equipos recibidos correctamente de {nombre_origen}',
-                    'folio_entrada': folio_entrada,
+                    'folio_nota_entrada': folio_entrada,
                     'piezas_recibidas': piezas_recibidas
                 })
             else:
@@ -672,9 +672,10 @@ def transferir_piezas_multiple():
                 return jsonify({
                     'success': True,
                     'message': f'Transferencia completada exitosamente. {transferencias_exitosas} tipos de piezas transferidas.',
-                    'folio_salida': folio_salida,
-                    'folio_entrada': folio_entrada,
-                    'nota_salida_id': nota_salida_id,  # <- AGREGAR ESTA LÍNEA
+                    'folio_nota_salida': folio_salida,
+                    'folio_nota_entrada': folio_entrada,
+                    'nota_salida_id': nota_salida_id,
+                    'nota_entrada_id': nota_entrada_id,
                     'transferencias_exitosas': transferencias_exitosas
                 })
             else:
@@ -775,8 +776,8 @@ def alta_equipo_nuevo():
             return jsonify({
                 'success': True, 
                 'message': f'Alta de {len(piezas)} tipo(s) de equipo realizada exitosamente',
-                'folio': folio,
-                'folio_nota_entrada': folio  # Agregamos esta línea para compatibilidad con JS
+                'folio_nota_entrada': str(folio),
+                'total_piezas': sum(pieza['cantidad'] for pieza in piezas)
             })
             
         except Exception as e:
@@ -948,7 +949,7 @@ def enviar_lote_reparacion():
             
             return jsonify({
                 'success': True, 
-                'folio': folio,
+                'folio_nota_salida': folio,
                 'message': f'Lote enviado a reparación exitosamente. Folio: {folio}'
             })
 
