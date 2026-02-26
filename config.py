@@ -1,5 +1,6 @@
 
 import os
+from dotenv import load_dotenv
 
 class Config:
     # Configuración básica de Flask
@@ -10,17 +11,17 @@ class Config:
         'mysql+mysqlconnector://admin:12345678@database-1.cf0ey64ia6yt.us-east-2.rds.amazonaws.com:3306/andamiosdb'
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
+    load_dotenv()
     # Configuración de Base de Datos (para mysql-connector-python directo)
     DB_CONFIG = {
-        'host': 'database-1.cf0ey64ia6yt.us-east-2.rds.amazonaws.com',
-        'user': 'admin',
-        'password': '12345678',
-        'database': 'andamiosdb',
-        'port': 3306,
+        'host': os.getenv('DB_HOST'),
+        'user': os.getenv('DB_USER'),
+        'password': os.getenv('DB_PASSWORD'),
+        'database': os.getenv('DB_NAME'),
+        'port': int(os.getenv('DB_PORT', 3306)),
         'charset': 'utf8mb4',
         'autocommit': True,
-        'time_zone': '-06:00'  # Zona horaria de Campeche (CST)
+        'time_zone': '-06:00'
     }
     
     # Configuración de correo electrónico
