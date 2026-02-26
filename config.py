@@ -12,7 +12,7 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     load_dotenv()
-    # Configuración de Base de Datos (para mysql-connector-python directo)
+    # Configuración de Base de Datos (para mysql-connector-python a través de variables de entorno)
     DB_CONFIG = {
         'host': os.getenv('DB_HOST'),
         'user': os.getenv('DB_USER'),
